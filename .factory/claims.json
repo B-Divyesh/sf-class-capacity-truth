@@ -1,0 +1,30 @@
+[
+  {
+    "id": "sample-booking-updates-seats",
+    "claim": "Available seats update after a sample booking.",
+    "where": "M1 demo booking confirmation and capacity rail",
+    "test": "npm run test:e2e -- --grep @claim:sample-booking-updates-seats",
+    "sandbox": "Fresh browser context at /demo?demo=1; book one seat in the eight-seat sample with six confirmed places; assert the visible summary changes from 2 seats open to 1 seat open and a confirmation appears."
+  },
+  {
+    "id": "full-class-blocks-booking",
+    "claim": "A full sample class cannot accept another booking.",
+    "where": "M1 demo full-class booking state",
+    "test": "npm run test:e2e -- --grep @claim:full-class-blocks-booking",
+    "sandbox": "Fresh browser context at /demo?demo=1; open the six-of-six sample class; attempt keyboard form submission; assert a full explanation, no confirmation, and no additional confirmed seat."
+  },
+  {
+    "id": "cutoff-blocks-booking",
+    "claim": "A sample class past its booking cutoff cannot accept bookings.",
+    "where": "M1 demo cutoff booking state",
+    "test": "npm run test:e2e -- --grep @claim:cutoff-blocks-booking",
+    "sandbox": "Fresh browser context at /demo?demo=1; open the sample class with a passed cutoff; assert its cutoff explanation and that the booking action cannot create a confirmation."
+  },
+  {
+    "id": "demo-reset-isolated",
+    "claim": "Demo changes stay in sample data and reset.",
+    "where": "M1 demo banner and landing fact",
+    "test": "npm run test:e2e -- --grep @claim:demo-reset-isolated",
+    "sandbox": "Two fresh browser contexts at /demo?demo=1; make a booking in the first, reset it, and load the second; assert both see seed availability rather than the first context's booking, and record only same-origin requests."
+  }
+]

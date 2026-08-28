@@ -1,0 +1,30 @@
+body {
+  margin: 0;
+  background: #e8efe8;
+  color: #102a2e;
+  font: 18px/1.5 system-ui, sans-serif;
+}
+
+main {
+  width: min(100% - 2rem, 42rem);
+  margin: 15vh auto;
+  padding: 2rem;
+  border: 4px solid #102a2e;
+  border-radius: 20px;
+  background: #fff9ec;
+  box-shadow: 0 0.5rem 0 #102a2e;
+}
+
+h1 {
+  font: 700 clamp(2rem, 6vw, 3.5rem)/1.05 Georgia, serif;
+}
+
+a {
+  color: inherit;
+  font-weight: 700;
+}
+
+a:focus-visible {
+  outline: 3px solid #075a73;
+  outline-offset: 3px;
+}

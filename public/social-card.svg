@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Class Capacity Truth</title>
+  <desc id="desc">A classroom abacus with open and confirmed seat beads.</desc>
+  <rect width="1200" height="630" fill="#102A2E"/>
+  <rect x="88" y="92" width="1024" height="446" rx="32" fill="#FFF9EC"/>
+  <path d="M178 284h844M178 398h844" stroke="#23535A" stroke-width="18" stroke-linecap="round"/>
+  <g stroke="#102A2E" stroke-width="9">
+    <circle cx="260" cy="284" r="48" fill="#E5B23F"/>
+    <circle cx="382" cy="284" r="48" fill="#E5B23F"/>
+    <circle cx="504" cy="284" r="48" fill="#E5B23F"/>
+    <circle cx="626" cy="284" r="48" fill="#E5B23F"/>
+    <circle cx="748" cy="284" r="48" fill="#E5B23F"/>
+    <circle cx="870" cy="284" r="48" fill="#E5B23F"/>
+    <circle cx="900" cy="398" r="48" fill="#1E5960"/>
+    <circle cx="778" cy="398" r="48" fill="#1E5960"/>
+    <circle cx="656" cy="398" r="48" fill="#1E5960"/>
+  </g>
+  <text x="176" y="183" fill="#102A2E" font-family="Georgia, serif" font-size="62" font-weight="700">Class Capacity Truth</text>
+  <text x="181" y="481" fill="#425A5D" font-family="system-ui, sans-serif" font-size="30">Show families the right number of class seats.</text>
+</svg>

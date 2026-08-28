@@ -7,7 +7,7 @@ COPY public ./public
 COPY src ./src
 RUN npm run build:web
 
-FROM rust:1.89-alpine AS api
+FROM rust:1-alpine AS api
 ARG BUILD_SHA=dev
 ARG GIT_SHA=dev
 ARG SOURCE_COMMIT=dev

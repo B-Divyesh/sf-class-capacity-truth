@@ -6,9 +6,10 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use axum::{
     body::Body,
-    http::{header, HeaderName, HeaderValue, Method, StatusCode},
+    http::{header, HeaderName, HeaderValue, Method, Request, StatusCode},
+    middleware::{self, Next},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, post, put},
     Json, Router,
 };
 use serde_json::json;
@@ -73,7 +74,7 @@ pub fn app(
         .finish()
         .expect("positive hourly demo rate limit");
 
-    let api = Router::new()
+    let demo_api = Router::new()
         .route("/demo/session", get(routes::demo_session))
         .route("/demo/reset", post(routes::reset_demo))
         .route("/demo/leave", post(routes::leave_demo))
@@ -81,14 +82,56 @@ pub fn app(
         .layer(governor)
         .layer(GovernorLayer::new(hourly_limiter));
 
-    let spa =
-        ServeDir::new(&frontend_dist).fallback(ServeFile::new(frontend_dist.join("index.html")));
+    // A complete real-school flow makes several safe, related reads and writes
+    // in one session. It has its own bounded allowance; the stricter demo
+    // creation allowance remains unchanged for anonymous traffic.
+    let mut school_builder = GovernorConfigBuilder::default();
+    let school_limiter = school_builder
+        .per_millisecond((rate_period_ms / 2).max(1))
+        .burst_size(rate_burst.max(40))
+        .key_extractor(SmartIpKeyExtractor)
+        .use_headers()
+        .finish()
+        .expect("positive school rate limit values");
+    let school_api = Router::new()
+        .route("/workspaces", post(routes::create_workspace).get(routes::current_workspace))
+        .route("/workspaces/classes", get(routes::list_classes).post(routes::create_class))
+        .route("/workspaces/classes/{id}/publish", post(routes::publish_class))
+        .route("/workspaces/classes/{id}/reconcile", post(routes::reconcile))
+        .route("/workspaces/classes/{class_id}/bookings/{booking_id}/cancel", post(routes::cancel_and_offer))
+        .route("/workspaces/classes/{class_id}/release-seat", post(routes::release_oldest_and_offer))
+        .route("/workspaces/calendar", put(routes::connect_calendar))
+        .route("/classes/{public_id}", get(routes::public_class))
+        .route("/classes/{public_id}/book", post(routes::real_book))
+        .route("/classes/{public_id}/waitlist", post(routes::join_real_waitlist))
+        .route("/offers/{token}", get(routes::view_offer))
+        .route("/offers/{token}/accept", post(routes::accept_seat_offer))
+        .layer(GovernorLayer::new(school_limiter));
+    let api = demo_api.merge(school_api);
+
+    let index = frontend_dist.join("index.html");
+    let static_files = ServeDir::new(&frontend_dist);
 
     Router::new()
         .route("/health", get(routes::health))
+        .route_service("/", ServeFile::new(index.clone()))
+        .route_service("/demo", ServeFile::new(index.clone()))
+        .route_service("/privacy", ServeFile::new(index.clone()))
+        .route_service("/terms", ServeFile::new(index.clone()))
+        .route_service("/app", ServeFile::new(index.clone()))
+        .route_service("/book/{id}", ServeFile::new(index.clone()))
+        .route_service("/offer/{token}", ServeFile::new(index))
+        .route_service("/assets/{*path}", static_files.clone())
+        .route_service("/favicon.svg", ServeFile::new(frontend_dist.join("favicon.svg")))
+        .route_service("/apple-touch-icon.svg", ServeFile::new(frontend_dist.join("apple-touch-icon.svg")))
+        .route_service("/social-card.svg", ServeFile::new(frontend_dist.join("social-card.svg")))
+        .route_service("/foundation-404.css", ServeFile::new(frontend_dist.join("foundation-404.css")))
+        .route_service("/robots.txt", ServeFile::new(frontend_dist.join("robots.txt")))
+        .route_service("/sitemap.xml", ServeFile::new(frontend_dist.join("sitemap.xml")))
         .nest("/api", api)
-        .fallback_service(spa)
+        .fallback(get(routes::not_found_page))
         .with_state(state)
+        .layer(middleware::from_fn(cache_headers))
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())
         .layer(SetResponseHeaderLayer::if_not_present(
@@ -112,6 +155,18 @@ pub fn app(
         .layer(CorsLayer::new().allow_methods([Method::GET, Method::POST]).allow_origin(tower_http::cors::AllowOrigin::predicate(|origin, _| {
             origin.as_bytes().ends_with(b".sociobot.in") || origin.as_bytes() == b"https://class-capacity-truth.sociobot.in"
         })))
+}
+
+async fn cache_headers(request: Request<Body>, next: Next) -> axum::response::Response {
+    let assets = request.uri().path().starts_with("/assets/");
+    let mut response = next.run(request).await;
+    if response.status().is_success() {
+        response.headers_mut().insert(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static(if assets { "public, max-age=31536000, immutable" } else { "no-cache, max-age=0" }),
+        );
+    }
+    response
 }
 
 pub async fn cleanup_task(pool: SqlitePool) {

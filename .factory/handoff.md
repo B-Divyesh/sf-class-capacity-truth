@@ -1,34 +1,41 @@
-# Current handoff — M1
+# Repair handoff — class-capacity-truth-repair-1
 
-## Independent QA verdict (2026-08-28): **FAIL**
+## Result
 
-Candidate `ead522ac24c02ddcfa8b3b18c680365195daa8fc` is deployed at
-https://class-capacity-truth.sociobot.in and its public M1 demo/test suite
-works. It is nevertheless **not releasable as the researched product**:
-schools cannot yet connect calendars, configure/publish real classes, accept
-real bookings, reconcile capacity, or run a waitlist/released-seat flow.
-The Dockerfile also pins `rust:1.89-alpine`, contrary to the required
-un-pinned `rust:1-alpine`/`rust:1-slim` contract. See
-[verification.md](verification.md) for exact test evidence and all findings.
+This repair closes the verifier findings recorded at `5563fa03da09ec224245e420530d7e6b78c214b9` while preserving the isolated public demo.
 
-M1 shipped on 2026-08-28. The public product now includes the landing page,
-isolated SQLite-backed capacity-booking demo, legal and 404 routes, complete
-claim coverage, limits, accessibility checks, and a production container.
+- The service now has a durable school workspace path at `/app`: create a class with capacity, cutoff and time zone; publish an opaque parent link; take transactional public bookings; record a calendar count; and keep any disagreement visible as `attention` rather than mutating confirmed seats.
+- A full public class accepts a consented waitlist entry. Releasing the oldest confirmed booking creates exactly one opaque 24-hour offer for the oldest waiting entry; `/offer/:token` atomically accepts it once. The database regression test recreates this whole previously missing flow and asserts a third booking cannot oversell.
+- Demo tables and cookie tenancy remain separate from school tables. All four original demo claims still pass.
+- `Dockerfile` now uses the required unpinned `rust:1-alpine` builder base.
+- Hashed `/assets/*` responses have `Cache-Control: public, max-age=31536000, immutable`; application HTML is short-lived. Unknown server paths render the styled 404 document with HTTP `404`, while documented client links still serve the SPA.
+- The strict anonymous-demo rate limit remains 10 burst. The multi-step school flow has its own bounded 40-burst limiter so a legitimate setup flow is not blocked by demo creation protection.
 
-The canonical evidence, clean-clone commands, scope decision, operator actions,
-and M2 checklist are in [handoff-m1.md](handoff-m1.md).
+## Verification evidence
 
-Quick verification:
+Run from a clean clone:
 
 ```bash
 npm ci
 npm test
-npm run test:e2e
+npm run test:api
+env -u CI npm run test:e2e
 npm run build
 ```
 
-Production: https://class-capacity-truth.sociobot.in/demo?demo=1
+Executed 2026-08-28 in this repair:
 
-Next milestone: M2 adds real school workspaces with Sociobot Entra CIAM,
-PostgreSQL tenant isolation, class publishing, and the registered Sociobot/Dodo
-subscription. The demo remains isolated and all M1 claims must continue to pass.
+- `npm ci`: 169 packages installed; audit reported 0 vulnerabilities.
+- `npm test`: 4 Vitest tests, 3 Rust unit tests, and 7 Rust API/integration tests passed.
+- `npm run test:api`: 7/7 passed, including `regression_real_school_flow_configures_books_reconciles_and_converts_released_waitlist_seat`.
+- `env -u CI npm run test:e2e`: 17/17 Chromium tests passed. It covers all five declared claims, keyboard flow, 390px/reduced motion, axe serious/critical checks, dark treatment, full browser school workflow, immutable asset headers, and HTTP 404 handling.
+- `npm run build`: Vite output is `dist/`; initial JavaScript is 66.77 KB gzip and CSS is 3.88 KB gzip. The release Rust binary built successfully.
+- The local container engine is unavailable in this worker, so no local `docker build/run` was possible. The Dockerfile’s base-image correction is checked in source and the regular release binary starts with only `PORT` plus its generated/persisted local configuration.
+
+## Deployment
+
+Deployment class remains **container**. The factory should build and deploy this committed source using the existing work-order container configuration. No infrastructure, DNS, billing, or external identity configuration was changed here.
+
+## Known next steps
+
+The durable SQLite workspace is suitable for the configured single-instance deployment. Shared staff accounts, Entra CIAM callback registration, PostgreSQL/RLS tenancy, encrypted guardian fields, and the registered Sociobot subscription entitlement remain the next planned production-hardening milestone in `.factory/plan.md`; this repair does not pretend those external registrations occurred.

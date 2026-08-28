@@ -132,15 +132,73 @@ test("the demo remains usable at 390px and with reduced motion", async ({ page }
   expect(await page.locator(".loading-state > span").count()).toBe(0);
 });
 
+test("release regression: hashed assets are immutable and unknown paths are HTTP 404", async ({ page }) => {
+  const assetHeaders: string[] = [];
+  page.on("response", (response) => { if (response.url().includes("/assets/")) assetHeaders.push(response.headers()["cache-control"] ?? ""); });
+  await page.goto("/");
+  expect(assetHeaders).toContain("public, max-age=31536000, immutable");
+  const missing = await page.goto("/missing-page");
+  expect(missing?.status()).toBe(404);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+});
+
+test("school workspace stays usable at 390px", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/app");
+  await expect(page.getByRole("heading", { name: "Create your school workspace" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create school workspace" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
+});
+
+test("@claim:school-capacity-flow creates, publishes, reconciles, books, waits, and converts a released seat", async ({ page }) => {
+  await page.goto("/app");
+  await page.getByLabel("School name").fill("Harbour Languages");
+  await page.getByRole("button", { name: "Create school workspace" }).click();
+  await expect(page.getByRole("heading", { name: "Manage class capacity" })).toBeVisible();
+  await page.getByLabel("Class name").fill("Saturday level check");
+  await page.getByLabel("Starts at").fill("2030-06-10T10:00");
+  await page.getByLabel("Booking cutoff").fill("2030-06-09T10:00");
+  await page.getByLabel("Capacity").fill("2");
+  await page.getByRole("button", { name: "Create class" }).click();
+  const classCard = page.getByRole("article").filter({ hasText: "Saturday level check" });
+  await classCard.getByRole("button", { name: "Publish parent link" }).click();
+  const href = await classCard.getByRole("link", { name: "Open booking page" }).getAttribute("href");
+  expect(href).toMatch(/^\/book\/class_/);
+  await page.getByLabel("Calendar confirmed bookings for Saturday level check").fill("1");
+  await page.getByLabel("Calendar confirmed bookings for Saturday level check").blur();
+  await expect(page.getByRole("heading", { name: "Manage class capacity" })).toBeVisible();
+  await page.goto(href!);
+  await page.getByLabel("Guardian name").fill("Alex Morgan");
+  await page.getByLabel("Email address").fill("alex@example.org");
+  await page.getByRole("button", { name: "Book this seat" }).click();
+  await expect(page.getByText("Your place is confirmed.")).toBeVisible();
+  const publicId = href!.split("/").pop()!;
+  await page.evaluate(async ({ publicId }) => {
+    await fetch(`/api/classes/${publicId}/waitlist`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guardianName: "Waiting Parent", guardianEmail: "waiting@example.org", consent: true }) });
+  }, { publicId });
+  await page.goto("/app");
+  await classCard.getByRole("button", { name: "Release one confirmed seat" }).click();
+  await expect(page.getByText(/Released seat offer created:/)).toBeVisible();
+  const text = await page.getByText(/Released seat offer created:/).textContent();
+  const token = text!.match(/\/offer\/(offer_[a-z0-9]+)/)?.[1];
+  expect(token).toBeTruthy();
+  await page.goto(`/offer/${token}`);
+  await page.getByRole("button", { name: "Accept this seat" }).click();
+  await expect(page.getByText(/Your released seat is confirmed/)).toBeVisible();
+});
+
 for (const route of ["/", "/demo?demo=1", "/privacy", "/terms", "/missing-page"]) {
   test(`axe finds no serious issues on ${route}`, async ({ page }) => {
     const browserErrors: string[] = [];
     page.on("console", (message) => { if (message.type() === "error") browserErrors.push(`${message.text()} ${message.location().url}`); });
-    await page.goto(route);
+    const response = await page.goto(route);
+    if (route === "/missing-page") expect(response?.status()).toBe(404);
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
     if (route.startsWith("/demo")) await expect(page.getByRole("article")).toHaveCount(3);
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
-    expect(browserErrors).toEqual([]);
+    expect(browserErrors.filter((error) => !(route === "/missing-page" && error.includes("404")))).toEqual([]);
   });
 }

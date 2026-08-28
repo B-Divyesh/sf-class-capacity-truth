@@ -26,5 +26,12 @@
     "where": "M1 demo banner and landing fact",
     "test": "npm run test:e2e -- --grep @claim:demo-reset-isolated",
     "sandbox": "Two fresh browser contexts at /demo?demo=1; make a booking in the first, reset it, and load the second; assert both see seed availability rather than the first context's booking, and record only same-origin requests."
+  },
+  {
+    "id": "school-capacity-flow",
+    "claim": "A school can publish a class, reconcile its count, and convert a released seat from the waitlist.",
+    "where": "School workspace, public booking page, and released-seat offer page",
+    "test": "npm run test:e2e -- --grep @claim:school-capacity-flow",
+    "sandbox": "Fresh browser context; create a workspace, create and publish a two-seat class, record a calendar mismatch, take a public booking, join the waitlist, release the booking, and accept the generated offer."
   }
 ]

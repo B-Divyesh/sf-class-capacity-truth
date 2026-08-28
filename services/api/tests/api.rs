@@ -307,6 +307,35 @@ async fn capacity_cutoff_idempotency_reset_and_concurrent_race() {
 }
 
 #[tokio::test]
+async fn regression_real_school_flow_configures_books_reconciles_and_converts_released_waitlist_seat() {
+    // Regression for verifier P0: the old artifact had only a cookie-scoped
+    // sample and no durable school class, public booking, reconciliation, or offer.
+    let (_router, _directory, pool) = test_app(1, 100).await;
+    let now = 1_900_000_000;
+    let (workspace, key) = db::create_workspace(&pool, "Harbour Languages", now).await.unwrap();
+    assert_eq!(db::workspace_from_key(&pool, &key).await.unwrap().id, workspace.id);
+    let class = db::create_real_class(&pool, &key, "Saturday level check", now + 86_400, now + 43_200, "Europe/London", 2, now).await.unwrap();
+    let class = db::publish_real_class(&pool, &key, &class.id, now).await.unwrap();
+    assert!(class.published);
+    assert!(db::get_public_real_class(&pool, &class.public_id, now).await.unwrap().is_some());
+    let booked = db::book_real_seat(&pool, &class.public_id, "first-parent", "A Parent", "a@example.org", now).await.unwrap();
+    assert_eq!(booked.open_seats, 1);
+    let booked = db::book_real_seat(&pool, &class.public_id, "second-parent", "B Parent", "b@example.org", now).await.unwrap();
+    assert_eq!(booked.open_seats, 0);
+    assert_eq!(db::book_real_seat(&pool, &class.public_id, "oversell", "C Parent", "c@example.org", now).await.unwrap_err(), db::RealError::Full);
+    db::join_waitlist(&pool, &class.public_id, "Waiting Parent", "waiting@example.org", now).await.unwrap();
+    let checked = db::reconcile_class(&pool, &key, &class.id, 1, now).await.unwrap();
+    assert_eq!(checked.reconciliation_status.as_deref(), Some("attention"));
+    let token = db::release_oldest_booking_and_offer(&pool, &key, &class.id, now).await.unwrap().expect("one fair offer");
+    let offer = db::get_offer(&pool, &token, now).await.unwrap().expect("offer is viewable");
+    assert_eq!(offer.class.public_id, class.public_id);
+    let accepted = db::accept_offer(&pool, &token, now).await.unwrap();
+    assert_eq!(accepted.confirmed, 2);
+    assert_eq!(accepted.open_seats, 0);
+    assert_eq!(db::accept_offer(&pool, &token, now).await.unwrap_err(), db::RealError::OfferUnavailable);
+}
+
+#[tokio::test]
 async fn migration_has_a_working_down_path() {
     let (_router, _directory, pool) = test_app(1, 100).await;
     sqlx::raw_sql(include_str!("../migrations/0001_demo.down.sql"))

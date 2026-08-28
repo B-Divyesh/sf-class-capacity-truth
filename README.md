@@ -1,14 +1,30 @@
 # Class Capacity Truth
 
-Class Capacity Truth demonstrates a class seat count for a small language
-school. M1 ships a public, isolated booking demo with three sample
-classes: open, full, and past cutoff. Staff accounts, live school classes,
-billing, calendar checks, and waitlists are planned for later milestones.
+Class Capacity Truth is a capacity ledger for small language schools and
+tutoring centres. A school creates a class with a capacity and booking cutoff,
+publishes a parent booking link, records a calendar check, and turns a
+cancelled booking into one expiring waitlist offer. The public demo remains a
+separate, fictional sandbox with open, full, and past-cutoff classes.
 
 Try the deployed demo at
 [class-capacity-truth.sociobot.in/demo?demo=1](https://class-capacity-truth.sociobot.in/demo?demo=1).
 The sample is fictional. Each browser gets a signed, temporary workspace that
 expires after 24 hours. Name and email input is validated but not retained.
+
+## Real school workflow
+
+Open `/app` to create a persistent school workspace. The browser stores an
+opaque workspace key locally and sends it only to this service for class
+management. Create a class, publish its opaque `/book/class_…` link, then use
+the calendar count field to record a reconciliation result. A disagreement is
+visible as **Attention** and never changes confirmed seats automatically.
+
+Parents can book while seats remain or consent to the waitlist. Releasing a
+confirmed seat creates one 24-hour offer for the oldest waiting guardian; its
+opaque `/offer/offer_…` link can be accepted once. The SQLite default is a
+single-instance deployment datastore; production multi-user access and paid
+entitlements require the planned Entra/PostgreSQL rollout described in the
+factory plan.
 
 ## Run locally
 
@@ -43,9 +59,11 @@ produces `dist/` and a release API binary.
 ## Architecture and deployment
 
 - React 19, Vite, strict TypeScript, and hand-authored CSS for the web app.
-- Rust, Axum, SQLx, and SQLite for the temporary M1 demo ledger.
-- Signed HttpOnly demo cookies, transaction-checked bookings, reversible SQL
-  migration, expiry cleanup, and forwarded-IP rate limits.
+- Rust, Axum, SQLx, and SQLite for both the isolated demo and the durable
+  single-instance school ledger.
+- Signed HttpOnly demo cookies, opaque workspace keys, transaction-checked
+  bookings and offer acceptance, reversible SQL migrations, expiry cleanup,
+  and forwarded-IP rate limits.
 - One non-root container serves both the API and built web assets on `PORT`.
 
 The factory deploys the container. This repository does not change DNS,

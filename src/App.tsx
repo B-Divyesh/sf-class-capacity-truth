@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { bookSeat, leaveDemo, loadDemo, resetDemo } from "./lib/api";
-import type { ClassSession, DemoData } from "./lib/api";
+import { acceptOffer, bookRealClass, bookSeat, connectCalendar, createClass, createWorkspace, joinWaitlist, leaveDemo, listClasses, loadDemo, loadOffer, loadPublicClass, loadWorkspace, publishClass, reconcileClass, releaseSeat, resetDemo, workspaceKey } from "./lib/api";
+import type { ClassSession, DemoData, RealClass, Workspace } from "./lib/api";
 import { routeForPath } from "./lib/routes";
 import type { RouteInfo } from "./lib/routes";
 
@@ -71,13 +71,16 @@ export function App() {
         <nav aria-label="Main navigation">
           <AppLink href="/demo?demo=1">Demo</AppLink>
           <a href={route.kind === "home" ? "#how-it-works" : "/#how-it-works"}>How it works</a>
+          <AppLink href="/app">School workspace</AppLink>
           <AppLink href="/privacy">Privacy</AppLink>
         </nav>
       </header>
       <div className="route-announcer sr-only" aria-live="polite" aria-atomic="true">{route.title}</div>
       {route.kind === "home" && <HomePage />}
       {route.kind === "demo" && <DemoPage />}
-      {route.kind === "booking" && <BookingPage publicClassId={route.publicClassId!} />}
+      {route.kind === "booking" && (route.publicClassId?.startsWith("class_") ? <RealBookingPage publicClassId={route.publicClassId!} /> : <BookingPage publicClassId={route.publicClassId!} />)}
+      {route.kind === "workspace" && <WorkspacePage />}
+      {route.kind === "offer" && <OfferPage token={route.offerToken!} />}
       {route.kind === "privacy" && <PrivacyPage />}
       {route.kind === "terms" && <TermsPage />}
       {route.kind === "notFound" && <NotFoundPage />}
@@ -146,9 +149,9 @@ function HomePage() {
           <AppLink href="/privacy">Read how sample data is handled</AppLink>
         </div>
         <div id="school-plan" className="plan-note">
-          <p className="eyebrow">School plan</p><h2>Accounts and billing come next</h2>
-          <p>The paid school workspace is not for sale in this milestone.</p>
-          <AppLink className="button secondary" href="/demo?demo=1">Use the sample first</AppLink>
+          <p className="eyebrow">School workspace</p><h2>Set a real class capacity</h2>
+          <p>Create a persistent class, publish its booking link, compare calendar bookings, and offer released seats.</p>
+          <AppLink className="button secondary" href="/app">Open school workspace</AppLink>
         </div>
       </section>
     </main>
@@ -266,6 +269,40 @@ function BookingForm({ session, onBooked }: { session: ClassSession; onBooked: (
   );
 }
 
+function WorkspacePage() {
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [classes, setClasses] = useState<RealClass[]>([]);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const refresh = async () => { try { setWorkspace(await loadWorkspace()); setClasses(await listClasses()); } catch { setWorkspace(null); } };
+  useEffect(() => { if (workspaceKey()) void refresh(); }, []);
+  async function start(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); try { setWorkspace(await createWorkspace(String(new FormData(event.currentTarget).get("schoolName")))); await refresh(); } catch (cause) { setError((cause as Error).message); } finally { setBusy(false); } }
+  async function addClass(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); const formElement = event.currentTarget; const form = new FormData(formElement); const starts = new Date(String(form.get("startsAt"))).getTime() / 1000; const cutoff = new Date(String(form.get("cutoff"))).getTime() / 1000; try { await createClass({ name: String(form.get("name")), startsAt: starts, bookingCutoff: cutoff, timezone: "Europe/London", capacity: Number(form.get("capacity")) }); formElement.reset(); await refresh(); } catch (cause) { setError((cause as Error).message); } finally { setBusy(false); } }
+  async function calendar(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); try { await connectCalendar(String(new FormData(event.currentTarget).get("calendar"))); event.currentTarget.reset(); } catch (cause) { setError((cause as Error).message); } finally { setBusy(false); } }
+  async function publish(id: string) { setBusy(true); try { await publishClass(id); await refresh(); } catch (cause) { setError((cause as Error).message); } finally { setBusy(false); } }
+  async function reconcile(id: string, value: string) { setBusy(true); try { await reconcileClass(id, Number(value)); await refresh(); } catch (cause) { setError((cause as Error).message); } finally { setBusy(false); } }
+  async function release(id: string) { setBusy(true); try { const result = await releaseSeat(id); setError(result.offerToken ? `Released seat offer created: ${window.location.origin}/offer/${result.offerToken}` : "The seat was released. No one is waiting."); await refresh(); } catch (cause) { setError((cause as Error).message); } finally { setBusy(false); } }
+  if (!workspace) return <main id="main" className="page-width app-main"><p className="eyebrow">School workspace</p><h1 tabIndex={-1}>Create your school workspace</h1><p className="lede">Set a class capacity and cutoff, then publish a parent booking link.</p><form className="booking-form workspace-form" onSubmit={start}><label>School name<input name="schoolName" required minLength={2} maxLength={100} placeholder="Bright Path Languages" /></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="button primary" disabled={busy}>{busy ? "Creating workspace…" : "Create school workspace"}</button><p className="field-help">This browser holds the private workspace key. Keep the browser profile safe.</p></form></main>;
+  return <main id="main" className="page-width app-main"><p className="eyebrow">{workspace.schoolName}</p><h1 tabIndex={-1}>Manage class capacity</h1><p className="lede">Publish only a count you can reconcile. A mismatch is shown as attention, never changed automatically.</p>{error && <p className="form-error" role="alert">{error}</p>}
+    <section className="workspace-grid" aria-label="Set up a class and calendar"><form className="booking-form" onSubmit={addClass}><h2>Create a class</h2><label>Class name<input name="name" required minLength={2} maxLength={120} /></label><label>Starts at<input name="startsAt" type="datetime-local" required /></label><label>Booking cutoff<input name="cutoff" type="datetime-local" required /></label><label>Capacity<input name="capacity" type="number" min="1" max="500" required defaultValue="8" /></label><button className="button primary" disabled={busy}>Create class</button></form><form className="booking-form" onSubmit={calendar}><h2>Connect one calendar</h2><p>Give the calendar a label. Enter its confirmed booking count when you run a check.</p><label>Calendar label<input name="calendar" required placeholder="School bookings calendar" /></label><button className="button secondary" disabled={busy}>Connect calendar</button></form></section>
+    <section className="class-list workspace-list" aria-label="Real classes"><h2>Published classes and checks</h2>{classes.length === 0 && <p>No classes yet. Create one above.</p>}{classes.map((item) => <article className="class-card" key={item.id}><div className="class-card-heading"><div><h3>{item.name}</h3><p>{formatStart(item.startsAt)} · {item.timezone}</p></div><strong className={`status status-${item.availability}`}>{availabilityText(item)}</strong></div><CapacityRail capacity={item.capacity} confirmed={item.confirmed} label={`${item.confirmed} confirmed, ${item.openSeats} open`} />{item.published ? <><p><strong>Parent link:</strong> <AppLink href={`/book/${item.publicId}`}>Open booking page</AppLink></p><p>{item.reconciliationStatus === "attention" ? `Attention: calendar says ${item.calendarConfirmed}, local ledger says ${item.confirmed}.` : item.reconciliationStatus === "matched" ? "Calendar check matches the local seat ledger." : "No calendar check yet."}</p><label className="inline-field">Calendar confirmed bookings<input aria-label={`Calendar confirmed bookings for ${item.name}`} type="number" min="0" defaultValue={item.calendarConfirmed ?? item.confirmed} onBlur={(event) => { if (event.currentTarget.value !== "") void reconcile(item.id, event.currentTarget.value); }} /></label><button className="button secondary" type="button" disabled={busy || item.confirmed === 0} onClick={() => void release(item.id)}>Release one confirmed seat</button></> : <button className="button primary" type="button" disabled={busy} onClick={() => void publish(item.id)}>Publish parent link</button>}</article>)}</section></main>;
+}
+
+function RealBookingPage({ publicClassId }: { publicClassId: string }) {
+  const [session, setSession] = useState<RealClass | null>(null); const [error, setError] = useState(""); const [complete, setComplete] = useState(""); const [pending, setPending] = useState(false); const key = useRef(crypto.randomUUID());
+  useEffect(() => { loadPublicClass(publicClassId).then(setSession).catch((cause: Error) => setError(cause.message)); }, [publicClassId]);
+  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setPending(true); setError(""); const form = new FormData(event.currentTarget); try { setSession(await bookRealClass(publicClassId, String(form.get("guardianName")), String(form.get("guardianEmail")), key.current)); setComplete("Your place is confirmed."); } catch (cause) { setError((cause as Error).message); } finally { setPending(false); } }
+  async function waitlist(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setPending(true); const form = new FormData(event.currentTarget); try { await joinWaitlist(publicClassId, String(form.get("guardianName")), String(form.get("guardianEmail"))); setComplete("You are on the waitlist. We will email one expiring offer if a seat is released."); } catch (cause) { setError((cause as Error).message); } finally { setPending(false); } }
+  return <main id="main" className="page-width app-main booking-layout"><div><p className="eyebrow">Parent booking</p><h1 tabIndex={-1}>Book a class seat</h1></div>{error && !session && <StatePanel tone="error" title="This booking link is unavailable" detail={error} />} {!session && !error && <LoadingState />}{session && <section className="booking-card"><div className="booking-class-summary"><p className="eyebrow">{session.name}</p><h2>{availabilityText(session)}</h2><p>{formatStart(session.startsAt)} · {session.timezone}</p><CapacityRail capacity={session.capacity} confirmed={session.confirmed} label={`${session.confirmed} confirmed, ${session.openSeats} open`} /></div>{complete ? <StatePanel tone="success" title="Booking update" detail={complete} /> : session.availability === "available" ? <form className="booking-form" onSubmit={submit}><h2>Your details</h2><label>Guardian name<input name="guardianName" required minLength={2} maxLength={80} autoComplete="name" /></label><label>Email address<input name="guardianEmail" type="email" required autoComplete="email" /></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="button primary" disabled={pending}>{pending ? "Booking…" : "Book this seat"}</button></form> : <form className="booking-form" onSubmit={waitlist}><h2>Join the waitlist</h2><p>This class cannot take a confirmed booking now.</p><label>Guardian name<input name="guardianName" required minLength={2} maxLength={80} /></label><label>Email address<input name="guardianEmail" type="email" required /></label><p className="field-help">By joining, you agree to receive one released-seat offer by email.</p><button className="button primary" disabled={pending}>Join waitlist</button></form>}</section>}</main>;
+}
+
+function OfferPage({ token }: { token: string }) {
+  const [offer, setOffer] = useState<{ class: RealClass; expiresAt: number } | null>(null); const [message, setMessage] = useState("");
+  useEffect(() => { loadOffer(token).then(setOffer).catch((cause: Error) => setMessage(cause.message)); }, [token]);
+  async function accept() { try { const result = await acceptOffer(token); setMessage(`Your released seat is confirmed. ${result.openSeats} seats remain open.`); } catch (cause) { setMessage((cause as Error).message); } }
+  return <main id="main" className="page-width app-main"><p className="eyebrow">Released-seat offer</p><h1 tabIndex={-1}>Claim your available class seat</h1>{!offer && !message && <LoadingState />}{offer && !message && <section className="state-panel success"><h2>{offer.class.name}</h2><p>This offer expires {formatStart(offer.expiresAt)}.</p><button className="button primary" onClick={() => void accept()}>Accept this seat</button></section>}{message && <StatePanel tone="success" title="Offer update" detail={message} />}</main>;
+}
+
 function CapacityRail({ capacity, confirmed, label, compact = false, animate = false }: { capacity: number; confirmed: number; label: string; compact?: boolean; animate?: boolean }) {
   return (
     <div className={`capacity-rail${compact ? " compact" : ""}${animate ? " just-booked" : ""}`} role="img" aria-label={label} tabIndex={0}>
@@ -286,7 +323,7 @@ function PrivacyPage() {
     <main id="main" className="page-width legal-page"><p className="eyebrow">Last updated 28 August 2026</p><h1 tabIndex={-1}>Privacy in the sample</h1><p className="lede">The public demo is temporary and separate from future school accounts.</p>
       <h2>What the demo stores</h2><p>It stores the chosen sample class and a random browser identifier. The name and email you enter are checked, then discarded.</p>
       <h2>How long it stays</h2><p>A demo expires after 24 hours. Reset demo removes its bookings and starts the sample again. Start for real removes that browser’s demo.</p>
-      <h2>Who receives it</h2><p>The service running this site handles the sample. There are no advertising trackers, analytics scripts, email deliveries, or calendar connections in M1.</p>
+      <h2>Who receives it</h2><p>The service running this site handles bookings. There are no advertising trackers or analytics scripts. Waitlist contact details are used only for a released-seat offer.</p>
       <h2>Your choices</h2><p>Use Reset demo to clear changes. For a privacy request, email <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a>.</p>
     </main>
   );
@@ -294,10 +331,10 @@ function PrivacyPage() {
 
 function TermsPage() {
   return (
-    <main id="main" className="page-width legal-page"><p className="eyebrow">Last updated 28 August 2026</p><h1 tabIndex={-1}>Terms for the sample</h1><p className="lede">These terms cover the public M1 demo.</p>
-      <h2>Use the demo for evaluation</h2><p>Enter fictional details only. Do not use the sample for a real class or rely on it as a school record.</p>
+    <main id="main" className="page-width legal-page"><p className="eyebrow">Last updated 28 August 2026</p><h1 tabIndex={-1}>Terms for Class Capacity Truth</h1><p className="lede">These terms cover the public demo and school workspace.</p>
+      <h2>Use the demo for evaluation</h2><p>Enter fictional details only in the sample. The school workspace is for a school’s own class configuration and booking links.</p>
       <h2>Availability</h2><p>The sample may change or be removed. It is provided without a service commitment.</p>
-      <h2>Future school plan</h2><p>Accounts, billing, calendar checks, and waitlist offers are not sold in M1. Their terms will appear before the paid plan opens.</p>
+      <h2>School workspace</h2><p>Schools set the capacity, cutoff, published booking link, calendar check, and waitlist offer. Keep the workspace browser profile secure.</p>
       <h2>Contact</h2><p>Questions may be sent to <a href="mailto:support@sociobot.in">support@sociobot.in</a>.</p>
     </main>
   );

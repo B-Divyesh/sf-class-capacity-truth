@@ -2,36 +2,85 @@
   {
     "id": "sample-booking-updates-seats",
     "claim": "Available seats update after a sample booking.",
-    "where": "M1 demo booking confirmation and capacity rail",
+    "where": "Demo booking confirmation and capacity rail",
     "test": "npm run test:e2e -- --grep @claim:sample-booking-updates-seats",
-    "sandbox": "Fresh browser context at /demo?demo=1; book one seat in the eight-seat sample with six confirmed places; assert the visible summary changes from 2 seats open to 1 seat open and a confirmation appears."
+    "sandbox": "Fresh /demo?demo=1 context; book one seat and assert the visible count changes from two open to one."
   },
   {
     "id": "full-class-blocks-booking",
     "claim": "A full sample class cannot accept another booking.",
-    "where": "M1 demo full-class booking state",
+    "where": "Demo full-class state",
     "test": "npm run test:e2e -- --grep @claim:full-class-blocks-booking",
-    "sandbox": "Fresh browser context at /demo?demo=1; open the six-of-six sample class; attempt keyboard form submission; assert a full explanation, no confirmation, and no additional confirmed seat."
+    "sandbox": "Fresh demo; submit the full class and assert both UI and API block it."
   },
   {
     "id": "cutoff-blocks-booking",
-    "claim": "A sample class past its booking cutoff cannot accept bookings.",
-    "where": "M1 demo cutoff booking state",
+    "claim": "A sample class past its cutoff cannot accept bookings.",
+    "where": "Demo cutoff state",
     "test": "npm run test:e2e -- --grep @claim:cutoff-blocks-booking",
-    "sandbox": "Fresh browser context at /demo?demo=1; open the sample class with a passed cutoff; assert its cutoff explanation and that the booking action cannot create a confirmation."
+    "sandbox": "Fresh demo; open the cutoff class and assert no booking can be created."
   },
   {
     "id": "demo-reset-isolated",
     "claim": "Demo changes stay in sample data and reset.",
-    "where": "M1 demo banner and landing fact",
+    "where": "Demo banner and landing fact",
     "test": "npm run test:e2e -- --grep @claim:demo-reset-isolated",
-    "sandbox": "Two fresh browser contexts at /demo?demo=1; make a booking in the first, reset it, and load the second; assert both see seed availability rather than the first context's booking, and record only same-origin requests."
+    "sandbox": "Two contexts; book and reset in one, then assert both return seed availability."
   },
   {
     "id": "school-capacity-flow",
     "claim": "A school can publish a class, reconcile its count, and convert a released seat from the waitlist.",
-    "where": "School workspace, public booking page, and released-seat offer page",
+    "where": "School workspace, public booking, and offer pages",
     "test": "npm run test:e2e -- --grep @claim:school-capacity-flow",
-    "sandbox": "Fresh browser context; create a workspace, create and publish a two-seat class, record a calendar mismatch, take a public booking, join the waitlist, release the booking, and accept the generated offer."
+    "sandbox": "Signed-in test owner uses every visible form, including waitlist and selected cancellation, then accepts the offer."
+  },
+  {
+    "id": "calendar-poll",
+    "claim": "An encrypted iCalendar feed is checked every five minutes.",
+    "where": "School calendar connection and privacy page",
+    "test": "npm run test:e2e -- --grep @claim:calendar-poll",
+    "sandbox": "Connect the recorded iCalendar fixture through the visible form; assert the server check completes and reconciliation appears."
+  },
+  {
+    "id": "released-seat-delivery",
+    "claim": "A selected cancellation queues one expiring email offer for the next waiting guardian.",
+    "where": "Waitlist consent and staff cancellation result",
+    "test": "npm run test:e2e -- --grep @claim:released-seat-delivery",
+    "sandbox": "Join through the visible waitlist form, select the named booking, assert queued delivery, then accept the one-time offer."
+  },
+  {
+    "id": "school-plan-price",
+    "claim": "The school plan costs $99 each month.",
+    "where": "Landing facts, signed-out workspace, billing section, and terms",
+    "test": "npm run test:e2e -- --grep @claim:school-plan-price",
+    "sandbox": "Assert the exact price and the Sociobot hosted checkout link."
+  },
+  {
+    "id": "no-third-party-tracking",
+    "claim": "There are no advertising trackers or analytics scripts.",
+    "where": "Landing facts and privacy page",
+    "test": "npm run test:e2e -- --grep @claim:no-third-party-tracking",
+    "sandbox": "Record all requests through landing, demo, privacy, and signed-in workspace flows; assert every request is same-origin."
+  },
+  {
+    "id": "contact-encryption-retention",
+    "claim": "School guardian contact fields are encrypted at rest and erased after 90 days.",
+    "where": "Privacy page",
+    "test": "npm run test:api -- regression_real_school_flow_configures_books_reconciles_and_converts_released_waitlist_seat",
+    "sandbox": "Inspect persisted rows for absent plaintext, decrypt through the authorized path, advance 91 days, run retention, and assert contact fields are scrubbed."
+  },
+  {
+    "id": "staff-role-access",
+    "claim": "School staff use Sociobot Entra sign-in and server-side roles.",
+    "where": "Workspace sign-in and terms",
+    "test": "npm run test:api -- regression_real_school_flow_configures_books_reconciles_and_converts_released_waitlist_seat",
+    "sandbox": "Use the recorded identity, assert viewer access succeeds, and assert the same viewer is forbidden from an owner action."
+  },
+  {
+    "id": "data-export-delete",
+    "claim": "Workspace owners can export or delete school data.",
+    "where": "Workspace data controls and privacy page",
+    "test": "npm run test:e2e -- --grep @claim:data-export-delete",
+    "sandbox": "Create a signed-in workspace, download its JSON export, confirm deletion, and assert the workspace is gone."
   }
 ]

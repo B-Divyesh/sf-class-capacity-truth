@@ -12,4 +12,5 @@ PORT=4173 \
 DATA_DIR="$runtime_dir" \
 FRONTEND_DIST="$repo_dir/dist" \
 BUILD_SHA=e2e \
+TEST_AUTH_TOKEN=test-owner \
 cargo run --manifest-path services/api/Cargo.toml

@@ -1,32 +1,30 @@
-# M1 landing copy audit
+# Landing copy audit
 
-Audited 2026-08-28. Counts use whitespace-separated words. The table includes
-all visible landing-page headings, sentences, actions, facts, labels, and footer
-copy. No line exceeds 22 words. No line contains leverage, seamless,
-effortless, robust, powerful, intuitive, reimagine, supercharge, unlock,
-delightful, journey, ecosystem, or AI-powered.
+Audited 2026-08-28 after repair. Counts are whitespace-separated. This lists
+every visible landing-page text string. No sentence exceeds 22 words and no
+text uses a banned marketing word.
 
 | Landing text | Words | Result |
 | --- | ---: | --- |
 | Class Capacity Truth | 3 | Pass |
 | Demo | 1 | Pass |
 | How it works | 3 | Pass |
+| School workspace | 2 | Pass |
 | Privacy | 1 | Pass |
 | For small language schools | 4 | Pass |
 | Show the right number of class seats | 8 | Pass |
 | For schools whose booking calendar and room list disagree about places. | 10 | Pass |
 | Try it with sample data | 6 | Pass |
 | Three sample classes open next. | 5 | Pass |
-| Available seats change after a sample booking. | 7 | Pass |
-| Full and closed sample classes block bookings. | 7 | Pass |
-| Demo changes stay separate and reset. | 6 | Pass |
+| The demo stays separate and resets. | 6 | Pass |
+| No advertising trackers or analytics scripts. | 6 | Pass |
+| The school plan costs $99 each month. | 7 | Pass |
 | 2 seats open | 3 | Pass |
 | Upper primary level check | 4 | Pass |
 | 8 places − 6 booked = 2 open | 8 | Pass |
 | The product, now | 3 | Pass |
 | Count places before taking a booking | 6 | Pass |
 | The sample uses the same seat check for the number and the booking result. | 14 | Pass |
-| 2 open | 2 | Pass |
 | Friday conversation group | 3 | Pass |
 | Full | 1 | Pass |
 | Saturday assessment | 2 | Pass |
@@ -44,10 +42,9 @@ delightful, journey, ecosystem, or AI-powered.
 | This is not a student record system. | 7 | Pass |
 | The sample does not manage grades, attendance, tuition, or learning history. | 10 | Pass |
 | Read how sample data is handled | 6 | Pass |
-| School plan | 2 | Pass |
-| Accounts and billing come next | 5 | Pass |
-| The paid school workspace is not for sale in this milestone. | 11 | Pass |
-| Use the sample first | 4 | Pass |
+| Set a real class capacity | 5 | Pass |
+| Create a persistent class, publish its booking link, compare calendar bookings, and offer released seats. | 14 | Pass |
+| Open school workspace | 3 | Pass |
 | Seat counts for small schools. | 5 | Pass |
 | Terms | 1 | Pass |
 | Built by Param Factory | 4 | Pass |
@@ -61,9 +58,11 @@ This states the job, audience, situation, and first action in one breath.
 
 | Concept | Word used |
 | --- | --- |
-| A scheduled group offering | class |
-| One place a guardian can book | seat |
+| Scheduled group offering | class |
+| Place a guardian can book | seat |
 | Adult contact | guardian |
-| Temporary public evaluation workspace | demo |
+| Temporary evaluation workspace | demo |
 | Last permitted booking time | booking cutoff |
 | Accepted place | confirmed |
+| Connected source | calendar |
+| Staff data area | school workspace |

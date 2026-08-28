@@ -1,5 +1,8 @@
+pub mod auth;
 pub mod cookies;
+pub mod crypto;
 pub mod db;
+pub mod jobs;
 pub mod routes;
 
 use std::{path::PathBuf, sync::Arc, time::Duration};
@@ -35,6 +38,10 @@ pub const BUILD_SHA: &str = match option_env!("BUILD_SHA") {
 pub struct AppState {
     pub pool: SqlitePool,
     pub cookie_key: Arc<Vec<u8>>,
+    pub contact_cipher: crypto::ContactCipher,
+    pub auth: auth::AuthVerifier,
+    pub public_base_url: Arc<String>,
+    pub http: reqwest::Client,
 }
 
 pub fn app(
@@ -94,16 +101,48 @@ pub fn app(
         .finish()
         .expect("positive school rate limit values");
     let school_api = Router::new()
-        .route("/workspaces", post(routes::create_workspace).get(routes::current_workspace))
-        .route("/workspaces/classes", get(routes::list_classes).post(routes::create_class))
-        .route("/workspaces/classes/{id}/publish", post(routes::publish_class))
-        .route("/workspaces/classes/{id}/reconcile", post(routes::reconcile))
-        .route("/workspaces/classes/{class_id}/bookings/{booking_id}/cancel", post(routes::cancel_and_offer))
-        .route("/workspaces/classes/{class_id}/release-seat", post(routes::release_oldest_and_offer))
+        .route(
+            "/workspaces",
+            post(routes::create_workspace).get(routes::current_workspace),
+        )
+        .route(
+            "/workspaces/classes",
+            get(routes::list_classes).post(routes::create_class),
+        )
+        .route(
+            "/workspaces/classes/{id}/bookings",
+            get(routes::list_bookings),
+        )
+        .route(
+            "/workspaces/classes/{id}/publish",
+            post(routes::publish_class),
+        )
+        .route(
+            "/workspaces/classes/{id}/reconcile",
+            post(routes::reconcile),
+        )
+        .route(
+            "/workspaces/classes/{class_id}/bookings/{booking_id}/cancel",
+            post(routes::cancel_and_offer),
+        )
+        .route(
+            "/workspaces/classes/{class_id}/release-seat",
+            post(routes::release_oldest_and_offer),
+        )
         .route("/workspaces/calendar", put(routes::connect_calendar))
+        .route("/workspaces/calendar/check", post(routes::check_calendar))
+        .route("/workspaces/export", get(routes::export_workspace))
+        .route(
+            "/workspaces/data",
+            axum::routing::delete(routes::delete_workspace),
+        )
+        .route("/workspaces/billing/verify", post(routes::verify_billing))
         .route("/classes/{public_id}", get(routes::public_class))
         .route("/classes/{public_id}/book", post(routes::real_book))
-        .route("/classes/{public_id}/waitlist", post(routes::join_real_waitlist))
+        .route(
+            "/classes/{public_id}/waitlist",
+            post(routes::join_real_waitlist),
+        )
         .route("/offers/{token}", get(routes::view_offer))
         .route("/offers/{token}/accept", post(routes::accept_seat_offer))
         .layer(GovernorLayer::new(school_limiter));
@@ -119,6 +158,7 @@ pub fn app(
         .route_service("/privacy", ServeFile::new(index.clone()))
         .route_service("/terms", ServeFile::new(index.clone()))
         .route_service("/app", ServeFile::new(index.clone()))
+        .route_service("/auth/callback", ServeFile::new(index.clone()))
         .route_service("/book/{id}", ServeFile::new(index.clone()))
         .route_service("/offer/{token}", ServeFile::new(index))
         .route_service("/assets/{*path}", static_files.clone())
@@ -150,9 +190,9 @@ pub fn app(
         ))
         .layer(SetResponseHeaderLayer::if_not_present(
             HeaderName::from_static("content-security-policy"),
-            HeaderValue::from_static("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"),
+            HeaderValue::from_static("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://sociobotcustomers.ciamlogin.com https://login.microsoftonline.com https://api.sociobot.in; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"),
         ))
-        .layer(CorsLayer::new().allow_methods([Method::GET, Method::POST]).allow_origin(tower_http::cors::AllowOrigin::predicate(|origin, _| {
+        .layer(CorsLayer::new().allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE]).allow_origin(tower_http::cors::AllowOrigin::predicate(|origin, _| {
             origin.as_bytes().ends_with(b".sociobot.in") || origin.as_bytes() == b"https://class-capacity-truth.sociobot.in"
         })))
 }
@@ -163,7 +203,11 @@ async fn cache_headers(request: Request<Body>, next: Next) -> axum::response::Re
     if response.status().is_success() {
         response.headers_mut().insert(
             header::CACHE_CONTROL,
-            HeaderValue::from_static(if assets { "public, max-age=31536000, immutable" } else { "no-cache, max-age=0" }),
+            HeaderValue::from_static(if assets {
+                "public, max-age=31536000, immutable"
+            } else {
+                "no-cache, max-age=0"
+            }),
         );
     }
     response
@@ -179,6 +223,25 @@ pub async fn cleanup_task(pool: SqlitePool) {
             }
             Ok(_) => {}
             Err(error) => tracing::warn!(error = %error, "demo cleanup failed"),
+        }
+        if let Err(error) = db::cleanup_retained_contacts(&pool, routes::unix_now()).await {
+            tracing::warn!(error = %error, "contact retention cleanup failed");
+        }
+    }
+}
+
+pub async fn integration_task(state: AppState) {
+    let mut interval = tokio::time::interval(Duration::from_secs(60));
+    loop {
+        interval.tick().await;
+        let now = routes::unix_now();
+        if let Err(error) =
+            jobs::poll_due_calendars(&state.pool, &state.contact_cipher, &state.http, now).await
+        {
+            tracing::warn!(error = %error, "calendar polling failed");
+        }
+        if let Err(error) = jobs::deliver_due_email(&state.pool, &state.contact_cipher, now).await {
+            tracing::warn!(error = %error, "email delivery failed");
         }
     }
 }

@@ -1,6 +1,6 @@
 # Demo sandbox contract
 
-Status: implemented in M1 and covered by the four claim-tagged browser tests.
+Status: preserved by the repair and covered by four demo claim-tagged browser tests. Eight additional claims cover the real school path.
 
 ## Entry and sample
 

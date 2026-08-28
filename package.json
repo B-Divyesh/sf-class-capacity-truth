@@ -16,9 +16,12 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:api": "cargo test --manifest-path services/api/Cargo.toml --test api",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "tsc -b --pretty false && cargo fmt --manifest-path services/api/Cargo.toml --check && cargo clippy --manifest-path services/api/Cargo.toml --all-targets --all-features -- -D warnings",
     "start": "cargo run --release --manifest-path services/api/Cargo.toml"
   },
   "dependencies": {
+    "@azure/msal-browser": "4.25.0",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },

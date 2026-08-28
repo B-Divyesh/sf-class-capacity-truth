@@ -1,4 +1,4 @@
-export type RouteKind = "home" | "demo" | "booking" | "workspace" | "offer" | "privacy" | "terms" | "notFound";
+export type RouteKind = "home" | "demo" | "booking" | "workspace" | "authCallback" | "offer" | "privacy" | "terms" | "notFound";
 
 export interface RouteInfo {
   kind: RouteKind;
@@ -21,17 +21,21 @@ const routes: Record<Exclude<RouteKind, "booking">, Omit<RouteInfo, "kind">> = {
     title: "School workspace — Class Capacity Truth",
     description: "Create, publish, and reconcile trustworthy class capacity."
   },
+  authCallback: {
+    title: "Finish sign in — Class Capacity Truth",
+    description: "Finish secure staff sign in for Class Capacity Truth."
+  },
   offer: {
     title: "Claim a seat — Class Capacity Truth",
     description: "Accept a released class seat offer."
   },
   privacy: {
     title: "Privacy — Class Capacity Truth",
-    description: "How Class Capacity Truth handles sample booking information."
+    description: "How Class Capacity Truth handles demo and school booking information."
   },
   terms: {
     title: "Terms — Class Capacity Truth",
-    description: "Terms for the Class Capacity Truth sample and future school plan."
+    description: "Terms for the Class Capacity Truth demo and $99 school plan."
   },
   notFound: {
     title: "Page not found — Class Capacity Truth",
@@ -43,6 +47,7 @@ export function routeForPath(pathname: string): RouteInfo {
   if (pathname === "/") return { kind: "home", ...routes.home };
   if (pathname === "/demo") return { kind: "demo", ...routes.demo };
   if (pathname === "/app") return { kind: "workspace", ...routes.workspace };
+  if (pathname === "/auth/callback") return { kind: "authCallback", ...routes.authCallback };
   if (pathname === "/privacy") return { kind: "privacy", ...routes.privacy };
   if (pathname === "/terms") return { kind: "terms", ...routes.terms };
   if (pathname === "/404") return { kind: "notFound", ...routes.notFound };

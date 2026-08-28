@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { App } from "./App";
+import { App, zonedDateTimeToEpoch } from "./App";
+import { bearerFromAuthenticationResult } from "./lib/auth";
 
 describe("public app", () => {
   it("has one clear page heading and a skip link", () => {
@@ -21,5 +22,22 @@ describe("public app", () => {
       "href",
       "/demo?demo=1"
     );
+  });
+});
+
+describe("school wall-time conversion", () => {
+  it("uses the selected school zone instead of the browser zone", () => {
+    expect(zonedDateTimeToEpoch("2030-06-10T10:00", "Europe/London")).toBe(
+      Date.UTC(2030, 5, 10, 9, 0) / 1000
+    );
+    expect(zonedDateTimeToEpoch("2030-06-10T10:00", "America/New_York")).toBe(
+      Date.UTC(2030, 5, 10, 14, 0) / 1000
+    );
+  });
+});
+
+describe("Entra bearer selection", () => {
+  it("uses the ID token when an OIDC-only response has no access token", () => {
+    expect(bearerFromAuthenticationResult({ accessToken: "", idToken: "signed-id-token" })).toBe("signed-id-token");
   });
 });

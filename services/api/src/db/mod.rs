@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Duration};
+use std::{collections::HashMap, str::FromStr, time::Duration};
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -8,6 +8,8 @@ use sqlx::{
 };
 use thiserror::Error;
 use uuid::Uuid;
+
+use crate::crypto::ContactCipher;
 
 const DEMO_TTL_SECONDS: i64 = 24 * 60 * 60;
 
@@ -58,6 +60,32 @@ pub struct BookingResult {
 pub struct Workspace {
     pub id: String,
     pub school_name: String,
+    pub subscription_status: String,
+    pub trial_ends_at: Option<i64>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BookingSummary {
+    pub id: String,
+    pub guardian_name: String,
+    pub guardian_email: String,
+    pub created_at: i64,
+}
+
+pub struct NewRealClass<'a> {
+    pub name: &'a str,
+    pub starts_at: i64,
+    pub cutoff: i64,
+    pub timezone: &'a str,
+    pub capacity: i64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseResult {
+    pub offer_token: Option<String>,
+    pub delivery_status: &'static str,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -84,6 +112,8 @@ pub struct CalendarConnection {
     pub label: String,
     pub provider: String,
     pub enabled: bool,
+    pub last_polled_at: Option<i64>,
+    pub last_error: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -106,6 +136,8 @@ pub enum RealError {
     Cutoff,
     #[error("offer is no longer available")]
     OfferUnavailable,
+    #[error("school subscription is not active")]
+    SubscriptionRequired,
     #[error("database error")]
     Database,
 }
@@ -452,52 +484,154 @@ fn digest(value: &str) -> String {
     format!("{:x}", Sha256::digest(value.as_bytes()))
 }
 
-pub async fn create_workspace(pool: &SqlitePool, school_name: &str, now: i64) -> Result<(Workspace, String), RealError> {
-    let workspace = Workspace { id: Uuid::new_v4().to_string(), school_name: school_name.to_owned() };
+pub async fn create_workspace(
+    pool: &SqlitePool,
+    school_name: &str,
+    owner_oid: &str,
+    now: i64,
+) -> Result<(Workspace, String), RealError> {
+    let workspace = Workspace {
+        id: Uuid::new_v4().to_string(),
+        school_name: school_name.to_owned(),
+        subscription_status: "trial".to_owned(),
+        trial_ends_at: Some(now + 14 * 86_400),
+    };
     let access_key = opaque_id("cct_owner_");
-    sqlx::query("INSERT INTO workspaces (id, school_name, access_key_hash, created_at) VALUES (?1, ?2, ?3, ?4)")
-        .bind(&workspace.id).bind(&workspace.school_name).bind(digest(&access_key)).bind(now)
-        .execute(pool).await.map_err(|_| RealError::Database)?;
+    let mut tx = pool.begin().await.map_err(|_| RealError::Database)?;
+    sqlx::query("INSERT INTO workspaces (id, school_name, access_key_hash, created_at, subscription_status, trial_ends_at) VALUES (?1, ?2, ?3, ?4, 'trial', ?5)")
+        .bind(&workspace.id).bind(&workspace.school_name).bind(digest(&access_key)).bind(now).bind(workspace.trial_ends_at)
+        .execute(&mut *tx).await.map_err(|_| RealError::Database)?;
+    sqlx::query("INSERT INTO workspace_members (workspace_id, oid, role, created_at) VALUES (?1, ?2, 'owner', ?3)")
+        .bind(&workspace.id).bind(owner_oid).bind(now).execute(&mut *tx).await.map_err(|_| RealError::Database)?;
+    tx.commit().await.map_err(|_| RealError::Database)?;
     Ok((workspace, access_key))
 }
 
 async fn workspace_for_key(pool: &SqlitePool, access_key: &str) -> Result<Workspace, RealError> {
-    let row = sqlx::query("SELECT id, school_name FROM workspaces WHERE access_key_hash = ?1")
-        .bind(digest(access_key)).fetch_optional(pool).await.map_err(|_| RealError::Database)?
+    let row = sqlx::query("SELECT id, school_name, subscription_status, trial_ends_at FROM workspaces WHERE access_key_hash = ?1 OR id = ?2")
+        .bind(digest(access_key)).bind(access_key)
+        .fetch_optional(pool)
+        .await
+        .map_err(|_| RealError::Database)?
         .ok_or(RealError::Forbidden)?;
-    Ok(Workspace { id: row.get("id"), school_name: row.get("school_name") })
+    Ok(Workspace {
+        id: row.get("id"),
+        school_name: row.get("school_name"),
+        subscription_status: row.get("subscription_status"),
+        trial_ends_at: row.get("trial_ends_at"),
+    })
 }
 
-pub async fn workspace_from_key(pool: &SqlitePool, access_key: &str) -> Result<Workspace, RealError> {
+pub async fn workspace_for_oid(pool: &SqlitePool, oid: &str) -> Result<Workspace, RealError> {
+    let row = sqlx::query("SELECT w.id, w.school_name, w.subscription_status, w.trial_ends_at FROM workspaces w JOIN workspace_members m ON m.workspace_id = w.id WHERE m.oid = ?1 ORDER BY w.created_at LIMIT 1")
+        .bind(oid).fetch_optional(pool).await.map_err(|_| RealError::Database)?.ok_or(RealError::NotFound)?;
+    Ok(Workspace {
+        id: row.get("id"),
+        school_name: row.get("school_name"),
+        subscription_status: row.get("subscription_status"),
+        trial_ends_at: row.get("trial_ends_at"),
+    })
+}
+
+pub async fn authorize_workspace(
+    pool: &SqlitePool,
+    access_key: &str,
+    oid: &str,
+    allowed_roles: &[&str],
+) -> Result<(), RealError> {
+    let role = sqlx::query_scalar::<_, String>("SELECT m.role FROM workspace_members m JOIN workspaces w ON w.id = m.workspace_id WHERE (w.access_key_hash = ?1 OR w.id = ?2) AND m.oid = ?3")
+        .bind(digest(access_key)).bind(access_key).bind(oid).fetch_optional(pool).await.map_err(|_| RealError::Database)?
+        .ok_or(RealError::Forbidden)?;
+    if allowed_roles.contains(&role.as_str()) {
+        Ok(())
+    } else {
+        Err(RealError::Forbidden)
+    }
+}
+
+pub async fn ensure_entitled(
+    pool: &SqlitePool,
+    access_key: &str,
+    now: i64,
+) -> Result<(), RealError> {
+    let workspace = workspace_for_key(pool, access_key).await?;
+    if workspace.subscription_status == "active"
+        || workspace.subscription_status == "grace"
+        || (workspace.subscription_status == "trial"
+            && workspace.trial_ends_at.is_some_and(|end| end > now))
+    {
+        Ok(())
+    } else {
+        Err(RealError::SubscriptionRequired)
+    }
+}
+
+pub async fn workspace_from_key(
+    pool: &SqlitePool,
+    access_key: &str,
+) -> Result<Workspace, RealError> {
     workspace_for_key(pool, access_key).await
 }
 
-pub async fn create_real_class(pool: &SqlitePool, access_key: &str, name: &str, starts_at: i64, cutoff: i64, timezone: &str, capacity: i64, now: i64) -> Result<RealClass, RealError> {
+pub async fn create_real_class(
+    pool: &SqlitePool,
+    access_key: &str,
+    input: NewRealClass<'_>,
+    now: i64,
+) -> Result<RealClass, RealError> {
     let workspace = workspace_for_key(pool, access_key).await?;
     let id = Uuid::new_v4().to_string();
     let public_id = opaque_id("class_");
     sqlx::query("INSERT INTO real_classes (id, workspace_id, public_id, name, starts_at, booking_cutoff, timezone, capacity, confirmed, published, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0, ?9)")
-        .bind(&id).bind(&workspace.id).bind(&public_id).bind(name).bind(starts_at).bind(cutoff).bind(timezone).bind(capacity).bind(now)
+        .bind(&id).bind(&workspace.id).bind(&public_id).bind(input.name).bind(input.starts_at).bind(input.cutoff).bind(input.timezone).bind(input.capacity).bind(now)
         .execute(pool).await.map_err(|_| RealError::Database)?;
-    get_real_class_by_id(pool, &workspace.id, &id, now).await?.ok_or(RealError::Database)
+    get_real_class_by_id(pool, &workspace.id, &id, now)
+        .await?
+        .ok_or(RealError::Database)
 }
 
-pub async fn publish_real_class(pool: &SqlitePool, access_key: &str, id: &str, now: i64) -> Result<RealClass, RealError> {
+pub async fn publish_real_class(
+    pool: &SqlitePool,
+    access_key: &str,
+    id: &str,
+    now: i64,
+) -> Result<RealClass, RealError> {
     let workspace = workspace_for_key(pool, access_key).await?;
-    let changed = sqlx::query("UPDATE real_classes SET published = 1 WHERE id = ?1 AND workspace_id = ?2")
-        .bind(id).bind(&workspace.id).execute(pool).await.map_err(|_| RealError::Database)?;
-    if changed.rows_affected() != 1 { return Err(RealError::NotFound); }
-    get_real_class_by_id(pool, &workspace.id, id, now).await?.ok_or(RealError::NotFound)
+    let changed =
+        sqlx::query("UPDATE real_classes SET published = 1 WHERE id = ?1 AND workspace_id = ?2")
+            .bind(id)
+            .bind(&workspace.id)
+            .execute(pool)
+            .await
+            .map_err(|_| RealError::Database)?;
+    if changed.rows_affected() != 1 {
+        return Err(RealError::NotFound);
+    }
+    get_real_class_by_id(pool, &workspace.id, id, now)
+        .await?
+        .ok_or(RealError::NotFound)
 }
 
-pub async fn list_real_classes(pool: &SqlitePool, access_key: &str, now: i64) -> Result<Vec<RealClass>, RealError> {
+pub async fn list_real_classes(
+    pool: &SqlitePool,
+    access_key: &str,
+    now: i64,
+) -> Result<Vec<RealClass>, RealError> {
     let workspace = workspace_for_key(pool, access_key).await?;
     let rows = sqlx::query("SELECT c.id, c.public_id, c.name, c.starts_at, c.booking_cutoff, c.timezone, c.capacity, c.confirmed, c.published, r.calendar_confirmed, r.status AS reconciliation_status FROM real_classes c LEFT JOIN reconciliation_runs r ON r.id = (SELECT id FROM reconciliation_runs WHERE class_id = c.id ORDER BY created_at DESC LIMIT 1) WHERE c.workspace_id = ?1 ORDER BY c.starts_at")
         .bind(&workspace.id).fetch_all(pool).await.map_err(|_| RealError::Database)?;
-    Ok(rows.iter().map(|row| real_class_from_row(row, now)).collect())
+    Ok(rows
+        .iter()
+        .map(|row| real_class_from_row(row, now))
+        .collect())
 }
 
-async fn get_real_class_by_id(pool: &SqlitePool, workspace_id: &str, id: &str, now: i64) -> Result<Option<RealClass>, RealError> {
+async fn get_real_class_by_id(
+    pool: &SqlitePool,
+    workspace_id: &str,
+    id: &str,
+    now: i64,
+) -> Result<Option<RealClass>, RealError> {
     let row = sqlx::query("SELECT c.id, c.public_id, c.name, c.starts_at, c.booking_cutoff, c.timezone, c.capacity, c.confirmed, c.published, r.calendar_confirmed, r.status AS reconciliation_status FROM real_classes c LEFT JOIN reconciliation_runs r ON r.id = (SELECT id FROM reconciliation_runs WHERE class_id = c.id ORDER BY created_at DESC LIMIT 1) WHERE c.workspace_id = ?1 AND c.id = ?2")
         .bind(workspace_id).bind(id).fetch_optional(pool).await.map_err(|_| RealError::Database)?;
     Ok(row.as_ref().map(|row| real_class_from_row(row, now)))
@@ -507,18 +641,49 @@ fn real_class_from_row(row: &sqlx::sqlite::SqliteRow, now: i64) -> RealClass {
     let capacity = row.get::<i64, _>("capacity");
     let confirmed = row.get::<i64, _>("confirmed");
     let cutoff = row.get::<i64, _>("booking_cutoff");
-    RealClass { id: row.get("id"), public_id: row.get("public_id"), name: row.get("name"), starts_at: row.get("starts_at"), booking_cutoff: cutoff, timezone: row.get("timezone"), capacity, confirmed, open_seats: capacity - confirmed, availability: availability_at(capacity, confirmed, cutoff, now), published: row.get::<i64, _>("published") == 1, calendar_confirmed: row.try_get("calendar_confirmed").ok(), reconciliation_status: row.try_get("reconciliation_status").ok() }
+    RealClass {
+        id: row.get("id"),
+        public_id: row.get("public_id"),
+        name: row.get("name"),
+        starts_at: row.get("starts_at"),
+        booking_cutoff: cutoff,
+        timezone: row.get("timezone"),
+        capacity,
+        confirmed,
+        open_seats: capacity - confirmed,
+        availability: availability_at(capacity, confirmed, cutoff, now),
+        published: row.get::<i64, _>("published") == 1,
+        calendar_confirmed: row.try_get("calendar_confirmed").ok(),
+        reconciliation_status: row.try_get("reconciliation_status").ok(),
+    }
 }
 
-pub async fn get_public_real_class(pool: &SqlitePool, public_id: &str, now: i64) -> Result<Option<RealClass>, RealError> {
+pub async fn get_public_real_class(
+    pool: &SqlitePool,
+    public_id: &str,
+    now: i64,
+) -> Result<Option<RealClass>, RealError> {
     let row = sqlx::query("SELECT c.id, c.public_id, c.name, c.starts_at, c.booking_cutoff, c.timezone, c.capacity, c.confirmed, c.published, r.calendar_confirmed, r.status AS reconciliation_status FROM real_classes c LEFT JOIN reconciliation_runs r ON r.id = (SELECT id FROM reconciliation_runs WHERE class_id = c.id ORDER BY created_at DESC LIMIT 1) WHERE c.public_id = ?1 AND c.published = 1")
         .bind(public_id).fetch_optional(pool).await.map_err(|_| RealError::Database)?;
     Ok(row.as_ref().map(|row| real_class_from_row(row, now)))
 }
 
-pub async fn book_real_seat(pool: &SqlitePool, public_id: &str, idempotency_key: &str, name: &str, email: &str, now: i64) -> Result<RealClass, RealError> {
+pub async fn book_real_seat(
+    pool: &SqlitePool,
+    cipher: &ContactCipher,
+    public_id: &str,
+    idempotency_key: &str,
+    name: &str,
+    email: &str,
+    now: i64,
+) -> Result<RealClass, RealError> {
+    let encrypted_name = cipher.encrypt(name).map_err(|_| RealError::Database)?;
+    let encrypted_email = cipher.encrypt(email).map_err(|_| RealError::Database)?;
     let mut conn = pool.acquire().await.map_err(|_| RealError::Database)?;
-    sqlx::query("BEGIN IMMEDIATE").execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+    sqlx::query("BEGIN IMMEDIATE")
+        .execute(&mut *conn)
+        .await
+        .map_err(|_| RealError::Database)?;
     let result = async {
         let row = sqlx::query("SELECT id, capacity, confirmed, booking_cutoff, published FROM real_classes WHERE public_id = ?1").bind(public_id).fetch_optional(&mut *conn).await.map_err(|_| RealError::Database)?.ok_or(RealError::NotFound)?;
         let id: String = row.get("id");
@@ -528,69 +693,286 @@ pub async fn book_real_seat(pool: &SqlitePool, public_id: &str, idempotency_key:
         if row.get::<i64, _>("booking_cutoff") <= now { return Err(RealError::Cutoff); }
         let changed = sqlx::query("UPDATE real_classes SET confirmed = confirmed + 1 WHERE id = ?1 AND confirmed < capacity AND booking_cutoff > ?2").bind(&id).bind(now).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
         if changed.rows_affected() != 1 { return Err(RealError::Full); }
-        sqlx::query("INSERT INTO real_bookings (id, class_id, idempotency_key, guardian_name, guardian_email, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5, 'confirmed', ?6)").bind(Uuid::new_v4().to_string()).bind(&id).bind(idempotency_key).bind(name).bind(email).bind(now).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+        sqlx::query("INSERT INTO real_bookings (id, class_id, idempotency_key, guardian_name, guardian_email, status, created_at, contact_expires_at) VALUES (?1, ?2, ?3, ?4, ?5, 'confirmed', ?6, ?7)").bind(Uuid::new_v4().to_string()).bind(&id).bind(idempotency_key).bind(&encrypted_name).bind(&encrypted_email).bind(now).bind(now + 90 * 86_400).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
         let current = sqlx::query("SELECT id, public_id, name, starts_at, booking_cutoff, timezone, capacity, confirmed, published FROM real_classes WHERE id = ?1").bind(&id).fetch_one(&mut *conn).await.map_err(|_| RealError::Database)?;
         Ok(real_class_from_row(&current, now))
     }.await;
-    match result { Ok(value) => { sqlx::query("COMMIT").execute(&mut *conn).await.map_err(|_| RealError::Database)?; Ok(value) }, Err(error) => { let _ = sqlx::query("ROLLBACK").execute(&mut *conn).await; Err(error) } }
+    match result {
+        Ok(value) => {
+            sqlx::query("COMMIT")
+                .execute(&mut *conn)
+                .await
+                .map_err(|_| RealError::Database)?;
+            Ok(value)
+        }
+        Err(error) => {
+            let _ = sqlx::query("ROLLBACK").execute(&mut *conn).await;
+            Err(error)
+        }
+    }
 }
 
-pub async fn connect_calendar(pool: &SqlitePool, access_key: &str, label: &str, now: i64) -> Result<CalendarConnection, RealError> {
+pub async fn connect_calendar(
+    pool: &SqlitePool,
+    cipher: &ContactCipher,
+    access_key: &str,
+    label: &str,
+    feed_url: &str,
+    now: i64,
+) -> Result<CalendarConnection, RealError> {
     let workspace = workspace_for_key(pool, access_key).await?;
-    sqlx::query("INSERT INTO calendar_connections (id, workspace_id, label, provider, enabled, created_at) VALUES (?1, ?2, ?3, 'manual_calendar', 1, ?4) ON CONFLICT(workspace_id) DO UPDATE SET label = excluded.label, enabled = 1")
-        .bind(Uuid::new_v4().to_string()).bind(&workspace.id).bind(label).bind(now).execute(pool).await.map_err(|_| RealError::Database)?;
-    Ok(CalendarConnection { label: label.to_owned(), provider: "manual_calendar".to_owned(), enabled: true })
+    let encrypted_url = cipher.encrypt(feed_url).map_err(|_| RealError::Database)?;
+    sqlx::query("INSERT INTO calendar_connections (id, workspace_id, label, provider, enabled, created_at, feed_url_encrypted, next_poll_at) VALUES (?1, ?2, ?3, 'ical_feed', 1, ?4, ?5, ?4) ON CONFLICT(workspace_id) DO UPDATE SET label = excluded.label, provider = 'ical_feed', enabled = 1, feed_url_encrypted = excluded.feed_url_encrypted, next_poll_at = excluded.next_poll_at, last_error = NULL")
+        .bind(Uuid::new_v4().to_string()).bind(&workspace.id).bind(label).bind(now).bind(encrypted_url).execute(pool).await.map_err(|_| RealError::Database)?;
+    Ok(CalendarConnection {
+        label: label.to_owned(),
+        provider: "ical_feed".to_owned(),
+        enabled: true,
+        last_polled_at: None,
+        last_error: None,
+    })
 }
 
-pub async fn reconcile_class(pool: &SqlitePool, access_key: &str, id: &str, calendar_confirmed: i64, now: i64) -> Result<RealClass, RealError> {
+pub async fn reconcile_class(
+    pool: &SqlitePool,
+    access_key: &str,
+    id: &str,
+    calendar_confirmed: i64,
+    now: i64,
+) -> Result<RealClass, RealError> {
     let workspace = workspace_for_key(pool, access_key).await?;
-    let local = get_real_class_by_id(pool, &workspace.id, id, now).await?.ok_or(RealError::NotFound)?;
-    let status = if local.confirmed == calendar_confirmed { "matched" } else { "attention" };
+    let local = get_real_class_by_id(pool, &workspace.id, id, now)
+        .await?
+        .ok_or(RealError::NotFound)?;
+    let status = if local.confirmed == calendar_confirmed {
+        "matched"
+    } else {
+        "attention"
+    };
     sqlx::query("INSERT INTO reconciliation_runs (id, class_id, calendar_confirmed, local_confirmed, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)")
         .bind(Uuid::new_v4().to_string()).bind(id).bind(calendar_confirmed).bind(local.confirmed).bind(status).bind(now).execute(pool).await.map_err(|_| RealError::Database)?;
-    get_real_class_by_id(pool, &workspace.id, id, now).await?.ok_or(RealError::NotFound)
+    get_real_class_by_id(pool, &workspace.id, id, now)
+        .await?
+        .ok_or(RealError::NotFound)
 }
 
-pub async fn join_waitlist(pool: &SqlitePool, public_id: &str, name: &str, email: &str, now: i64) -> Result<(), RealError> {
-    let class = get_public_real_class(pool, public_id, now).await?.ok_or(RealError::NotFound)?;
-    sqlx::query("INSERT INTO waitlist_entries (id, class_id, guardian_name, guardian_email, consented_at, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5, 'waiting', ?5)")
-        .bind(Uuid::new_v4().to_string()).bind(class.id).bind(name).bind(email).bind(now).execute(pool).await.map_err(|_| RealError::Database)?;
-    Ok(())
+pub async fn join_waitlist(
+    pool: &SqlitePool,
+    cipher: &ContactCipher,
+    public_id: &str,
+    idempotency_key: &str,
+    name: &str,
+    email: &str,
+    now: i64,
+) -> Result<String, RealError> {
+    let class = get_public_real_class(pool, public_id, now)
+        .await?
+        .ok_or(RealError::NotFound)?;
+    if let Some(id) = sqlx::query_scalar::<_, String>(
+        "SELECT id FROM waitlist_entries WHERE class_id = ?1 AND idempotency_key = ?2",
+    )
+    .bind(&class.id)
+    .bind(idempotency_key)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| RealError::Database)?
+    {
+        return Ok(id);
+    }
+    let id = Uuid::new_v4().to_string();
+    let encrypted_name = cipher.encrypt(name).map_err(|_| RealError::Database)?;
+    let encrypted_email = cipher.encrypt(email).map_err(|_| RealError::Database)?;
+    sqlx::query("INSERT INTO waitlist_entries (id, class_id, guardian_name, guardian_email, consented_at, status, created_at, contact_expires_at, idempotency_key) VALUES (?1, ?2, ?3, ?4, ?5, 'waiting', ?5, ?6, ?7)")
+        .bind(&id).bind(class.id).bind(encrypted_name).bind(encrypted_email).bind(now).bind(now + 90 * 86_400).bind(idempotency_key).execute(pool).await.map_err(|_| RealError::Database)?;
+    Ok(id)
 }
 
-pub async fn cancel_booking_and_offer(pool: &SqlitePool, access_key: &str, class_id: &str, booking_id: &str, now: i64) -> Result<Option<String>, RealError> {
+pub async fn cancel_booking_and_offer(
+    pool: &SqlitePool,
+    access_key: &str,
+    class_id: &str,
+    booking_id: &str,
+    offer_base_url: &str,
+    now: i64,
+) -> Result<ReleaseResult, RealError> {
     let workspace = workspace_for_key(pool, access_key).await?;
     let mut conn = pool.acquire().await.map_err(|_| RealError::Database)?;
-    sqlx::query("BEGIN IMMEDIATE").execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+    sqlx::query("BEGIN IMMEDIATE")
+        .execute(&mut *conn)
+        .await
+        .map_err(|_| RealError::Database)?;
     let result = async {
         let owned = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM real_classes WHERE id = ?1 AND workspace_id = ?2").bind(class_id).bind(&workspace.id).fetch_one(&mut *conn).await.map_err(|_| RealError::Database)?;
         if owned != 1 { return Err(RealError::NotFound); }
         let changed = sqlx::query("UPDATE real_bookings SET status = 'cancelled' WHERE id = ?1 AND class_id = ?2 AND status = 'confirmed'").bind(booking_id).bind(class_id).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
         if changed.rows_affected() != 1 { return Err(RealError::NotFound); }
         sqlx::query("UPDATE real_classes SET confirmed = confirmed - 1 WHERE id = ?1 AND confirmed > 0").bind(class_id).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
-        let next = sqlx::query("SELECT id FROM waitlist_entries WHERE class_id = ?1 AND status = 'waiting' ORDER BY created_at LIMIT 1").bind(class_id).fetch_optional(&mut *conn).await.map_err(|_| RealError::Database)?;
-        if let Some(row) = next { let entry: String = row.get("id"); let token = opaque_id("offer_"); sqlx::query("INSERT INTO seat_offers (id, waitlist_entry_id, class_id, token_hash, expires_at, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5, 'open', ?6)").bind(Uuid::new_v4().to_string()).bind(&entry).bind(class_id).bind(digest(&token)).bind(now + 86_400).bind(now).execute(&mut *conn).await.map_err(|_| RealError::Database)?; sqlx::query("UPDATE waitlist_entries SET status = 'offered' WHERE id = ?1").bind(entry).execute(&mut *conn).await.map_err(|_| RealError::Database)?; Ok(Some(token)) } else { Ok(None) }
+        let next = sqlx::query("SELECT id, guardian_email FROM waitlist_entries WHERE class_id = ?1 AND status = 'waiting' ORDER BY created_at LIMIT 1").bind(class_id).fetch_optional(&mut *conn).await.map_err(|_| RealError::Database)?;
+        if let Some(row) = next {
+            let entry: String = row.get("id");
+            let recipient: String = row.get("guardian_email");
+            let token = opaque_id("offer_");
+            sqlx::query("INSERT INTO seat_offers (id, waitlist_entry_id, class_id, token_hash, expires_at, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5, 'open', ?6)").bind(Uuid::new_v4().to_string()).bind(&entry).bind(class_id).bind(digest(&token)).bind(now + 86_400).bind(now).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+            sqlx::query("UPDATE waitlist_entries SET status = 'offered' WHERE id = ?1").bind(entry).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+            let body = format!("A class seat is available for 24 hours. Accept it at {offer_base_url}/offer/{token}");
+            sqlx::query("INSERT INTO email_outbox (id, workspace_id, recipient_encrypted, subject, text_body, status, attempts, next_attempt_at, created_at) VALUES (?1, ?2, ?3, 'A class seat is available', ?4, 'pending', 0, ?5, ?5)")
+                .bind(Uuid::new_v4().to_string()).bind(&workspace.id).bind(recipient).bind(body).bind(now).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+            Ok(ReleaseResult { offer_token: Some(token), delivery_status: "queued" })
+        } else {
+            Ok(ReleaseResult { offer_token: None, delivery_status: "not_needed" })
+        }
     }.await;
-    match result { Ok(value) => { sqlx::query("COMMIT").execute(&mut *conn).await.map_err(|_| RealError::Database)?; Ok(value) }, Err(error) => { let _ = sqlx::query("ROLLBACK").execute(&mut *conn).await; Err(error) } }
+    match result {
+        Ok(value) => {
+            sqlx::query("COMMIT")
+                .execute(&mut *conn)
+                .await
+                .map_err(|_| RealError::Database)?;
+            Ok(value)
+        }
+        Err(error) => {
+            let _ = sqlx::query("ROLLBACK").execute(&mut *conn).await;
+            Err(error)
+        }
+    }
 }
 
-pub async fn release_oldest_booking_and_offer(pool: &SqlitePool, access_key: &str, class_id: &str, now: i64) -> Result<Option<String>, RealError> {
+pub async fn release_oldest_booking_and_offer(
+    pool: &SqlitePool,
+    access_key: &str,
+    class_id: &str,
+    offer_base_url: &str,
+    now: i64,
+) -> Result<ReleaseResult, RealError> {
     let workspace = workspace_for_key(pool, access_key).await?;
     let booking = sqlx::query("SELECT b.id FROM real_bookings b JOIN real_classes c ON c.id = b.class_id WHERE b.class_id = ?1 AND c.workspace_id = ?2 AND b.status = 'confirmed' ORDER BY b.created_at LIMIT 1")
         .bind(class_id).bind(&workspace.id).fetch_optional(pool).await.map_err(|_| RealError::Database)?
         .ok_or(RealError::NotFound)?;
-    cancel_booking_and_offer(pool, access_key, class_id, &booking.get::<String, _>("id"), now).await
+    cancel_booking_and_offer(
+        pool,
+        access_key,
+        class_id,
+        &booking.get::<String, _>("id"),
+        offer_base_url,
+        now,
+    )
+    .await
 }
 
-pub async fn get_offer(pool: &SqlitePool, token: &str, now: i64) -> Result<Option<WaitlistOffer>, RealError> {
+pub async fn list_confirmed_bookings(
+    pool: &SqlitePool,
+    cipher: &ContactCipher,
+    access_key: &str,
+    class_id: &str,
+) -> Result<Vec<BookingSummary>, RealError> {
+    let workspace = workspace_for_key(pool, access_key).await?;
+    let rows = sqlx::query("SELECT b.id, b.guardian_name, b.guardian_email, b.created_at FROM real_bookings b JOIN real_classes c ON c.id = b.class_id WHERE b.class_id = ?1 AND c.workspace_id = ?2 AND b.status = 'confirmed' ORDER BY b.created_at")
+        .bind(class_id).bind(workspace.id).fetch_all(pool).await.map_err(|_| RealError::Database)?;
+    rows.iter()
+        .map(|row| {
+            Ok(BookingSummary {
+                id: row.get("id"),
+                guardian_name: cipher
+                    .decrypt(&row.get::<String, _>("guardian_name"))
+                    .map_err(|_| RealError::Database)?,
+                guardian_email: cipher
+                    .decrypt(&row.get::<String, _>("guardian_email"))
+                    .map_err(|_| RealError::Database)?,
+                created_at: row.get("created_at"),
+            })
+        })
+        .collect()
+}
+
+pub async fn export_workspace(
+    pool: &SqlitePool,
+    cipher: &ContactCipher,
+    access_key: &str,
+) -> Result<serde_json::Value, RealError> {
+    let workspace = workspace_for_key(pool, access_key).await?;
+    let classes = list_real_classes(pool, access_key, i64::MAX / 4).await?;
+    let mut bookings = HashMap::new();
+    for class in &classes {
+        bookings.insert(
+            class.id.clone(),
+            list_confirmed_bookings(pool, cipher, access_key, &class.id).await?,
+        );
+    }
+    Ok(
+        serde_json::json!({"workspace": workspace, "classes": classes, "confirmedBookings": bookings}),
+    )
+}
+
+pub async fn delete_workspace(pool: &SqlitePool, access_key: &str) -> Result<(), RealError> {
+    let workspace = workspace_for_key(pool, access_key).await?;
+    sqlx::query("DELETE FROM workspaces WHERE id = ?1")
+        .bind(workspace.id)
+        .execute(pool)
+        .await
+        .map_err(|_| RealError::Database)?;
+    Ok(())
+}
+
+pub async fn activate_subscription(
+    pool: &SqlitePool,
+    access_key: &str,
+    external_reference: &str,
+    now: i64,
+) -> Result<Workspace, RealError> {
+    let workspace = workspace_for_key(pool, access_key).await?;
+    sqlx::query("INSERT OR IGNORE INTO billing_events (id, workspace_id, external_reference_hash, status, created_at) VALUES (?1, ?2, ?3, 'active', ?4)")
+        .bind(Uuid::new_v4().to_string()).bind(&workspace.id).bind(digest(external_reference)).bind(now).execute(pool).await.map_err(|_| RealError::Database)?;
+    sqlx::query("UPDATE workspaces SET subscription_status = 'active' WHERE id = ?1")
+        .bind(&workspace.id)
+        .execute(pool)
+        .await
+        .map_err(|_| RealError::Database)?;
+    workspace_from_key(pool, access_key).await
+}
+
+pub async fn cleanup_retained_contacts(pool: &SqlitePool, now: i64) -> anyhow::Result<u64> {
+    let bookings = sqlx::query("UPDATE real_bookings SET guardian_name = '[deleted]', guardian_email = '[deleted]' WHERE contact_expires_at IS NOT NULL AND contact_expires_at <= ?1 AND guardian_name != '[deleted]'").bind(now).execute(pool).await?;
+    let waitlist = sqlx::query("UPDATE waitlist_entries SET guardian_name = '[deleted]', guardian_email = '[deleted]' WHERE contact_expires_at IS NOT NULL AND contact_expires_at <= ?1 AND guardian_name != '[deleted]'").bind(now).execute(pool).await?;
+    Ok(bookings.rows_affected() + waitlist.rows_affected())
+}
+
+pub async fn get_offer(
+    pool: &SqlitePool,
+    token: &str,
+    now: i64,
+) -> Result<Option<WaitlistOffer>, RealError> {
     let row = sqlx::query("SELECT o.expires_at, c.id, c.public_id, c.name, c.starts_at, c.booking_cutoff, c.timezone, c.capacity, c.confirmed, c.published FROM seat_offers o JOIN real_classes c ON c.id = o.class_id WHERE o.token_hash = ?1 AND o.status = 'open' AND o.expires_at > ?2").bind(digest(token)).bind(now).fetch_optional(pool).await.map_err(|_| RealError::Database)?;
-    Ok(row.as_ref().map(|row| WaitlistOffer { offer_token: token.to_owned(), class: real_class_from_row(row, now), expires_at: row.get("expires_at") }))
+    Ok(row.as_ref().map(|row| WaitlistOffer {
+        offer_token: token.to_owned(),
+        class: real_class_from_row(row, now),
+        expires_at: row.get("expires_at"),
+    }))
 }
 
-pub async fn accept_offer(pool: &SqlitePool, token: &str, now: i64) -> Result<RealClass, RealError> {
-    let mut conn = pool.acquire().await.map_err(|_| RealError::Database)?; sqlx::query("BEGIN IMMEDIATE").execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+pub async fn accept_offer(
+    pool: &SqlitePool,
+    token: &str,
+    now: i64,
+) -> Result<RealClass, RealError> {
+    let mut conn = pool.acquire().await.map_err(|_| RealError::Database)?;
+    sqlx::query("BEGIN IMMEDIATE")
+        .execute(&mut *conn)
+        .await
+        .map_err(|_| RealError::Database)?;
     let result = async { let row = sqlx::query("SELECT o.id, o.waitlist_entry_id, o.class_id, o.expires_at, c.public_id, c.capacity, c.confirmed, c.booking_cutoff FROM seat_offers o JOIN real_classes c ON c.id = o.class_id WHERE o.token_hash = ?1 AND o.status = 'open'").bind(digest(token)).fetch_optional(&mut *conn).await.map_err(|_| RealError::Database)?.ok_or(RealError::OfferUnavailable)?; if row.get::<i64, _>("expires_at") <= now || row.get::<i64, _>("confirmed") >= row.get::<i64, _>("capacity") || row.get::<i64, _>("booking_cutoff") <= now { return Err(RealError::OfferUnavailable); } let class_id: String = row.get("class_id"); let changed = sqlx::query("UPDATE real_classes SET confirmed = confirmed + 1 WHERE id = ?1 AND confirmed < capacity").bind(&class_id).execute(&mut *conn).await.map_err(|_| RealError::Database)?; if changed.rows_affected() != 1 { return Err(RealError::OfferUnavailable); } sqlx::query("UPDATE seat_offers SET status = 'accepted' WHERE id = ?1").bind(row.get::<String, _>("id")).execute(&mut *conn).await.map_err(|_| RealError::Database)?; sqlx::query("UPDATE waitlist_entries SET status = 'accepted' WHERE id = ?1").bind(row.get::<String, _>("waitlist_entry_id")).execute(&mut *conn).await.map_err(|_| RealError::Database)?; let current = sqlx::query("SELECT id, public_id, name, starts_at, booking_cutoff, timezone, capacity, confirmed, published FROM real_classes WHERE id = ?1").bind(&class_id).fetch_one(&mut *conn).await.map_err(|_| RealError::Database)?; Ok(real_class_from_row(&current, now)) }.await;
-    match result { Ok(value) => { sqlx::query("COMMIT").execute(&mut *conn).await.map_err(|_| RealError::Database)?; Ok(value) }, Err(error) => { let _ = sqlx::query("ROLLBACK").execute(&mut *conn).await; Err(error) } }
+    match result {
+        Ok(value) => {
+            sqlx::query("COMMIT")
+                .execute(&mut *conn)
+                .await
+                .map_err(|_| RealError::Database)?;
+            Ok(value)
+        }
+        Err(error) => {
+            let _ = sqlx::query("ROLLBACK").execute(&mut *conn).await;
+            Err(error)
+        }
+    }
 }
 
 #[cfg(test)]

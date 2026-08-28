@@ -8,6 +8,7 @@ use axum::{
 use class_capacity_truth_api::{app, db, AppState};
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
+use sqlx::Row;
 use tempfile::TempDir;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -19,6 +20,11 @@ async fn test_app(period_ms: u64, burst: u32) -> (Router, TempDir, sqlx::SqliteP
     let state = AppState {
         pool: pool.clone(),
         cookie_key: Arc::new(vec![13_u8; 32]),
+        contact_cipher: class_capacity_truth_api::crypto::ContactCipher::from_key(&[17_u8; 32])
+            .unwrap(),
+        auth: class_capacity_truth_api::auth::AuthVerifier::for_tests(),
+        public_base_url: Arc::new("https://example.test".into()),
+        http: reqwest::Client::new(),
     };
     (
         app(state, PathBuf::from("does-not-exist"), period_ms, burst),
@@ -182,6 +188,38 @@ async fn rate_limit_uses_forwarded_ip_and_returns_retry_after() {
 }
 
 #[tokio::test]
+async fn school_routes_require_entra_bearer_and_return_auth_challenge() {
+    let (router, _directory, _pool) = test_app(1, 100).await;
+    let denied = router
+        .clone()
+        .oneshot(post(
+            "/api/workspaces",
+            "198.51.100.44",
+            None,
+            json!({"schoolName":"Protected School"}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(denied.headers()[header::WWW_AUTHENTICATE], "Bearer");
+
+    let request = Request::builder()
+        .method("POST")
+        .uri("/api/workspaces")
+        .header("x-forwarded-for", "198.51.100.45")
+        .header(header::AUTHORIZATION, "Bearer test-owner")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            json!({"schoolName":"Protected School"}).to_string(),
+        ))
+        .unwrap();
+    assert_eq!(
+        router.oneshot(request).await.unwrap().status(),
+        StatusCode::CREATED
+    );
+}
+
+#[tokio::test]
 async fn capacity_cutoff_idempotency_reset_and_concurrent_race() {
     let (_router, _directory, pool) = test_app(1, 100).await;
     let tenant = Uuid::new_v4().to_string();
@@ -307,32 +345,174 @@ async fn capacity_cutoff_idempotency_reset_and_concurrent_race() {
 }
 
 #[tokio::test]
-async fn regression_real_school_flow_configures_books_reconciles_and_converts_released_waitlist_seat() {
+async fn regression_real_school_flow_configures_books_reconciles_and_converts_released_waitlist_seat(
+) {
     // Regression for verifier P0: the old artifact had only a cookie-scoped
     // sample and no durable school class, public booking, reconciliation, or offer.
     let (_router, _directory, pool) = test_app(1, 100).await;
     let now = 1_900_000_000;
-    let (workspace, key) = db::create_workspace(&pool, "Harbour Languages", now).await.unwrap();
-    assert_eq!(db::workspace_from_key(&pool, &key).await.unwrap().id, workspace.id);
-    let class = db::create_real_class(&pool, &key, "Saturday level check", now + 86_400, now + 43_200, "Europe/London", 2, now).await.unwrap();
-    let class = db::publish_real_class(&pool, &key, &class.id, now).await.unwrap();
+    let cipher = class_capacity_truth_api::crypto::ContactCipher::from_key(&[19_u8; 32]).unwrap();
+    let (workspace, key) = db::create_workspace(&pool, "Harbour Languages", "test-owner-oid", now)
+        .await
+        .unwrap();
+    assert_eq!(
+        db::workspace_from_key(&pool, &key).await.unwrap().id,
+        workspace.id
+    );
+    let class = db::create_real_class(
+        &pool,
+        &key,
+        db::NewRealClass {
+            name: "Saturday level check",
+            starts_at: now + 86_400,
+            cutoff: now + 43_200,
+            timezone: "Europe/London",
+            capacity: 2,
+        },
+        now,
+    )
+    .await
+    .unwrap();
+    let class = db::publish_real_class(&pool, &key, &class.id, now)
+        .await
+        .unwrap();
     assert!(class.published);
-    assert!(db::get_public_real_class(&pool, &class.public_id, now).await.unwrap().is_some());
-    let booked = db::book_real_seat(&pool, &class.public_id, "first-parent", "A Parent", "a@example.org", now).await.unwrap();
+    assert!(db::get_public_real_class(&pool, &class.public_id, now)
+        .await
+        .unwrap()
+        .is_some());
+    let booked = db::book_real_seat(
+        &pool,
+        &cipher,
+        &class.public_id,
+        "first-parent",
+        "A Parent",
+        "a@example.org",
+        now,
+    )
+    .await
+    .unwrap();
     assert_eq!(booked.open_seats, 1);
-    let booked = db::book_real_seat(&pool, &class.public_id, "second-parent", "B Parent", "b@example.org", now).await.unwrap();
+    let booked = db::book_real_seat(
+        &pool,
+        &cipher,
+        &class.public_id,
+        "second-parent",
+        "B Parent",
+        "b@example.org",
+        now,
+    )
+    .await
+    .unwrap();
     assert_eq!(booked.open_seats, 0);
-    assert_eq!(db::book_real_seat(&pool, &class.public_id, "oversell", "C Parent", "c@example.org", now).await.unwrap_err(), db::RealError::Full);
-    db::join_waitlist(&pool, &class.public_id, "Waiting Parent", "waiting@example.org", now).await.unwrap();
-    let checked = db::reconcile_class(&pool, &key, &class.id, 1, now).await.unwrap();
+    assert_eq!(
+        db::book_real_seat(
+            &pool,
+            &cipher,
+            &class.public_id,
+            "oversell",
+            "C Parent",
+            "c@example.org",
+            now
+        )
+        .await
+        .unwrap_err(),
+        db::RealError::Full
+    );
+    let waitlist_id = db::join_waitlist(
+        &pool,
+        &cipher,
+        &class.public_id,
+        "waitlist-request",
+        "Waiting Parent",
+        "waiting@example.org",
+        now,
+    )
+    .await
+    .unwrap();
+    let repeated_waitlist_id = db::join_waitlist(
+        &pool,
+        &cipher,
+        &class.public_id,
+        "waitlist-request",
+        "Waiting Parent",
+        "waiting@example.org",
+        now,
+    )
+    .await
+    .unwrap();
+    assert_eq!(waitlist_id, repeated_waitlist_id);
+    let encrypted_booking = sqlx::query(
+        "SELECT guardian_name, guardian_email FROM real_bookings WHERE class_id = ?1 LIMIT 1",
+    )
+    .bind(&class.id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_ne!(
+        encrypted_booking.get::<String, _>("guardian_name"),
+        "A Parent"
+    );
+    assert_ne!(
+        encrypted_booking.get::<String, _>("guardian_email"),
+        "a@example.org"
+    );
+    let visible = db::list_confirmed_bookings(&pool, &cipher, &key, &class.id)
+        .await
+        .unwrap();
+    assert_eq!(visible[0].guardian_name, "A Parent");
+    let checked = db::reconcile_class(&pool, &key, &class.id, 1, now)
+        .await
+        .unwrap();
     assert_eq!(checked.reconciliation_status.as_deref(), Some("attention"));
-    let token = db::release_oldest_booking_and_offer(&pool, &key, &class.id, now).await.unwrap().expect("one fair offer");
-    let offer = db::get_offer(&pool, &token, now).await.unwrap().expect("offer is viewable");
+    let token =
+        db::release_oldest_booking_and_offer(&pool, &key, &class.id, "https://example.test", now)
+            .await
+            .unwrap()
+            .offer_token
+            .expect("one fair offer");
+    let outbox = sqlx::query("SELECT status, text_body FROM email_outbox WHERE workspace_id = ?1")
+        .bind(&workspace.id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(outbox.get::<String, _>("status"), "pending");
+    assert!(outbox
+        .get::<String, _>("text_body")
+        .contains(&format!("/offer/{token}")));
+    let offer = db::get_offer(&pool, &token, now)
+        .await
+        .unwrap()
+        .expect("offer is viewable");
     assert_eq!(offer.class.public_id, class.public_id);
     let accepted = db::accept_offer(&pool, &token, now).await.unwrap();
     assert_eq!(accepted.confirmed, 2);
     assert_eq!(accepted.open_seats, 0);
-    assert_eq!(db::accept_offer(&pool, &token, now).await.unwrap_err(), db::RealError::OfferUnavailable);
+    assert_eq!(
+        db::accept_offer(&pool, &token, now).await.unwrap_err(),
+        db::RealError::OfferUnavailable
+    );
+    sqlx::query("INSERT INTO workspace_members (workspace_id, oid, role, created_at) VALUES (?1, 'viewer-oid', 'viewer', ?2)")
+        .bind(&workspace.id).bind(now).execute(&pool).await.unwrap();
+    assert!(
+        db::authorize_workspace(&pool, &key, "viewer-oid", &["viewer"])
+            .await
+            .is_ok()
+    );
+    assert_eq!(
+        db::authorize_workspace(&pool, &key, "viewer-oid", &["owner"])
+            .await
+            .unwrap_err(),
+        db::RealError::Forbidden
+    );
+
+    let scrubbed = db::cleanup_retained_contacts(&pool, now + 91 * 86_400)
+        .await
+        .unwrap();
+    assert!(scrubbed >= 3);
+    let remaining_plaintext = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM real_bookings WHERE guardian_name LIKE '%Parent%' OR guardian_email LIKE '%example.org%'")
+        .fetch_one(&pool).await.unwrap();
+    assert_eq!(remaining_plaintext, 0);
 }
 
 #[tokio::test]

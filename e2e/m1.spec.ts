@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 test.beforeEach(async ({ context }, testInfo) => {
   const seed = [...testInfo.title].reduce((total, character) => total + character.charCodeAt(0), 0);
   await context.setExtraHTTPHeaders({ "x-forwarded-for": `198.51.100.${10 + (seed % 200)}` });
+  await context.addInitScript((token) => sessionStorage.setItem("cct:test-access-token", token), `test-owner-${seed}`);
 });
 
 test("@claim:sample-booking-updates-seats books one seat and updates the count", async ({ page }) => {
@@ -76,6 +77,9 @@ test("@claim:demo-reset-isolated keeps browser demos separate and resets changes
 });
 
 test("keyboard booking and route focus work", async ({ page }) => {
+  await page.goto("/");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
   await page.goto("/demo?demo=1");
   const link = page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByRole("link", { name: "Book this sample class" });
   await link.focus();
@@ -89,7 +93,7 @@ test("keyboard booking and route focus work", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Your sample seat is booked" })).toBeVisible();
   await page.getByRole("link", { name: "Privacy" }).first().click();
-  await expect(page.getByRole("heading", { level: 1, name: "Privacy in the sample" })).toBeFocused();
+  await expect(page.getByRole("heading", { level: 1, name: "Privacy for bookings and the demo" })).toBeFocused();
   await expect(page).toHaveTitle("Privacy — Class Capacity Truth");
 });
 
@@ -152,7 +156,15 @@ test("school workspace stays usable at 390px", async ({ page }) => {
   expect(results.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
 });
 
-test("@claim:school-capacity-flow creates, publishes, reconciles, books, waits, and converts a released seat", async ({ page }) => {
+test("school workspace keeps controls at 200 percent text size", async ({ page }) => {
+  await page.goto("/app");
+  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  await expect(page.getByRole("heading", { name: "Create your school workspace" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await expect(page.getByRole("button", { name: "Create school workspace" })).toBeVisible();
+});
+
+test("@claim:school-capacity-flow @claim:calendar-poll @claim:released-seat-delivery creates, reconciles, waits, and converts", async ({ page }) => {
   await page.goto("/app");
   await page.getByLabel("School name").fill("Harbour Languages");
   await page.getByRole("button", { name: "Create school workspace" }).click();
@@ -160,33 +172,85 @@ test("@claim:school-capacity-flow creates, publishes, reconciles, books, waits, 
   await page.getByLabel("Class name").fill("Saturday level check");
   await page.getByLabel("Starts at").fill("2030-06-10T10:00");
   await page.getByLabel("Booking cutoff").fill("2030-06-09T10:00");
-  await page.getByLabel("Capacity").fill("2");
+  await page.getByLabel("Capacity").fill("1");
   await page.getByRole("button", { name: "Create class" }).click();
   const classCard = page.getByRole("article").filter({ hasText: "Saturday level check" });
   await classCard.getByRole("button", { name: "Publish parent link" }).click();
   const href = await classCard.getByRole("link", { name: "Open booking page" }).getAttribute("href");
   expect(href).toMatch(/^\/book\/class_/);
-  await page.getByLabel("Calendar confirmed bookings for Saturday level check").fill("1");
-  await page.getByLabel("Calendar confirmed bookings for Saturday level check").blur();
-  await expect(page.getByRole("heading", { name: "Manage class capacity" })).toBeVisible();
+  await page.getByLabel("Calendar label").fill("School bookings calendar");
+  await page.getByLabel("iCalendar feed URL").fill("https://fixture.invalid/school.ics");
+  await page.getByRole("button", { name: "Connect and check calendar" }).click();
+  await expect(page.getByText(/Calendar connected and checked/)).toBeVisible();
   await page.goto(href!);
   await page.getByLabel("Guardian name").fill("Alex Morgan");
   await page.getByLabel("Email address").fill("alex@example.org");
   await page.getByRole("button", { name: "Book this seat" }).click();
   await expect(page.getByText("Your place is confirmed.")).toBeVisible();
-  const publicId = href!.split("/").pop()!;
-  await page.evaluate(async ({ publicId }) => {
-    await fetch(`/api/classes/${publicId}/waitlist`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guardianName: "Waiting Parent", guardianEmail: "waiting@example.org", consent: true }) });
-  }, { publicId });
+  await page.reload();
+  await page.getByLabel("Guardian name").fill("Waiting Parent");
+  await page.getByLabel("Email address").fill("waiting@example.org");
+  await page.getByRole("button", { name: "Join waitlist" }).click();
+  await expect(page.getByText(/You are on the waitlist/)).toBeVisible();
   await page.goto("/app");
-  await classCard.getByRole("button", { name: "Release one confirmed seat" }).click();
-  await expect(page.getByText(/Released seat offer created:/)).toBeVisible();
-  const text = await page.getByText(/Released seat offer created:/).textContent();
-  const token = text!.match(/\/offer\/(offer_[a-z0-9]+)/)?.[1];
+  await classCard.getByRole("button", { name: "Choose a booking to cancel" }).click();
+  await expect(classCard.getByText("Alex Morgan", { exact: true })).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  const [cancelResponse] = await Promise.all([
+    page.waitForResponse((response) => response.url().includes("/bookings/") && response.url().endsWith("/cancel")),
+    classCard.getByRole("button", { name: "Cancel Alex Morgan booking" }).click()
+  ]);
+  const token = (await cancelResponse.json()).offerToken as string;
+  await expect(page.getByText(/offer was queued/)).toBeVisible();
   expect(token).toBeTruthy();
   await page.goto(`/offer/${token}`);
   await page.getByRole("button", { name: "Accept this seat" }).click();
   await expect(page.getByText(/Your released seat is confirmed/)).toBeVisible();
+});
+
+test("release regression: school wall time does not drift with the browser zone", async ({ browser }) => {
+  const context = await browser.newContext({ timezoneId: "America/New_York", extraHTTPHeaders: { "x-forwarded-for": "203.0.113.90" } });
+  await context.addInitScript(() => sessionStorage.setItem("cct:test-access-token", "test-owner-timezone"));
+  const page = await context.newPage();
+  await page.goto("/app");
+  await page.getByLabel("School name").fill("Timezone School");
+  await page.getByRole("button", { name: "Create school workspace" }).click();
+  await page.getByLabel("Class name").fill("London morning class");
+  await page.getByLabel("School time zone").selectOption("Europe/London");
+  await page.getByLabel("Starts at").fill("2030-06-10T10:00");
+  await page.getByLabel("Booking cutoff").fill("2030-06-09T10:00");
+  await page.getByLabel("Capacity").fill("2");
+  await page.getByRole("button", { name: "Create class" }).click();
+  await expect(page.getByRole("article").filter({ hasText: "London morning class" })).toContainText("10:00");
+  await context.close();
+});
+
+test("@claim:school-plan-price @claim:data-export-delete pricing, export, deletion, and 44px targets work", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("The school plan costs $99 each month.")).toBeVisible();
+  const sizes = await page.locator(".skip-link, footer a").evaluateAll((items) => items.map((item) => ({ width: item.getBoundingClientRect().width, height: item.getBoundingClientRect().height })));
+  expect(sizes.every((size) => size.width >= 44 && size.height >= 44)).toBe(true);
+  await page.goto("/app");
+  await page.getByLabel("School name").fill("Data Rights School");
+  await page.getByRole("button", { name: "Create school workspace" }).click();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export school data" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("class-capacity-truth-export.json");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete school workspace" }).click();
+  await expect(page.getByRole("heading", { name: "Create your school workspace" })).toBeVisible();
+});
+
+test("@claim:no-third-party-tracking observed product flows stay same-origin", async ({ page, baseURL }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => requests.push(request.url()));
+  for (const route of ["/", "/demo?demo=1", "/privacy", "/app"]) {
+    await page.goto(route);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  }
+  const origin = new URL(baseURL!).origin;
+  expect(requests.every((url) => new URL(url).origin === origin)).toBe(true);
 });
 
 for (const route of ["/", "/demo?demo=1", "/privacy", "/terms", "/missing-page"]) {

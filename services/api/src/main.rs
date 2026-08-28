@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::Context;
 use base64::{engine::general_purpose::STANDARD, Engine};
-use class_capacity_truth_api::{app, cleanup_task, db, AppState};
+use class_capacity_truth_api::{app, cleanup_task, crypto, db, integration_task, AppState};
 use rand::RngCore;
 use tracing_subscriber::EnvFilter;
 
@@ -37,6 +37,7 @@ async fn main() -> anyhow::Result<()> {
         )
     });
     let (cookie_key, key_source) = load_cookie_key(&data_dir)?;
+    let (contact_cipher, contact_key_source) = crypto::load_or_create_key(&data_dir)?;
     let pool = db::connect(&database_url).await?;
     let frontend_dist = env::var("FRONTEND_DIST")
         .map(PathBuf::from)
@@ -50,15 +51,31 @@ async fn main() -> anyhow::Result<()> {
             "generated-default"
         },
         cookie_signing_key = key_source,
+        contact_encryption_key = contact_key_source,
+        smtp = if env::var_os("SMTP_RELAY").is_some() {
+            "supplied"
+        } else {
+            "local-capture"
+        },
         "configuration ready"
     );
 
     let state = AppState {
         pool: pool.clone(),
         cookie_key: Arc::new(cookie_key),
+        contact_cipher,
+        auth: class_capacity_truth_api::auth::AuthVerifier::from_env(),
+        public_base_url: Arc::new(
+            env::var("PUBLIC_BASE_URL")
+                .unwrap_or_else(|_| "https://class-capacity-truth.sociobot.in".into()),
+        ),
+        http: reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()?,
     };
-    let router = app(state, frontend_dist, 6_000, 10);
+    let router = app(state.clone(), frontend_dist, 6_000, 10);
     tokio::spawn(cleanup_task(pool));
+    tokio::spawn(integration_task(state));
     let address = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(address).await?;
     tracing::info!(%address, "server listening");

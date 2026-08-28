@@ -34,7 +34,16 @@ Executed 2026-08-28 in this repair:
 
 ## Deployment
 
-Deployment class remains **container**. The factory should build and deploy this committed source using the existing work-order container configuration. No infrastructure, DNS, billing, or external identity configuration was changed here.
+Deployment class remains **container**. ACR run `chng` built
+`sociobotregistry.azurecr.io/sf-class-capacity-truth:44db2b4` successfully,
+and Container App `sf-class-capacity-truth` in resource group `sociobot` was
+updated to revision `sf-class-capacity-truth--0000005` with min/max replicas
+set to 1 for its SQLite single-writer datastore. Live verification at
+`https://class-capacity-truth.sociobot.in` returned
+`{"status":"ok","build":"44db2b4","database":"ready"}`. The live
+hashed JavaScript response has the immutable cache policy and
+`/missing-page` returns HTTP 404 with the expected CSP. No DNS, billing, or
+external identity configuration was changed.
 
 ## Known next steps
 

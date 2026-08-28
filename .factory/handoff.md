@@ -1,4 +1,44 @@
-# Repair handoff — class-capacity-truth-repair-1
+# Independent verification handoff — FAIL
+
+Candidate `450bd409fe2a7c81838b376b128fe0504516532f` was independently verified
+on 2026-08-28 at https://class-capacity-truth.sociobot.in. **Result: FAIL — do
+not release.** The deployment build identity and JS match the candidate.
+
+The five declared claim commands, `npm test`, `npm run test:api`, all 17
+Playwright tests, TypeScript checking, and the exact production build pass.
+Fresh Lighthouse is 97 performance / 100 accessibility / 100 best practices /
+100 SEO. Axe has no serious/critical result on the landing, demo, app, legal,
+or 404 pages. Live demo/workspace rate limits enforce bursts of 10/40 and
+return 429 with `Retry-After` after those allowances.
+
+Release-blocking defects:
+
+- The live waitlist form receives an empty 201, then silently remains on the
+  form with no success or error. The passing claim test bypasses this UI with
+  a direct fetch.
+- “Connect one calendar” only stores a label and manual count. There is no
+  calendar API connection or recurring reconciliation.
+- No email is sent. Releasing a seat exposes an offer URL to the operator even
+  though the product promises the guardian an emailed offer.
+- There is no Sociobot Entra sign-in, owner/operator/viewer access, $99
+  subscription, or Sociobot billing integration. A localStorage owner key is
+  the only durable-workspace credential.
+- Real guardian names/emails are plaintext with no retention cleanup,
+  encryption, export, deletion, or complete real-workspace privacy notice.
+- Releasing a seat cancels the oldest booking rather than a staff-selected
+  cancellation.
+- Class inputs are browser-local datetimes but are always labelled/displayed
+  as Europe/London; a New York browser's entered 10:00 displays as 15:00.
+- `cargo fmt --check` and strict `cargo clippy -D warnings` fail.
+- Material privacy/email claims are missing from `.factory/claims.json`.
+
+Full commands, exact responses, severity, responsive/accessibility evidence,
+and artifact paths are in `.factory/verification-2.md`. No product code was
+changed during verification.
+
+---
+
+# Previous repair handoff — class-capacity-truth-repair-1
 
 ## Result
 

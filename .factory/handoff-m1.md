@@ -14,6 +14,9 @@ Shipped 2026-08-28 for work order `venture-class-capacity-truth-m1`.
   signed HttpOnly cookies, random tenant IDs, a 24-hour expiry, parameterized
   queries, transactional allocation, idempotency keys, and destructive reset.
   Demo name and email input is validated but replaced before database storage.
+- The M1 Container App is pinned to one replica because its temporary SQLite
+  ledger and generated signing key are replica-local. Do not raise this limit
+  before M2 moves real workspaces to PostgreSQL and shared secret storage.
 - Forwarded-IP rate limits on every API route except health. Excess requests
   receive `429` and `Retry-After`; the 100-request smoke accepted 10 requests
   and limited 90.
@@ -59,7 +62,7 @@ Results on 2026-08-28:
 - Local mobile Lighthouse: landing 100 performance / 100 accessibility / 100
   best practices / 100 SEO, with 1.4 s LCP and 0 CLS. Demo 99 / 100 / 100 /
   100, with 1.4 s LCP and 0.06 CLS.
-- The final container was built by ACR, deployed to
+- Container image `1e1d63a1b7cd` was built by ACR and deployed to
   `https://class-capacity-truth.sociobot.in`, and checked cold with
   `/opt/fleet/lib/verify-url.sh`. `/health` reports the deployed build SHA and
   a ready database. The landing, demo, privacy, terms, 404, metadata assets,

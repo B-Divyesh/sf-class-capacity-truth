@@ -1,0 +1,31 @@
+{
+  "slug": "class-capacity-truth",
+  "title": "Class Capacity Truth",
+  "territory": "utilities",
+  "user": "Small language schools and tutoring centres running paid group assessments or classes who need the capacity shown to families to match real seats. Paying customer: school operations lead; wedge: trustworthy seat inventory and waitlist conversion at $99/month.",
+  "evidence": [
+    {
+      "url": "https://hn.algolia.com/api/v1/items/43933966",
+      "date": "2025-05-09",
+      "quote_or_summary": "The scheduling discussion identifies group bookings and reminders as paid add-ons and says generic scheduling products are rigid, impersonal, and overkill for small businesses."
+    },
+    {
+      "url": "https://github.com/calcom/cal.diy/issues/28914",
+      "date": "2026-04-16",
+      "quote_or_summary": "An English language school reports Cal.com showing only one or two places available while all places remained available, explicitly tying the defect to booking more level checks."
+    }
+  ],
+  "recurrence": "The same class-booking problem appears as both a small-business product complaint and a school operator's revenue-impacting seat-count defect.",
+  "current_workaround": "Keep a spreadsheet alongside a booking tool, manually confirm every group booking, and call waitlisted families one at a time.",
+  "incumbents_and_gap": "Calendly and Cal.com offer group events; full school-information systems are broad and costly. Neither is a lightweight capacity truth layer that reconciles seats, blocks oversell, and converts a waitlist for small schools.",
+  "smallest_useful_product": "Connect one calendar, define class capacity and cutoff rules, expose a parent booking page, reconcile bookings every few minutes, and send one-click released-seat offers. Non-goals: student records, grading, or a full SIS.",
+  "success_measure": "A pilot has zero incorrect seat displays for 90 days and fills at least 25% of released places from its waitlist within 24 hours.",
+  "artifact_class": "web-with-backend",
+  "monetization": "subscription — $99/month per school is small relative to one filled assessment group and supports monitoring and notifications.",
+  "constraints": "Protect child and parent data, minimize data retention, provide role-based access, and support regional privacy requirements.",
+  "est_build_effort": "M",
+  "scale": "venture",
+  "why_distinct": "It is a narrow capacity-reconciliation and waitlist revenue product, not another school management suite.",
+  "confidence": 4,
+  "state": "RESEARCHED"
+}

@@ -1,5 +1,16 @@
 # Current handoff — M1
 
+## Independent QA verdict (2026-08-28): **FAIL**
+
+Candidate `ead522ac24c02ddcfa8b3b18c680365195daa8fc` is deployed at
+https://class-capacity-truth.sociobot.in and its public M1 demo/test suite
+works. It is nevertheless **not releasable as the researched product**:
+schools cannot yet connect calendars, configure/publish real classes, accept
+real bookings, reconcile capacity, or run a waitlist/released-seat flow.
+The Dockerfile also pins `rust:1.89-alpine`, contrary to the required
+un-pinned `rust:1-alpine`/`rust:1-slim` contract. See
+[verification.md](verification.md) for exact test evidence and all findings.
+
 M1 shipped on 2026-08-28. The public product now includes the landing page,
 isolated SQLite-backed capacity-booking demo, legal and 404 routes, complete
 claim coverage, limits, accessibility checks, and a production container.

@@ -1,6 +1,6 @@
 # Class Capacity Truth — venture plan
 
-Status: foundation planned on 2026-08-28. No customer-facing milestone has shipped. Every builder reads this file, .factory/design.md, the brief, and earlier milestone handoffs before changing scope.
+Status: M1 shipped on 2026-08-28. M2 is next. Every builder reads this file, .factory/design.md, the brief, and earlier milestone handoffs before changing scope.
 
 ## PRD
 
@@ -139,7 +139,7 @@ Each is one 3–4 hour builder session and passes review → polish → PASS bef
 
 | Milestone | Status | Outcome |
 | --- | --- | --- |
-| M1 | Planned | Public landing and isolated capacity-booking demo prove the core seat ledger interaction. |
+| M1 | Shipped 2026-08-28 | Public landing and isolated capacity-booking demo prove the core seat ledger interaction. |
 | M2 | Planned | A school can create real classes with Entra accounts, persistence, and paid entitlement. |
 | M3 | Planned | Google Calendar reconciliation and waitlist offers complete jobs two and three. |
 | M4 | Planned | Operators can run, audit, export, and notify safely. |

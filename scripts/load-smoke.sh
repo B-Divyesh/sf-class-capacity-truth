@@ -13,6 +13,8 @@ seq 1 100 | xargs -P 25 -I '{}' sh -c \
 
 grep -q '^200$' "$results_file"
 grep -q '^429$' "$results_file"
+test "$(wc -l < "$results_file")" -eq 100
+test "$(grep -Ec '^(200|429)$' "$results_file")" -eq 100
 grep -qi '^retry-after:' "$headers_dir"/*.headers
 printf '100 requests completed: %s accepted, %s rate-limited\n' \
   "$(grep -c '^200$' "$results_file")" "$(grep -c '^429$' "$results_file")"

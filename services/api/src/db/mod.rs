@@ -71,47 +71,57 @@ pub async fn create_or_refresh_demo(
     tenant_id: &str,
     now: i64,
 ) -> anyhow::Result<()> {
-    let mut tx = pool.begin().await?;
-    let active = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM demo_tenants WHERE id = ?1 AND expires_at > ?2",
-    )
-    .bind(tenant_id)
-    .bind(now)
-    .fetch_one(&mut *tx)
-    .await?;
+    let mut conn = pool.acquire().await?;
+    sqlx::query("BEGIN IMMEDIATE").execute(&mut *conn).await?;
+    let result = async {
+        let active = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM demo_tenants WHERE id = ?1 AND expires_at > ?2",
+        )
+        .bind(tenant_id)
+        .bind(now)
+        .fetch_one(&mut *conn)
+        .await?;
 
-    if active == 0 {
+        if active == 0 {
+            sqlx::query("DELETE FROM demo_tenants WHERE id = ?1")
+                .bind(tenant_id)
+                .execute(&mut *conn)
+                .await?;
+            sqlx::query(
+                "INSERT INTO demo_tenants (id, created_at, expires_at) VALUES (?1, ?2, ?3)",
+            )
+            .bind(tenant_id)
+            .bind(now)
+            .bind(now + DEMO_TTL_SECONDS)
+            .execute(&mut *conn)
+            .await?;
+            seed_sessions(&mut conn, tenant_id, now).await?;
+        }
+        anyhow::Ok(())
+    }
+    .await;
+    finish_immediate(&mut conn, result).await
+}
+
+pub async fn reset_demo(pool: &SqlitePool, tenant_id: &str, now: i64) -> anyhow::Result<()> {
+    let mut conn = pool.acquire().await?;
+    sqlx::query("BEGIN IMMEDIATE").execute(&mut *conn).await?;
+    let result = async {
         sqlx::query("DELETE FROM demo_tenants WHERE id = ?1")
             .bind(tenant_id)
-            .execute(&mut *tx)
+            .execute(&mut *conn)
             .await?;
         sqlx::query("INSERT INTO demo_tenants (id, created_at, expires_at) VALUES (?1, ?2, ?3)")
             .bind(tenant_id)
             .bind(now)
             .bind(now + DEMO_TTL_SECONDS)
-            .execute(&mut *tx)
+            .execute(&mut *conn)
             .await?;
-        seed_sessions(&mut tx, tenant_id, now).await?;
+        seed_sessions(&mut conn, tenant_id, now).await?;
+        anyhow::Ok(())
     }
-    tx.commit().await?;
-    Ok(())
-}
-
-pub async fn reset_demo(pool: &SqlitePool, tenant_id: &str, now: i64) -> anyhow::Result<()> {
-    let mut tx = pool.begin().await?;
-    sqlx::query("DELETE FROM demo_tenants WHERE id = ?1")
-        .bind(tenant_id)
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query("INSERT INTO demo_tenants (id, created_at, expires_at) VALUES (?1, ?2, ?3)")
-        .bind(tenant_id)
-        .bind(now)
-        .bind(now + DEMO_TTL_SECONDS)
-        .execute(&mut *tx)
-        .await?;
-    seed_sessions(&mut tx, tenant_id, now).await?;
-    tx.commit().await?;
-    Ok(())
+    .await;
+    finish_immediate(&mut conn, result).await
 }
 
 pub async fn destroy_demo(pool: &SqlitePool, tenant_id: &str) -> anyhow::Result<()> {
@@ -131,7 +141,7 @@ pub async fn cleanup_expired(pool: &SqlitePool, now: i64) -> anyhow::Result<u64>
 }
 
 async fn seed_sessions(
-    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    conn: &mut sqlx::pool::PoolConnection<sqlx::Sqlite>,
     tenant_id: &str,
     now: i64,
 ) -> anyhow::Result<()> {
@@ -168,10 +178,26 @@ async fn seed_sessions(
         .bind(capacity)
         .bind(confirmed)
         .bind(index as i64)
-        .execute(&mut **tx)
+        .execute(&mut **conn)
         .await?;
     }
     Ok(())
+}
+
+async fn finish_immediate(
+    conn: &mut sqlx::pool::PoolConnection<sqlx::Sqlite>,
+    result: anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    match result {
+        Ok(()) => {
+            sqlx::query("COMMIT").execute(&mut **conn).await?;
+            Ok(())
+        }
+        Err(error) => {
+            let _ = sqlx::query("ROLLBACK").execute(&mut **conn).await;
+            Err(error)
+        }
+    }
 }
 
 pub async fn list_sessions(

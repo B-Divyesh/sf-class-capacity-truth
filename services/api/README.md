@@ -1,11 +1,15 @@
-# API service scaffold
+# API service
 
-M1 creates the Rust 2021 Axum service here. The required layout is:
+The Rust 2021 Axum service owns the temporary M1 demo ledger. It provides:
 
-- src/main.rs for config, router, graceful shutdown, structured logs, and build identity;
-- src/routes for health, demo, booking, and later protected handlers;
-- src/db for SQLx repositories and tenant context;
-- migrations for reversible schema changes; and
-- tests for service integration.
+- `GET /health` with build identity and dependency state;
+- `GET /api/demo/session` for a cookie-scoped seeded workspace;
+- `POST /api/demo/classes/:publicId/book` for an atomic one-seat booking;
+- `POST /api/demo/reset` and `/api/demo/leave` for scoped deletion; and
+- expiry cleanup plus forwarded-IP rate limiting on every API route.
 
-The service must run on PORT with no other variables, defaulting to a persisted local SQLite database under /data. Production selects PostgreSQL with DATABASE_URL. Every route except health is rate-limited and returns Retry-After on 429. See .factory/plan.md before adding code.
+The service starts with only `PORT`, defaulting to a SQLite database and a
+persisted generated cookie key under `/data`. `DATA_DIR`, `DATABASE_URL`,
+`FRONTEND_DIST`, and `COOKIE_SIGNING_KEY` are optional overrides. M1 has no
+durable customer tenant; PostgreSQL tenancy begins in M2 as specified by the
+plan.

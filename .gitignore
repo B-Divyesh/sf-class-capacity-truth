@@ -3,6 +3,7 @@ dist/
 playwright-report/
 test-results/
 coverage/
+/services/api/target/
 .env
 .env.*
 !.env.example

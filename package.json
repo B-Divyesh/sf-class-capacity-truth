@@ -9,17 +9,21 @@
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build",
+    "build:web": "tsc -b && vite build",
+    "build": "npm run build:web && cargo build --release --manifest-path services/api/Cargo.toml",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "vitest run",
+    "test": "vitest run && cargo test --manifest-path services/api/Cargo.toml",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:api": "cargo test --manifest-path services/api/Cargo.toml --test api",
+    "start": "cargo run --release --manifest-path services/api/Cargo.toml"
   },
   "dependencies": {
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
     "@playwright/test": "1.58.2",
     "@testing-library/jest-dom": "6.8.0",
     "@testing-library/react": "16.3.0",

@@ -1,4 +1,4 @@
-name: Verify foundation
+name: Verify M1
 
 on:
   push:
@@ -20,10 +20,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/api
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npm run build
+      - run: docker build --build-arg BUILD_SHA=${{ github.sha }} .
       - uses: actions/upload-artifact@v4
         if: always()
         with:

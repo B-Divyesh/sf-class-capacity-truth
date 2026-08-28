@@ -64,7 +64,7 @@ test("@claim:demo-reset-isolated keeps browser demos separate and resets changes
   await first.getByRole("button", { name: "Book one sample seat" }).click();
   await expect(first.getByText("1 seat is now open in this class.")).toBeVisible();
   await first.getByRole("button", { name: "Reset demo" }).click();
-  await first.getByRole("link", { name: "All sample classes" }).click();
+  await expect(first).toHaveURL(/\/demo\?demo=1$/);
   await expect(first.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByText("2 seats open", { exact: false })).toBeVisible();
 
   await second.goto("/demo?demo=1");
@@ -81,6 +81,7 @@ test("keyboard booking and route focus work", async ({ page }) => {
   await link.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
+  await expect(page).toHaveTitle("Book a class — Class Capacity Truth");
   await page.getByLabel("Guardian name").focus();
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
@@ -90,6 +91,35 @@ test("keyboard booking and route focus work", async ({ page }) => {
   await page.getByRole("link", { name: "Privacy" }).first().click();
   await expect(page.getByRole("heading", { level: 1, name: "Privacy in the sample" })).toBeFocused();
   await expect(page).toHaveTitle("Privacy — Class Capacity Truth");
+});
+
+test("resetting from a booking returns to fresh sample classes", async ({ page }) => {
+  await page.goto("/demo?demo=1");
+  await page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByRole("link", { name: "Book this sample class" }).click();
+  await page.getByRole("button", { name: "Book one sample seat" }).click();
+  await page.getByRole("button", { name: "Reset demo" }).click();
+  await expect(page).toHaveURL(/\/demo\?demo=1$/);
+  await expect(page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByText("2 seats open", { exact: false })).toBeVisible();
+});
+
+test("axe finds no serious issues on a booking route", async ({ page }) => {
+  await page.goto("/demo?demo=1");
+  await page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByRole("link", { name: "Book this sample class" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
+});
+
+test("dark treatment has no serious contrast issues", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+  let results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
+
+  await page.goto("/demo?demo=1");
+  await page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByRole("link", { name: "Book this sample class" }).click();
+  results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
 });
 
 test("the demo remains usable at 390px and with reduced motion", async ({ page }) => {

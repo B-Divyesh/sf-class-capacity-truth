@@ -22,7 +22,14 @@ function useRoute() {
 function navigate(href: string) {
   window.history.pushState({}, "", href);
   window.dispatchEvent(new Event("app:navigate"));
-  window.scrollTo({ top: 0, behavior: "instant" });
+  window.requestAnimationFrame(() => {
+    const hash = new URL(href, window.location.origin).hash;
+    if (hash) {
+      document.querySelector(hash)?.scrollIntoView();
+    } else {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+  });
 }
 
 function AppLink({ href, className, children, onClick }: { href: string; className?: string; children: ReactNode; onClick?: () => void }) {
@@ -211,8 +218,13 @@ function BookingPage({ publicClassId }: { publicClassId: string }) {
     demo.setData({ ...demo.data, classes: demo.data.classes.map((item) => item.publicId === next.publicId ? next : item) });
     setConfirmed(true);
   }
+  async function resetFromBooking() {
+    setConfirmed(false);
+    await demo.reset();
+    navigate("/demo?demo=1");
+  }
   return (
-    <><DemoBanner onReset={() => { setConfirmed(false); void demo.reset(); }} resetting={demo.resetting} />
+    <><DemoBanner onReset={() => { void resetFromBooking(); }} resetting={demo.resetting} />
       <main id="main" className="page-width app-main booking-layout">
         <div><AppLink className="back-link" href="/demo?demo=1">← All sample classes</AppLink><p className="eyebrow">Bright Path Languages</p><h1 tabIndex={-1}>Book one sample seat</h1></div>
         {demo.error && <StatePanel tone="error" title="The class did not load" detail={demo.error} action={<button className="button secondary" onClick={demo.reload}>Try loading again</button>} />}

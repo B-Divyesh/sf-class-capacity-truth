@@ -202,6 +202,7 @@ async fn capacity_cutoff_idempotency_reset_and_concurrent_race() {
         .iter()
         .find(|item| item.availability == db::Availability::Cutoff)
         .unwrap();
+    assert!(sessions.iter().all(|item| item.timezone == "Europe/London"));
 
     assert_eq!(
         db::book_seat(
@@ -303,4 +304,24 @@ async fn capacity_cutoff_idempotency_reset_and_concurrent_race() {
         db::list_sessions(&pool, &tenant, now + 1).await.unwrap()[0].open_seats,
         2
     );
+}
+
+#[tokio::test]
+async fn migration_has_a_working_down_path() {
+    let (_router, _directory, pool) = test_app(1, 100).await;
+    sqlx::raw_sql(include_str!("../migrations/0001_demo.down.sql"))
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    for table in ["bookings", "class_sessions", "demo_tenants"] {
+        let count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+        )
+        .bind(table)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(count, 0, "{table} should be removed by the down migration");
+    }
 }

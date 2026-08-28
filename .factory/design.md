@@ -28,6 +28,10 @@ src/styles/tokens.css is the implementation source of truth. Builders add a toke
 | --color-warning | #9B5C00 | #F2C85B | Cutoff or needs-attention callout. |
 | --color-danger | #AE3030 | #FF8C8C | Full, error, and destructive actions. |
 | --color-focus | #075A73 | #F2C85B | High-contrast focus ring. |
+| --color-chalkboard | #102A2E | #081C1E | Stable dark material behind class rails and teaching steps. |
+| --color-chalk | #FFF9EC | #FFF9EC | Text on the chalkboard material. |
+| --color-chalk-muted | #C5D3CC | #C5D3CC | Supporting text on the chalkboard material. |
+| --color-confirmed-contrast | #FFF9EC | #102A2E | Number color inside a confirmed bead. |
 
 Ink on surface, muted on surface, and white on danger are selected for at least 4.5:1 contrast. Open, held, and confirmed always carry a label and/or shape as well as color.
 

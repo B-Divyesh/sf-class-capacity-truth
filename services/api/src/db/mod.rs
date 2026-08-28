@@ -237,13 +237,7 @@ fn session_from_row(row: &sqlx::sqlite::SqliteRow, now: i64) -> ClassSession {
     let capacity = row.get::<i64, _>("capacity");
     let confirmed = row.get::<i64, _>("confirmed");
     let cutoff = row.get::<i64, _>("booking_cutoff");
-    let availability = if confirmed >= capacity {
-        Availability::Full
-    } else if cutoff <= now {
-        Availability::Cutoff
-    } else {
-        Availability::Available
-    };
+    let availability = availability_at(capacity, confirmed, cutoff, now);
     ClassSession {
         public_id: row.get("public_id"),
         name: row.get("name"),
@@ -254,6 +248,16 @@ fn session_from_row(row: &sqlx::sqlite::SqliteRow, now: i64) -> ClassSession {
         confirmed,
         open_seats: capacity - confirmed,
         availability,
+    }
+}
+
+fn availability_at(capacity: i64, confirmed: i64, cutoff: i64, now: i64) -> Availability {
+    if confirmed >= capacity {
+        Availability::Full
+    } else if cutoff <= now {
+        Availability::Cutoff
+    } else {
+        Availability::Available
     }
 }
 
@@ -380,4 +384,31 @@ async fn book_in_transaction(
         class: session_from_row(&updated_row, now),
         repeated: false,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn availability_closes_at_the_exact_cutoff_instant() {
+        let cutoff = 1_900_000_000;
+        assert_eq!(
+            availability_at(8, 6, cutoff, cutoff - 1),
+            Availability::Available
+        );
+        assert_eq!(availability_at(8, 6, cutoff, cutoff), Availability::Cutoff);
+        assert_eq!(
+            availability_at(8, 6, cutoff, cutoff + 1),
+            Availability::Cutoff
+        );
+    }
+
+    #[test]
+    fn full_capacity_takes_precedence_over_a_future_cutoff() {
+        assert_eq!(
+            availability_at(6, 6, 1_900_000_100, 1_900_000_000),
+            Availability::Full
+        );
+    }
 }

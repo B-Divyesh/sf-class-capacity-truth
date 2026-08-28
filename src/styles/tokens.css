@@ -12,6 +12,10 @@
   --color-warning: #9b5c00;
   --color-danger: #ae3030;
   --color-focus: #075a73;
+  --color-chalkboard: #102a2e;
+  --color-chalk: #fff9ec;
+  --color-chalk-muted: #c5d3cc;
+  --color-confirmed-contrast: #fff9ec;
   --font-display: Georgia, "Times New Roman", serif;
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --space-1: 0.25rem;
@@ -42,6 +46,10 @@
     --color-warning: #f2c85b;
     --color-danger: #ff8c8c;
     --color-focus: #f2c85b;
+    --color-chalkboard: #081c1e;
+    --color-chalk: #fff9ec;
+    --color-chalk-muted: #c5d3cc;
+    --color-confirmed-contrast: #102a2e;
     --shadow-paper: 0 0.5rem 0 #020c0d;
   }
 }

@@ -1,0 +1,13 @@
+.git
+.github
+.factory
+node_modules
+dist
+playwright-report
+test-results
+services/api/target
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*

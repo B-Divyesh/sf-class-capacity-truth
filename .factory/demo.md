@@ -1,6 +1,6 @@
 # Demo sandbox contract
 
-Status: this is the required M1 implementation contract. The current foundation has no product demo yet.
+Status: implemented in M1 and covered by the four claim-tagged browser tests.
 
 ## Entry and sample
 
@@ -12,13 +12,13 @@ The fictional Bright Path Languages sample has:
 - “Friday conversation group”, capacity 6, six confirmed places, clearly full;
 - “Saturday assessment”, capacity 10, booking cutoff already passed.
 
-All names and example.org addresses are fictional. No production contact, calendar connection, email delivery, AI request, or billing record is read or written in demo mode.
+The prefilled name and example.org address are fictional. Entered name and email values are validated in memory but replaced with a non-identifying marker in the demo database. No production contact, calendar connection, email delivery, AI request, or billing record is read or written in demo mode.
 
 ## Reset and isolation
 
 The persistent “Demo — sample data, nothing is saved” banner provides **Reset demo** and **Start for real**. Reset destroys only the current demo workspace then seeds a new one. Start for real discards it and goes to the public landing or sign-in path. No action can convert a demo booking into a real booking.
 
-Browser namespaced state uses only demo: keys; backend calls derive the demo tenant only from its signed cookie and reject an organisation parameter. Cleanup runs after 24 hours. API creation/reset is rate limited. Browser claim tests begin in fresh contexts and confirm that a reset or new context sees seed counts, not another context's booking.
+The browser stores no demo data. Backend calls derive the demo tenant only from its signed HttpOnly cookie and reject an organisation parameter. Cleanup runs after 24 hours. API creation/reset is rate limited. Browser claim tests begin in fresh contexts and confirm that a reset or new context sees seed counts, not another context's booking.
 
 ## Verification mapping
 

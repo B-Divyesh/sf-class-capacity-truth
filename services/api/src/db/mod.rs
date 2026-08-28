@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr, time::Duration};
+use std::{collections::HashMap, env, str::FromStr, time::Duration};
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -143,10 +143,18 @@ pub enum RealError {
 }
 
 pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
+    let journal_mode = match env::var("SQLITE_JOURNAL_MODE")
+        .unwrap_or_else(|_| "wal".into())
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "delete" => sqlx::sqlite::SqliteJournalMode::Delete,
+        _ => sqlx::sqlite::SqliteJournalMode::Wal,
+    };
     let options = SqliteConnectOptions::from_str(database_url)?
         .create_if_missing(true)
         .foreign_keys(true)
-        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        .journal_mode(journal_mode)
         .busy_timeout(Duration::from_secs(10));
     let pool = SqlitePoolOptions::new()
         .max_connections(8)

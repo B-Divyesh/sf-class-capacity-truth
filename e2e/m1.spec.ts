@@ -146,6 +146,19 @@ test("release regression: hashed assets are immutable and unknown paths are HTTP
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
 });
 
+test("release regression: standalone 404 reflows at 390px with 200 percent text and a 44px recovery link", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const response = await page.goto("/missing-page");
+  expect(response?.status()).toBe(404);
+  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  await expect(page.getByRole("heading", { level: 1, name: "This page was not found." })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  const recovery = page.getByRole("link", { name: "Go to Class Capacity Truth" });
+  await expect(recovery).toBeVisible();
+  const box = await recovery.boundingBox();
+  expect(box?.height).toBeGreaterThanOrEqual(44);
+});
+
 test("school workspace stays usable at 390px", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/app");
@@ -280,7 +293,7 @@ test("@claim:data-export-delete exports and deletes the workspace", async ({ pag
   await expect(page.getByRole("heading", { name: "Create your school workspace" })).toBeVisible();
 });
 
-test("@claim:calendar-poll checks the feed without changing confirmed seats", async ({ page }) => {
+test("calendar connection UI checks the feed without changing confirmed seats", async ({ page }) => {
   await page.goto("/app");
   await page.getByLabel("School name").fill("Non-mutating Calendar School");
   await page.getByRole("button", { name: "Create school workspace" }).click();

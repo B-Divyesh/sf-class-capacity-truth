@@ -166,6 +166,7 @@ async fn validation_and_signed_cookie_are_enforced() {
 
 #[tokio::test]
 async fn rate_limit_uses_forwarded_ip_and_returns_retry_after() {
+    // @claim:forwarded-ip-rate-limits
     let (router, _directory, _pool) = test_app(60_000, 2).await;
     for _ in 0..2 {
         let response = router
@@ -188,6 +189,257 @@ async fn rate_limit_uses_forwarded_ip_and_returns_retry_after() {
         .await
         .unwrap();
     assert_eq!(other_ip.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn claim_workspace_recovery_by_staff_identity() {
+    // @claim:workspace-recovery
+    let (_router, _directory, pool) = test_app(1, 100).await;
+    let (created, _initial_access_key) =
+        db::create_workspace(&pool, "Recovery School", "same-staff-oid", 1_900_000_000)
+            .await
+            .unwrap();
+    // A new device has no local access key. Its stable Entra oid resolves the
+    // same server-side workspace after it signs in.
+    let recovered = db::workspace_for_oid(&pool, "same-staff-oid")
+        .await
+        .unwrap();
+    assert_eq!(recovered.id, created.id);
+    assert_eq!(recovered.school_name, "Recovery School");
+}
+
+#[tokio::test]
+async fn claim_configured_smtp_queues_an_encrypted_offer() {
+    // @claim:configured-smtp-delivery
+    let (_router, _directory, pool) = test_app(1, 100).await;
+    let now = 1_900_000_000;
+    let cipher = class_capacity_truth_api::crypto::ContactCipher::from_key(&[61_u8; 32]).unwrap();
+    let (_workspace, key) = db::create_workspace(&pool, "SMTP School", "smtp-owner", now)
+        .await
+        .unwrap();
+    let class = db::create_real_class(
+        &pool,
+        &key,
+        db::NewRealClass {
+            name: "SMTP class",
+            starts_at: now + 86_400,
+            cutoff: now + 43_200,
+            timezone: "Europe/London",
+            capacity: 1,
+        },
+        now,
+    )
+    .await
+    .unwrap();
+    let class = db::publish_real_class(&pool, &key, &class.id, now)
+        .await
+        .unwrap();
+    db::book_real_seat(
+        &pool,
+        &cipher,
+        &class.public_id,
+        "smtp-booked",
+        "Booked",
+        "booked@example.org",
+        now,
+    )
+    .await
+    .unwrap();
+    db::join_waitlist(
+        &pool,
+        &cipher,
+        &class.public_id,
+        "smtp-waiting",
+        "Waiting",
+        "waiting@example.org",
+        now + 1,
+    )
+    .await
+    .unwrap();
+    let release = db::release_oldest_booking_and_offer(
+        &pool,
+        db::OfferDelivery {
+            cipher: &cipher,
+            public_base_url: "https://example.test",
+            email_configured: true,
+        },
+        &key,
+        &class.id,
+        now + 2,
+    )
+    .await
+    .unwrap();
+    assert_eq!(release.delivery_status, "email_queued");
+    let outbox = sqlx::query("SELECT recipient_encrypted, status, text_body FROM email_outbox")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_ne!(
+        outbox.get::<String, _>("recipient_encrypted"),
+        "waiting@example.org"
+    );
+    assert_eq!(
+        cipher
+            .decrypt(&outbox.get::<String, _>("recipient_encrypted"))
+            .unwrap(),
+        "waiting@example.org"
+    );
+    assert_eq!(outbox.get::<String, _>("status"), "pending");
+    assert!(outbox
+        .get::<String, _>("text_body")
+        .contains(release.offer_url.as_deref().unwrap()));
+}
+
+#[tokio::test]
+async fn claim_oldest_waitlist_entry_gets_a_24_hour_offer() {
+    // @claim:oldest-waitlist-offer
+    let (_router, _directory, pool) = test_app(1, 100).await;
+    let now = 1_900_000_000;
+    let cipher = class_capacity_truth_api::crypto::ContactCipher::from_key(&[62_u8; 32]).unwrap();
+    let (_workspace, key) = db::create_workspace(&pool, "Fairness School", "fair-owner", now)
+        .await
+        .unwrap();
+    let class = db::create_real_class(
+        &pool,
+        &key,
+        db::NewRealClass {
+            name: "Fairness class",
+            starts_at: now + 86_400,
+            cutoff: now + 43_200,
+            timezone: "Europe/London",
+            capacity: 1,
+        },
+        now,
+    )
+    .await
+    .unwrap();
+    let class = db::publish_real_class(&pool, &key, &class.id, now)
+        .await
+        .unwrap();
+    db::book_real_seat(
+        &pool,
+        &cipher,
+        &class.public_id,
+        "fair-booked",
+        "Booked",
+        "booked@example.org",
+        now,
+    )
+    .await
+    .unwrap();
+    db::join_waitlist(
+        &pool,
+        &cipher,
+        &class.public_id,
+        "fair-first",
+        "First",
+        "first@example.org",
+        now + 1,
+    )
+    .await
+    .unwrap();
+    db::join_waitlist(
+        &pool,
+        &cipher,
+        &class.public_id,
+        "fair-second",
+        "Second",
+        "second@example.org",
+        now + 2,
+    )
+    .await
+    .unwrap();
+    let released = db::release_oldest_booking_and_offer(
+        &pool,
+        db::OfferDelivery {
+            cipher: &cipher,
+            public_base_url: "https://example.test",
+            email_configured: false,
+        },
+        &key,
+        &class.id,
+        now + 3,
+    )
+    .await
+    .unwrap();
+    assert_eq!(released.expires_at, Some(now + 3 + 86_400));
+    let recipient = sqlx::query("SELECT w.guardian_email FROM seat_offers o JOIN waitlist_entries w ON w.id = o.waitlist_entry_id")
+        .fetch_one(&pool).await.unwrap().get::<String, _>("guardian_email");
+    assert_eq!(cipher.decrypt(&recipient).unwrap(), "first@example.org");
+}
+
+#[tokio::test]
+async fn claim_calendar_feed_is_encrypted_and_polled_every_five_minutes() {
+    // @claim:calendar-poll
+    let (_router, _directory, pool) = test_app(1, 100).await;
+    let now = 1_900_000_000;
+    let cipher = class_capacity_truth_api::crypto::ContactCipher::from_key(&[63_u8; 32]).unwrap();
+    let (_workspace, key) = db::create_workspace(&pool, "Calendar School", "calendar-owner", now)
+        .await
+        .unwrap();
+    db::connect_calendar(
+        &pool,
+        &cipher,
+        &key,
+        "Fixture",
+        "https://fixture.invalid/school.ics",
+        now,
+    )
+    .await
+    .unwrap();
+    let encrypted =
+        sqlx::query_scalar::<_, String>("SELECT feed_url_encrypted FROM calendar_connections")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_ne!(encrypted, "https://fixture.invalid/school.ics");
+    assert_eq!(
+        cipher.decrypt(&encrypted).unwrap(),
+        "https://fixture.invalid/school.ics"
+    );
+    std::env::set_var("TEST_AUTH_TOKEN", "calendar-claim");
+    let client = reqwest::Client::new();
+    assert_eq!(
+        class_capacity_truth_api::jobs::poll_due_calendars(&pool, &cipher, &client, now)
+            .await
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        class_capacity_truth_api::jobs::poll_due_calendars(&pool, &cipher, &client, now + 299)
+            .await
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        class_capacity_truth_api::jobs::poll_due_calendars(&pool, &cipher, &client, now + 300)
+            .await
+            .unwrap(),
+        1
+    );
+    std::env::remove_var("TEST_AUTH_TOKEN");
+}
+
+#[test]
+fn claim_deployment_topology_is_one_replica_with_azure_files() {
+    // @claim:durable-one-replica-topology
+    let topology = include_str!("../../../infra/containerapp-topology.yaml");
+    for required in [
+        "minReplicas: 1",
+        "maxReplicas: 1",
+        "storageType: AzureFile",
+        "storageName: cct-data",
+        "mountPath: /mnt/cct",
+        "DATA_DIR",
+        "/mnt/cct/keys",
+        "DURABLE_BACKUP_PATH",
+        "/mnt/cct/snapshots/class-capacity-truth.db",
+    ] {
+        assert!(
+            topology.contains(required),
+            "missing topology contract: {required}"
+        );
+    }
 }
 
 #[tokio::test]

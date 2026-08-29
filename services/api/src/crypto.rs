@@ -7,6 +7,16 @@ use chacha20poly1305::{
     XChaCha20Poly1305, XNonce,
 };
 
+/// Azure Files intentionally does not implement POSIX chmod. Container Apps
+/// protects the mounted share, while local files still receive mode 0600.
+pub fn allow_azure_files_permission_denied(result: std::io::Result<()>) -> anyhow::Result<()> {
+    match result {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
 #[derive(Clone)]
 pub struct ContactCipher(XChaCha20Poly1305);
 
@@ -64,9 +74,27 @@ pub fn load_or_create_key(data_dir: &Path) -> anyhow::Result<(ContactCipher, &'s
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+            // Azure Files rejects POSIX chmod; its mounted share access policy
+            // protects this generated key. Keep 0600 on local filesystems.
+            allow_azure_files_permission_denied(fs::set_permissions(
+                &path,
+                fs::Permissions::from_mode(0o600),
+            ))?;
         }
         (value, "generated-and-persisted")
     };
     Ok((ContactCipher::from_key(&key)?, source))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::allow_azure_files_permission_denied;
+
+    #[test]
+    fn azure_files_permission_denied_does_not_block_persisted_key_creation() {
+        // Regression for the first Azure Files revision: mounted shares reject
+        // chmod even though the file was created successfully.
+        let denied = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+        assert!(allow_azure_files_permission_denied(Err(denied)).is_ok());
+    }
 }

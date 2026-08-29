@@ -38,8 +38,8 @@
     "id": "calendar-poll",
     "claim": "An encrypted iCalendar feed is checked every five minutes.",
     "where": "School calendar connection and privacy page",
-    "test": "npm run test:e2e -- --grep @claim:calendar-poll",
-    "sandbox": "Connect the recorded iCalendar fixture through the visible form; assert the server check completes and reconciliation appears."
+    "test": "npm run test:api -- claim_calendar_feed_is_encrypted_and_polled_every_five_minutes",
+    "sandbox": "Connect a recorded iCalendar fixture, inspect ciphertext at rest, then run the due worker at now, now+299 seconds, and now+300 seconds."
   },
   {
     "id": "released-seat-delivery",
@@ -103,5 +103,47 @@
     "where": "README architecture and deployment",
     "test": "npm run test:api -- claim_durable_snapshot_survives_restart",
     "sandbox": "Fresh local SQLite database plus a separate mounted-storage directory; book a seat, create the durable snapshot, restore into a new database, and assert the seat counts remain changed."
+  },
+  {
+    "id": "configured-smtp-delivery",
+    "claim": "A configured SMTP relay queues an encrypted released-seat offer for delivery.",
+    "where": "README real school workflow",
+    "test": "npm run test:api -- claim_configured_smtp_queues_an_encrypted_offer",
+    "sandbox": "Create a capacity-one class with a waiting guardian under SMTP configuration; release the seat and assert an encrypted pending outbox record contains the offer URL."
+  },
+  {
+    "id": "workspace-recovery",
+    "claim": "A staff member can recover the same workspace on another device after sign-in.",
+    "where": "README real school workflow",
+    "test": "npm run test:api -- claim_workspace_recovery_by_staff_identity",
+    "sandbox": "Create a workspace for a recorded stable staff oid, omit its device-local access key, and resolve the workspace again from that oid."
+  },
+  {
+    "id": "oldest-waitlist-offer",
+    "claim": "A released seat creates a 24-hour offer for the oldest waiting guardian.",
+    "where": "README real school workflow",
+    "test": "npm run test:api -- claim_oldest_waitlist_entry_gets_a_24_hour_offer",
+    "sandbox": "Create two ordered waiting entries, release a confirmed booking, and assert the first encrypted email is selected with expiry exactly 86,400 seconds later."
+  },
+  {
+    "id": "zero-config-runtime",
+    "claim": "The container starts with only PORT and generates persisted local keys when no key variables are supplied.",
+    "where": "README run locally",
+    "test": "bash scripts/test-zero-config.sh",
+    "sandbox": "Build the release binary, start it with only PATH, PORT, and its static frontend path, then assert health and generated-default/persisted-key startup logs."
+  },
+  {
+    "id": "forwarded-ip-rate-limits",
+    "claim": "Rate limits use the forwarded client IP and return Retry-After when the allowance is exhausted.",
+    "where": "README architecture and deployment",
+    "test": "npm run test:api -- rate_limit_uses_forwarded_ip_and_returns_retry_after",
+    "sandbox": "Use one forwarded IP through a two-request allowance, assert a 429 with Retry-After, then prove a second forwarded IP has its own allowance."
+  },
+  {
+    "id": "durable-one-replica-topology",
+    "claim": "Production uses one replica with Azure Files for SQLite snapshots and generated keys.",
+    "where": "README architecture and deployment",
+    "test": "npm run test:api -- claim_deployment_topology_is_one_replica_with_azure_files",
+    "sandbox": "Inspect the checked-in Azure Container App topology contract for an Azure Files mount, persistent data and snapshot paths, and a fixed one-replica scale."
   }
 ]

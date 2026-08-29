@@ -4,7 +4,7 @@ Class Capacity Truth is a capacity ledger for small language schools and
 tutoring centres. Staff connect an iCalendar feed, publish parent booking
 links, and create one expiring offer when a named booking is cancelled. Staff
 can copy its one-click URL into an approved school channel. A configured SMTP
-relay can send it instead. The school plan costs $99 each month through
+relay queues an encrypted offer for delivery instead. The school plan costs $99 each month through
 Sociobot checkout.
 
 Try the deployed demo at
@@ -37,8 +37,8 @@ npm run build:web
 DATA_DIR="$PWD/.data" FRONTEND_DIST="$PWD/dist" cargo run --manifest-path services/api/Cargo.toml
 ```
 
-Open `http://localhost:8080/demo?demo=1`. The service needs no environment
-variables. `PORT` defaults to `8080`; `DATA_DIR` defaults to `/data` in the
+Open `http://localhost:8080/demo?demo=1`. The service starts with only `PORT`
+(and defaults to `8080`); `DATA_DIR` defaults to `/data` in the
 container. A cookie-signing key is generated with a CSPRNG and persisted in the
 data directory when none is supplied. A separate contact-encryption key is
 generated and persisted the same way. Optional SMTP variables are
@@ -73,6 +73,8 @@ produces `dist/` and a release API binary.
   bookings, encrypted offer tokens, durable delivery receipts, an optional
   email outbox, and forwarded-IP rate limits.
 - One non-root container serves both the API and built web assets on `PORT`.
+  The checked-in deployment contract fixes the app at one replica and mounts
+  Azure Files at `/mnt/cct`; limits therefore apply once per forwarded client IP.
 
 The factory deploys the container. This repository does not change DNS,
 billing, or cloud infrastructure. See [.factory/plan.md](.factory/plan.md) for

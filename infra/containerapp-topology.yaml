@@ -1,0 +1,21 @@
+# Production topology contract. The deploy command patches these template fields
+# onto the existing Container App after registering the Azure Files environment
+# storage named cct-data. Keep exactly one replica while the ledger uses SQLite.
+template:
+  scale:
+    minReplicas: 1
+    maxReplicas: 1
+  containers:
+    - name: app
+      volumeMounts:
+        - volumeName: cct-data
+          mountPath: /mnt/cct
+      env:
+        - name: DATA_DIR
+          value: /mnt/cct/keys
+        - name: DURABLE_BACKUP_PATH
+          value: /mnt/cct/snapshots/class-capacity-truth.db
+  volumes:
+    - name: cct-data
+      storageType: AzureFile
+      storageName: cct-data

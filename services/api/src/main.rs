@@ -129,7 +129,13 @@ fn load_cookie_key(data_dir: &Path) -> anyhow::Result<(Vec<u8>, &'static str)> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+        // Azure Files is mounted with the Container App's access controls and
+        // rejects POSIX chmod. The key is still private to the mounted share;
+        // local filesystems retain the stricter 0600 mode.
+        crypto::allow_azure_files_permission_denied(fs::set_permissions(
+            &path,
+            fs::Permissions::from_mode(0o600),
+        ))?;
     }
     Ok((value, "generated-and-persisted"))
 }

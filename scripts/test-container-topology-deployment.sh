@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Regression for verification-11 P0. The fixture is the exact defective active
+# Regression for verification-12 P0. The fixture is the exact defective active
 # control-plane shape read from production by the independent verifier:
-# candidate 89d35c47ee376d75d92c42b7c839f6da323e35b3, revision 0000042, only
+# candidate 28fcd19f33b513f4a3b365be90bda7ec457340c7, revision 0000043, only
 # PORT, no Azure Files mount, and maxReplicas 3. It first proves that the
 # readback guard rejects that shape, then proves the checked-in deploy command
 # registers Azure Files, replaces the stale template, waits for the revision
-# that receives traffic, and verifies the repair's runtime identity.
+# that receives traffic, and verifies the repair's full runtime identity.
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 fixture_dir="$(mktemp -d)"
 cleanup() { rm -rf "$fixture_dir"; }
@@ -18,11 +18,11 @@ cat >"$fixture_dir/state.json" <<'JSON'
 {
   "id": "/subscriptions/test/resourceGroups/sociobot/providers/Microsoft.App/containerApps/sf-class-capacity-truth",
   "properties": {
-      "latestRevisionName": "sf-class-capacity-truth--0000042",
-      "latestReadyRevisionName": "sf-class-capacity-truth--0000042",
+      "latestRevisionName": "sf-class-capacity-truth--0000043",
+      "latestReadyRevisionName": "sf-class-capacity-truth--0000043",
       "provisioningState": "Succeeded",
       "template": {
-      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:89d35c47ee37","env":[{"name":"PORT","value":"8080"}]}],
+      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:28fcd19f33b5","env":[{"name":"PORT","value":"8080"}]}],
       "scale": {"minReplicas":1,"maxReplicas":3}
     }
   }
@@ -77,14 +77,15 @@ set -euo pipefail
 state="${AZ_FIXTURE_STATE:?}"
 image="$(jq -r '.properties.template.containers[0].image' "$state")"
 tag="${image##*:}"
-printf '{"status":"ok","database":"ready","build":"%s"}\n' "$tag"
+build="${AZ_FIXTURE_BUILD_SHA:-$tag}"
+printf '{"status":"ok","database":"ready","build":"%s"}\n' "$build"
 SH
 chmod +x "$fixture_dir/bin/curl"
 
 # First reproduce the failing revision without changing it.
 jq -e '
-  .properties.latestRevisionName == "sf-class-capacity-truth--0000042" and
-  .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:89d35c47ee37" and
+  .properties.latestRevisionName == "sf-class-capacity-truth--0000043" and
+  .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:28fcd19f33b5" and
   .properties.template.scale.maxReplicas == 3 and
   .properties.template.containers[0].env == [{name:"PORT", value:"8080"}] and
   (.properties.template.containers[0].volumeMounts | not) and
@@ -102,12 +103,32 @@ if PATH="$fixture_dir/bin:$PATH" \
   exit 1
 fi
 
+# A durable template is still not a successful release if ingress serves a
+# different build. Exercise the full SHA guard independently before the
+# positive deployment below; this is intentionally a copy so the latter starts
+# from verification-12's exact unsafe production shape.
+cp "$fixture_dir/state.json" "$fixture_dir/identity-mismatch-state.json"
+if PATH="$fixture_dir/bin:$PATH" \
+  AZ_FIXTURE_STATE="$fixture_dir/identity-mismatch-state.json" \
+  AZ_FIXTURE_LOG="$fixture_dir/identity-mismatch-az.log" \
+  IMAGE="sociobotregistry.azurecr.io/sf-class-capacity-truth:identity-mismatch" \
+  EXPECTED_BUILD_SHA="expected-full-build-sha" \
+  BASE_URL="https://fixture.invalid" \
+  REVISION_SUFFIX="d-identity-mismatch-20260829" \
+  AZ_FIXTURE_BUILD_SHA="different-full-build-sha" \
+  "$repo_root/scripts/deploy-container.sh" >/dev/null 2>&1; then
+  echo "the deployment accepted a traffic-serving process with the wrong build identity" >&2
+  exit 1
+fi
+
 PATH="$fixture_dir/bin:$PATH" \
 AZ_FIXTURE_STATE="$fixture_dir/state.json" \
 AZ_FIXTURE_LOG="$fixture_dir/az.log" \
 IMAGE="sociobotregistry.azurecr.io/sf-class-capacity-truth:deployment-regression" \
+EXPECTED_BUILD_SHA="deployment-regression-full-sha" \
 BASE_URL="https://fixture.invalid" \
 REVISION_SUFFIX="d-regression-20260829" \
+AZ_FIXTURE_BUILD_SHA="deployment-regression-full-sha" \
 "$repo_root/scripts/deploy-container.sh" >/dev/null
 
 jq -e '

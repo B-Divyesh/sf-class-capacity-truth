@@ -1,5 +1,6 @@
-use std::{collections::HashMap, env, fs, path::Path, str::FromStr, time::Duration};
+use std::{collections::HashMap, env, fs, io, path::Path, str::FromStr, time::Duration};
 
+use anyhow::Context;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use sqlx::{
@@ -173,8 +174,21 @@ pub fn restore_durable_snapshot(backup_path: &Path, database_path: &Path) -> any
         .metadata()
         .is_ok_and(|metadata| metadata.len() > 0)
     {
-        fs::copy(backup_path, database_path)?;
+        copy_file_contents(backup_path, database_path)?;
     }
+    Ok(())
+}
+
+fn copy_file_contents(source: &Path, destination: &Path) -> anyhow::Result<()> {
+    let mut input = fs::File::open(source)
+        .with_context(|| format!("open checkpoint source {}", source.display()))?;
+    let mut output = fs::File::create(destination)
+        .with_context(|| format!("create checkpoint destination {}", destination.display()))?;
+    io::copy(&mut input, &mut output)
+        .with_context(|| format!("copy checkpoint bytes to {}", destination.display()))?;
+    output
+        .sync_all()
+        .with_context(|| format!("sync checkpoint {}", destination.display()))?;
     Ok(())
 }
 
@@ -193,10 +207,15 @@ pub async fn persist_durable_snapshot(pool: &SqlitePool, backup_path: &Path) -> 
     }
 
     let next_path = backup_path.with_extension("db.next");
-    fs::copy(&local_snapshot, &next_path)?;
-    fs::File::open(&next_path)?.sync_all()?;
-    fs::rename(&next_path, backup_path)?;
-    fs::remove_file(local_snapshot)?;
+    copy_file_contents(&local_snapshot, &next_path)?;
+    fs::rename(&next_path, backup_path).with_context(|| {
+        format!(
+            "atomically replace durable checkpoint {}",
+            backup_path.display()
+        )
+    })?;
+    fs::remove_file(&local_snapshot)
+        .with_context(|| format!("remove temporary checkpoint {}", local_snapshot.display()))?;
     Ok(())
 }
 

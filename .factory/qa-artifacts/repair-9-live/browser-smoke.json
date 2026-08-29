@@ -1,0 +1,69 @@
+{
+  "routes": [
+    {
+      "route": "/",
+      "status": 200,
+      "title": "Class Capacity Truth — Show the right seat count",
+      "seriousCritical": 0
+    },
+    {
+      "route": "/demo?demo=1",
+      "status": 200,
+      "title": "Demo — Class Capacity Truth",
+      "seriousCritical": 0
+    },
+    {
+      "route": "/privacy",
+      "status": 200,
+      "title": "Privacy — Class Capacity Truth",
+      "seriousCritical": 0
+    },
+    {
+      "route": "/terms",
+      "status": 200,
+      "title": "Terms — Class Capacity Truth",
+      "seriousCritical": 0
+    },
+    {
+      "route": "/app",
+      "status": 200,
+      "title": "School workspace — Class Capacity Truth",
+      "seriousCritical": 0
+    },
+    {
+      "route": "/missing-page",
+      "status": 404,
+      "title": "Page not found — Class Capacity Truth",
+      "seriousCritical": 0
+    }
+  ],
+  "consoleErrors": [],
+  "pageErrors": [],
+  "requests": {
+    "ordinaryFlowSameOrigin": true
+  },
+  "mobile": {
+    "viewport": "390x844",
+    "menuTarget": {
+      "x": 304.4375,
+      "y": 16,
+      "width": 77.5625,
+      "height": 44.796875
+    },
+    "enterEscapeFocus": true,
+    "noOverflow": true,
+    "textZoom200": true,
+    "reducedMotion": true,
+    "dark": true,
+    "seriousCritical": 0
+  },
+  "keyboard": {
+    "skipLinkFirst": true,
+    "routeHeadingFocused": true,
+    "bookingCompleted": true
+  },
+  "accessibility": {
+    "seriousCritical": 0,
+    "routesChecked": 7
+  }
+}

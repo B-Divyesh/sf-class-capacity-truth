@@ -1,0 +1,9 @@
+{
+  "total": 20,
+  "accepted": 10,
+  "rateLimited": 10,
+  "unauthorized": 0,
+  "workspacesObserved": 1,
+  "replacementCookies": 0,
+  "retryAfterOnEvery429": true
+}

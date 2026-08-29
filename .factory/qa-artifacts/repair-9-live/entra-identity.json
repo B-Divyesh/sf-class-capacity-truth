@@ -1,0 +1,16 @@
+{
+  "host": "sociobotcustomers.ciamlogin.com",
+  "tenantInPath": true,
+  "clientId": "25c704f4-465a-47af-80ab-2c489466b697",
+  "redirectUri": "https://class-capacity-truth.sociobot.in/auth/callback",
+  "responseType": "code",
+  "codeChallengeMethod": "S256",
+  "statePresent": true,
+  "noncePresent": true,
+  "scopes": [
+    "email",
+    "offline_access",
+    "openid",
+    "profile"
+  ]
+}

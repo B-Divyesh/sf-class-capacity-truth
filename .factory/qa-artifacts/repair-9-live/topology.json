@@ -1,0 +1,35 @@
+{
+  "env": [
+    {
+      "name": "PORT",
+      "value": "8080"
+    },
+    {
+      "name": "DATA_DIR",
+      "value": "/mnt/cct/keys"
+    },
+    {
+      "name": "DURABLE_BACKUP_PATH",
+      "value": "/mnt/cct/snapshots/class-capacity-truth.db"
+    }
+  ],
+  "image": "sociobotregistry.azurecr.io/sf-class-capacity-truth:38019c2e70ba",
+  "max": 1,
+  "min": 1,
+  "mounts": [
+    {
+      "mountPath": "/mnt/cct",
+      "volumeName": "cct-data"
+    }
+  ],
+  "provisioning": "Succeeded",
+  "ready": "sf-class-capacity-truth--d-c-1788020003-24635",
+  "revision": "sf-class-capacity-truth--d-c-1788020003-24635",
+  "volumes": [
+    {
+      "name": "cct-data",
+      "storageName": "cct-data",
+      "storageType": "AzureFile"
+    }
+  ]
+}

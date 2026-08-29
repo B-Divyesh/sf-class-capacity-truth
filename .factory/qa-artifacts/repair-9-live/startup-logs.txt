@@ -1,0 +1,4 @@
+2026-08-29T16:20:34.10641  Connecting to the container 'app'...
+2026-08-29T16:20:34.13928  Successfully Connected to container: 'app' [Revision: 'sf-class-capacity-truth--d-c-1788020003-24635', Replica: 'sf-class-capacity-truth--d-c-1788020003-24635-5f9467cf9f-kgbxk']
+2026-08-29T16:15:27.0152815Z stdout F {"timestamp":"2026-08-29T16:15:27.015042Z","level":"INFO","fields":{"message":"configuration ready","port":8080,"database_config":"generated-default","sqlite_journal_mode":"wal","sqlite_max_connections":"automatic","durable_backup":"supplied","cookie_signing_key":"persisted-generated","contact_encryption_key":"persisted-generated","smtp":"local-capture"},"target":"class_capacity_truth_api"}
+2026-08-29T16:15:27.0165435Z stdout F {"timestamp":"2026-08-29T16:15:27.016445Z","level":"INFO","fields":{"message":"server listening","address":"0.0.0.0:8080"},"target":"class_capacity_truth_api"}

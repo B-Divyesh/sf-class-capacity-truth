@@ -1,0 +1,8 @@
+{
+  "priceVisible": true,
+  "apiMethod": "POST",
+  "apiStatus": 200,
+  "destinationHost": "checkout.dodopayments.com",
+  "https": true,
+  "paymentAttempted": false
+}

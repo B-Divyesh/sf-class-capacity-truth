@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Regression for verification-9 P0. The fixture is the exact defective active
-# control-plane shape reported by the independent verifier: candidate 9350040,
-# revision 0000040, only PORT, no Azure Files mount, and maxReplicas 3. It first
-# proves that the readback guard rejects that shape, then proves the checked-in
-# deploy command registers Azure Files, replaces the stale template, and
-# verifies the repair.
+# Regression for verification-10 P0. The fixture is the exact defective active
+# control-plane shape read from production by the independent verifier:
+# candidate d9f625677a1cc2ebe76670cc11365dc6340fcb29, revision 0000041, only
+# PORT, no Azure Files mount, and maxReplicas 3. It first proves that the
+# readback guard rejects that shape, then proves the checked-in deploy command
+# registers Azure Files, replaces the stale template, and verifies the repair.
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 fixture_dir="$(mktemp -d)"
 cleanup() { rm -rf "$fixture_dir"; }
@@ -17,9 +17,9 @@ cat >"$fixture_dir/state.json" <<'JSON'
 {
   "id": "/subscriptions/test/resourceGroups/sociobot/providers/Microsoft.App/containerApps/sf-class-capacity-truth",
   "properties": {
-    "latestRevisionName": "sf-class-capacity-truth--0000040",
+    "latestRevisionName": "sf-class-capacity-truth--0000041",
     "template": {
-      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:93500402cf97","env":[{"name":"PORT","value":"8080"}]}],
+      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:d9f625677a1c","env":[{"name":"PORT","value":"8080"}]}],
       "scale": {"minReplicas":1,"maxReplicas":3}
     }
   }
@@ -59,6 +59,8 @@ chmod +x "$fixture_dir/bin/az"
 
 # First reproduce the failing revision without changing it.
 jq -e '
+  .properties.latestRevisionName == "sf-class-capacity-truth--0000041" and
+  .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:d9f625677a1c" and
   .properties.template.scale.maxReplicas == 3 and
   .properties.template.containers[0].env == [{name:"PORT", value:"8080"}] and
   (.properties.template.containers[0].volumeMounts | not) and

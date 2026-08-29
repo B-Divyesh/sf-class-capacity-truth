@@ -1,3 +1,141 @@
+# Repair 10 handoff — PASS (2026-08-29)
+
+Work order: `class-capacity-truth-repair-10`
+
+Verifier report: `.factory/verification-10.md` at report commit
+`7d31c2cc7f661448bfe288fb3ac94bf1aa1c2986`, covering candidate
+`d9f625677a1cc2ebe76670cc11365dc6340fcb29`.
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+## Release blocker repaired
+
+The independent verifier's only P0 was reproduced directly from Azure before
+repair. Active revision `sf-class-capacity-truth--0000041` served image
+`d9f625677a1c` but had `minReplicas=1`, `maxReplicas=3`, only `PORT=8080`, and
+null volumes and volume mounts. The SQLite ledger and generated keys were
+therefore ephemeral and could have diverged after scale-out.
+
+- `d5e83659f02ea4447b673df94cea91117fb679f0` updates the deployment fixture
+  to the verifier's exact `d9f625…` / `0000041` control-plane shape. The test
+  proves `verify-container-topology.sh` rejects it, then proves
+  `deploy-container.sh` restores one replica, Azure Files, and both durable
+  paths.
+- During the required live durability drill Azure transiently returned
+  `The containerapp ... does not exist` while a revision was propagating.
+  `79a3d3c0d4f2282ae1d262c54f9bcfd1250defe5` makes the readiness helper retry
+  failed Azure reads. Its regression fixture reproduces that first failed
+  revision read, then verifies the next successful read proceeds.
+- Built and deployed the immutable runtime image
+  `sociobotregistry.azurecr.io/sf-class-capacity-truth:d5e83659f02e` (digest
+  `sha256:5810ee1f1d6b402492d61c3218a0e2d8a0eef66d6074b01182a6cda21610fd65`)
+  only through `scripts/deploy-container.sh`. DNS, billing, and unrelated
+  infrastructure were not changed.
+
+## Durable production evidence
+
+Final active/ready revision:
+`sf-class-capacity-truth--d-c-1788028591-13835` (Healthy, RunningAtMaxScale,
+100% traffic).
+
+```text
+image: sociobotregistry.azurecr.io/sf-class-capacity-truth:d5e83659f02e
+minReplicas/maxReplicas: 1/1
+replicas: 1
+volume: cct-data (AzureFile) -> /mnt/cct
+DATA_DIR=/mnt/cct/keys
+DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db
+TEST_AUTH_TOKEN: absent
+cct-persist-drill secret: absent
+GET /health: build d5e83659f02ea4447b673df94cea91117fb679f0, database ready
+```
+
+Startup logs on the deployed revision report `durable_backup="supplied"`,
+`cookie_signing_key="persisted-generated"`, and
+`contact_encryption_key="persisted-generated"`.
+
+`RESOURCE_GROUP=sociobot bash scripts/prove-production-durability.sh` passed.
+It created a synthetic school/class and a capacity-two booking, forced a
+revision restart, recovered `confirmed=1` and `openSeats=1`, decrypted the
+synthetic guardian contact, deleted the synthetic workspace, and removed its
+temporary secret/token. Drill revisions were:
+
+```text
+auth:    sf-class-capacity-truth--d-a-1788028591-13835
+restart: sf-class-capacity-truth--d-r-1788028591-13835
+cleanup: sf-class-capacity-truth--d-c-1788028591-13835
+```
+
+## Verification completed
+
+- Clean install: `npm ci` installed 170 packages; `npm audit` reported zero
+  vulnerabilities.
+- `npm test` passed: 7 frontend tests, 5 Rust unit tests, 18 API/integration
+  tests, and both deployment regression scripts.
+- Each of the 21 `.factory/claims.json` commands passed individually. The
+  cold-start claim passed in 106 seconds (limit: 600 seconds).
+- `npm run typecheck`, `npm run lint` (rustfmt + warnings-as-errors Clippy),
+  and `npm run build` passed. Production entry JS is 70.86 KB gzip and CSS is
+  4.43 KB gzip; `dist/` and the optimized API binary were produced.
+- `npm run test:e2e` passed 25/25 Chromium tests. This covers booking state,
+  full/cutoff errors, demo reset isolation, desktop and 390 px/200% text,
+  keyboard navigation, focus restoration, reduced motion, privacy, and axe.
+- `npm run test:durable-restart` recovered a real local booking plus encrypted
+  contact after a release-process restart. `scripts/test-zero-config.sh`
+  passed with only `PORT`; generated keys persisted.
+- ACR build `ch15u` passed using the multi-stage, non-root Dockerfile.
+- Live `verify-url.sh` passed: HTTP 200, title, `lang=en`, one H1, main
+  landmark, complete image/button names, and no console/page errors.
+- A live 390×844 dark/reduced-motion browser run checked home, demo, privacy,
+  terms, and `/app` at 200% text: no horizontal overflow, no console errors,
+  and no serious/critical axe findings. The mobile menu opened with Enter and
+  restored focus on Escape; the demo showed all three sample classes.
+- Normal live flows made 25 same-origin requests and no third-party tracking
+  requests. Root response headers include CSP `frame-ancestors 'none'`,
+  `nosniff`, strict referrer policy, restrictive permissions policy, and
+  `no-cache`; hashed assets are immutable. Unknown pages return HTTP 404, and
+  an unapproved CORS origin receives no allow-origin header.
+- Explicit live sign-in reached only the Sociobot CIAM authority and used the
+  expected tenant path, client ID, production callback, authorization-code
+  flow, PKCE `S256`, and `openid profile email` scopes. No credentials were
+  entered. `scripts/load-smoke.sh https://class-capacity-truth.sociobot.in`
+  completed 100 requests with 10 accepted and 90 rate-limited.
+
+## Applicability and known gaps
+
+This remains a web-with-backend container service. It is not a package, CLI,
+or PWA, so package-consumer and offline/update checks do not apply. AI is not
+useful for deterministic seat allocation. The service has no approved SMTP
+relay, so it provides the tested encrypted/copyable offer path instead of
+email delivery. No release-blocking gap remains.
+
+## Run and deploy
+
+```bash
+npm ci
+npm test
+npm run typecheck
+npm run lint
+npm run build
+npm run test:e2e
+npm run test:durable-restart
+bash scripts/test-zero-config.sh
+npm run test:cold-claim
+
+repair_sha=$(git rev-parse HEAD)
+az acr build --registry sociobotregistry \
+  --image "sf-class-capacity-truth:${repair_sha:0:12}" \
+  --file Dockerfile \
+  --build-arg BUILD_SHA="$repair_sha" \
+  --build-arg GIT_SHA="$repair_sha" \
+  --build-arg SOURCE_COMMIT="$repair_sha" .
+IMAGE="sociobotregistry.azurecr.io/sf-class-capacity-truth:${repair_sha:0:12}" \
+  bash scripts/deploy-container.sh
+RESOURCE_GROUP=sociobot bash scripts/prove-production-durability.sh
+```
+
+---
+
 # Verification 10 handoff — FAIL (2026-08-29)
 
 Verified candidate: `d9f625677a1cc2ebe76670cc11365dc6340fcb29`

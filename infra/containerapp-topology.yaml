@@ -11,6 +11,8 @@ template:
         - volumeName: cct-data
           mountPath: /mnt/cct
       env:
+        - name: PORT
+          value: "8080"
         - name: DATA_DIR
           value: /mnt/cct/keys
         - name: DURABLE_BACKUP_PATH

@@ -430,6 +430,8 @@ fn claim_deployment_topology_is_one_replica_with_azure_files() {
         "storageType: AzureFile",
         "storageName: cct-data",
         "mountPath: /mnt/cct",
+        "name: PORT",
+        "value: \"8080\"",
         "DATA_DIR",
         "/mnt/cct/keys",
         "DURABLE_BACKUP_PATH",

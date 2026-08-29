@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Regression for verification-12 P0. The fixture is the exact defective active
+# Regression for verification-13 P0. The fixture is the exact defective active
 # control-plane shape read from production by the independent verifier:
-# candidate 28fcd19f33b513f4a3b365be90bda7ec457340c7, revision 0000043, only
+# candidate 791928864bd00d5494a787dcab15035011066463, revision 0000044, only
 # PORT, no Azure Files mount, and maxReplicas 3. It first proves that the
 # readback guard rejects that shape, then proves the checked-in deploy command
 # registers Azure Files, replaces the stale template, waits for the revision
@@ -18,11 +18,11 @@ cat >"$fixture_dir/state.json" <<'JSON'
 {
   "id": "/subscriptions/test/resourceGroups/sociobot/providers/Microsoft.App/containerApps/sf-class-capacity-truth",
   "properties": {
-      "latestRevisionName": "sf-class-capacity-truth--0000043",
-      "latestReadyRevisionName": "sf-class-capacity-truth--0000043",
+      "latestRevisionName": "sf-class-capacity-truth--0000044",
+      "latestReadyRevisionName": "sf-class-capacity-truth--0000044",
       "provisioningState": "Succeeded",
       "template": {
-      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:28fcd19f33b5","env":[{"name":"PORT","value":"8080"}]}],
+      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:791928864bd0","env":[{"name":"PORT","value":"8080"}]}],
       "scale": {"minReplicas":1,"maxReplicas":3}
     }
   }
@@ -84,8 +84,9 @@ chmod +x "$fixture_dir/bin/curl"
 
 # First reproduce the failing revision without changing it.
 jq -e '
-  .properties.latestRevisionName == "sf-class-capacity-truth--0000043" and
-  .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:28fcd19f33b5" and
+  .properties.latestRevisionName == "sf-class-capacity-truth--0000044" and
+  .properties.latestReadyRevisionName == "sf-class-capacity-truth--0000044" and
+  .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:791928864bd0" and
   .properties.template.scale.maxReplicas == 3 and
   .properties.template.containers[0].env == [{name:"PORT", value:"8080"}] and
   (.properties.template.containers[0].volumeMounts | not) and
@@ -106,7 +107,7 @@ fi
 # A durable template is still not a successful release if ingress serves a
 # different build. Exercise the full SHA guard independently before the
 # positive deployment below; this is intentionally a copy so the latter starts
-# from verification-12's exact unsafe production shape.
+# from verification-13's exact unsafe production shape.
 cp "$fixture_dir/state.json" "$fixture_dir/identity-mismatch-state.json"
 if PATH="$fixture_dir/bin:$PATH" \
   AZ_FIXTURE_STATE="$fixture_dir/identity-mismatch-state.json" \

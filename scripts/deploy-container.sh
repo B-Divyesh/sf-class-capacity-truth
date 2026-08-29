@@ -38,6 +38,15 @@ jq --arg image "$image" '
 ' < <(az containerapp show --resource-group "$resource_group" --name "$app_name" -o json) > "$patch_file"
 az rest --method PATCH --uri "${app_id}?api-version=2024-03-01" --body "@$patch_file" --only-show-errors >/dev/null
 
+# Azure's template PATCH merges environment entries by name. A short-lived
+# exact test credential used for a persistence drill must never survive the
+# subsequent production deploy, even though it is not part of the contract.
+actual="$(az containerapp show --resource-group "$resource_group" --name "$app_name" -o json)"
+if jq -e '.properties.template.containers[0].env | any(.name == "TEST_AUTH_TOKEN")' <<<"$actual" >/dev/null; then
+  az containerapp update --resource-group "$resource_group" --name "$app_name" \
+    --remove-env-vars TEST_AUTH_TOKEN --only-show-errors >/dev/null
+fi
+
 # Do not treat a successful PATCH as a successful deployment. This is the
 # regression guard for the revision that kept only PORT and scaled SQLite to
 # three replicas: read the effective Container App template back from Azure.

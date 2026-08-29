@@ -1,143 +1,111 @@
-# Verification 12 handoff — FAIL (2026-08-29)
+# Repair 12 handoff — PASS (2026-08-29)
 
-**Current authoritative handoff: FAIL — do not release commit
-`28fcd19f33b513f4a3b365be90bda7ec457340c7`.** See
-[`verification-12.md`](verification-12.md) for full evidence.
-
-Live `/health` proves this candidate serves the URL, but Azure control-plane
-readback of revision `sf-class-capacity-truth--0000043` found `maxReplicas: 3`,
-no Azure Files volume/mount, and only `PORT=8080`. This violates the required
-durable SQLite topology, risking lost encrypted data on restart and divergent
-seat counts on scale-out. Deploy one replica with `cct-data` mounted at
-`/mnt/cct`, the required `DATA_DIR` and `DURABLE_BACKUP_PATH`, and re-verify
-before release.
-
-All 21 declared claims, local tests/build/lint, full 25-test browser suite,
-live demo, rate limits, privacy/headers, mobile/keyboard/axe, and fresh
-Lighthouse passed. Docker was unavailable in the verifier image. No product
-source was changed.
-
----
-
-# Historic repair 11 handoff — superseded (2026-08-29)
-
-Work order: `class-capacity-truth-repair-11`
-Base verifier report: `.factory/verification-11.md` at `f6b336e10a2c317bd4133fbd7f0348139e7403b9`
-Repaired production source: `d27dc668792cc1bd82e7c3ddaf1880decdf6b1f6`
+Work order: `class-capacity-truth-repair-12`
+Base verifier report: `.factory/verification-12.md` at
+`c20575f89fd33d0e201343ade3f70cae0e96dff6`
+Repaired deployed source: `55e87acf5032289b32912d19af1384b2d0968cf3`
 Live URL: <https://class-capacity-truth.sociobot.in>
 
 ## Release-blocking repair
 
-Verification 11 accurately found that the live candidate
-`89d35c47ee376d75d92c42b7c839f6da323e35b3` was serving revision
-`sf-class-capacity-truth--0000042` with `minReplicas=1`, `maxReplicas=3`, no
-Azure Files volume/mount, and only `PORT=8080`. That state was reproduced from
-the Azure control plane before repair.
+Verification 12's only P0 was reproduced from the Azure control plane before
+repair: revision `sf-class-capacity-truth--0000043` served the requested
+`28fcd19f33b5` image, but had only `PORT=8080`, no volumes or mounts, and
+`maxReplicas=3`. `scripts/verify-container-topology.sh` rejected that exact
+live state. It was unsafe because revision-local SQLite and encryption keys can
+lose or diverge capacity and make encrypted contact data unreadable.
 
-`scripts/deploy-container.sh` now treats a template PATCH as incomplete until
-all of the following are true:
+`scripts/test-container-topology-deployment.sh` now uses that exact
+verification-12 shape (`0000043`, `28fcd19f33b5`, one `PORT` variable, no
+volume/mount, max three replicas). It proves all of the following:
 
-- the new revision is healthy and receives ingress traffic;
-- `/health` returns `status: ok`, `database: ready`, and the expected full
-  `BUILD_SHA` (or the immutable image-tag prefix when an explicit SHA is not
-  provided);
-- Azure readback still reports exactly one replica, Azure Files storage
-  `cct-data` mounted at `/mnt/cct`, `DATA_DIR=/mnt/cct/keys`, and
-  `DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db`.
+- the production readback guard rejects the unsafe live shape;
+- a durable template is still rejected when its traffic-serving process reports
+  a different full build SHA; and
+- the checked-in deployment command registers `cct-data`, reads back the Azure
+  Files mount and persisted paths, fixes the scale at one replica, and accepts
+  only the requested full build identity.
 
-`scripts/test-container-topology-deployment.sh` is exact regression coverage
-for the verifier's unsafe `0000042` / `89d35c47ee37` / one-`PORT` /
-no-volume / `maxReplicas=3` shape. It first proves the production verifier
-rejects that state, then proves deployment creates the durable topology,
-waits for a traffic-serving revision, and checks runtime identity.
+The declared `durable-one-replica-topology` claim was updated to describe this
+new exact fixture and identity check. Product behavior, the research brief,
+the web-with-backend artifact class, and all previously passing flows are
+unchanged.
 
-## Production evidence
+## Deployment and durability evidence
 
-ACR build `ch178` completed successfully from this repository using:
+ACR build `ch18k` succeeded from this repository with the immutable image
+`sociobotregistry.azurecr.io/sf-class-capacity-truth:55e87acf5032` and all
+three source identity build arguments set to the deployed source SHA.
 
-```bash
-az acr build --registry sociobotregistry \
-  --image sf-class-capacity-truth:d27dc668792c \
-  --build-arg BUILD_SHA=d27dc668792cc1bd82e7c3ddaf1880decdf6b1f6 \
-  --build-arg GIT_SHA=d27dc668792cc1bd82e7c3ddaf1880decdf6b1f6 \
-  --build-arg SOURCE_COMMIT=d27dc668792cc1bd82e7c3ddaf1880decdf6b1f6 .
-```
+The first Container Apps patch was requested before that ACR run had published
+its tag. It stayed in `ImagePullBackOff` and the existing healthy revision
+continued to serve the old build; the guarded deployment did not claim success.
+After ACR published the immutable tag, a no-configuration-change retry revision
+pulled that same image and became healthy. This ordering is recorded so a
+future operator waits for the specific ACR run, not merely another registry
+run, before running the deploy command.
 
-The guarded deployment ran with that immutable image and full expected SHA.
-After the controlled persistence drill, the active/ready revision was
-`sf-class-capacity-truth--d-c-1788035236-10043`, serving
-`sociobotregistry.azurecr.io/sf-class-capacity-truth:d27dc668792c`.
-Azure readback showed `minReplicas=1`, `maxReplicas=1`, volume
-`cct-data` (`AzureFile`), its `/mnt/cct` mount, and only the expected
-`PORT`, `DATA_DIR`, and `DURABLE_BACKUP_PATH` variables. Live `/health` was:
+The active and ready revision is
+`sf-class-capacity-truth--d-c-1788042115-23360`, with 100% traffic. Azure
+readback and `scripts/verify-container-topology.sh` confirm:
 
-```json
-{"status":"ok","build":"d27dc668792cc1bd82e7c3ddaf1880decdf6b1f6","database":"ready"}
-```
+- image `sociobotregistry.azurecr.io/sf-class-capacity-truth:55e87acf5032`;
+- `minReplicas=1`, `maxReplicas=1`;
+- Azure Files volume `cct-data` mounted at `/mnt/cct`;
+- `DATA_DIR=/mnt/cct/keys` and
+  `DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db`; and
+- live `/health` returns `{"status":"ok","build":"55e87acf5032289b32912d19af1384b2d0968cf3","database":"ready"}`.
 
-`scripts/prove-production-durability.sh` performed the controlled live
-revision drill: it created a synthetic school and encrypted guardian booking,
-rolled a new revision, read the same confirmed seat and decrypted contact,
-deleted the synthetic workspace, detached the one-time test token, and removed
-the `cct-persist-drill` secret. Final Azure readback confirms no temporary
-token reference or secret remains.
+`scripts/prove-production-durability.sh` completed a controlled live revision
+drill. It created a synthetic school, booked a seat with encrypted contact,
+rolled a new revision, read the same confirmed count and decrypted contact,
+deleted the synthetic workspace, and removed its one-time token and secret.
+The final `d-c-1788042115-23360` revision is healthy, and Azure readback has no
+`TEST_AUTH_TOKEN` environment entry or `cct-persist-drill` secret.
 
 ## Verification completed
 
-Clean install and local checks:
-
-- `npm ci` — passed; 0 reported vulnerabilities.
-- `npm test` — passed (7 Vitest tests, 23 Rust unit/integration tests, and
-  both deployment regressions).
-- `npm run typecheck`, `npm run lint`, and `npm run build` — passed. The
-  release build produced `dist/` and the release API binary. Initial app JS is
-  70.86 kB gzip; CSS is 4.43 kB gzip.
-- `npm run test:e2e` — passed, 25 Chromium tests; `test-results/.last-run.json`
-  records `{"status":"passed","failedTests":[]}`.
-- `npm run test:durable-restart` — passed: a real-school booking and encrypted
-  contact survived a fresh release-process restart on a separate mounted
-  storage directory.
-- `bash scripts/test-zero-config.sh` — passed: zero-config boot served health
-  and logged generated/persisted keys.
-- `bash scripts/load-smoke.sh http://127.0.0.1:18088` — passed: 100 requests,
-  10 accepted and 90 rate-limited with `Retry-After`.
-- `/opt/fleet/lib/verify-url.sh` passed locally and live: title, `lang=en`, one
-  h1, main landmark, image alt coverage, labelled buttons, and no browser
-  console/page errors. `@axe-core/cli` 4.10.3 found 0 violations locally and
-  live. The existing Playwright axe suite covers landing, demo, booking, app,
-  privacy, terms, and 404 routes, including dark/mobile states.
-
-Live post-deploy checks:
-
-- `/`, `/demo?demo=1`, `/app`, `/privacy`, `/terms`, `/auth/callback`,
-  `/robots.txt`, and `/sitemap.xml` returned 200; a fresh unknown URL returned
-  a real 404.
-- A real live demo booking changed availability and **Reset demo** restored the
-  seeded two open seats.
-- A 390px Playwright smoke test opened the labelled menu with Enter, restored
-  focus with Escape, found no horizontal overflow in the demo, made no console
-  errors, and observed only same-origin requests through landing, demo,
-  privacy, and app routes.
-- Twelve requests to `GET /api/demo/session` with one fresh forwarded client
-  IP yielded 10 HTTP 200 responses and 2 HTTP 429 responses. Both 429s carried
-  `Retry-After: 5`.
-- Response headers include `X-Content-Type-Options: nosniff`, strict referrer
-  policy, restrictive permissions policy, and a response-header CSP with
-  `frame-ancestors 'none'`.
-- Mobile Lighthouse against live production: performance 100, accessibility
-  100, best practices 100, SEO 100; LCP 1.2 s, CLS 0, TBT 0 ms.
-
-The worker has no local Docker daemon. The Docker image was therefore verified
-by the successful remote ACR build above, not by a local `docker build`.
+- `npm ci` — passed; 0 vulnerabilities.
+- `npm test` — passed: 7 Vitest tests, 5 Rust unit tests, 18 Rust API/
+  integration tests, and both deployment regressions.
+- `npm run typecheck`, `npm run lint`, and `npm run build` — passed. The build
+  produced `dist/` and the release binary. Initial JS chunks are 70.86 kB and
+  79.59 kB gzip; CSS is 4.43 kB gzip.
+- `npm run test:e2e` — passed: 25 Chromium tests covering all declared browser
+  claims, desktop, 390px/reduced-motion, keyboard, route focus, 200% text,
+  privacy requests, and AxeBuilder checks.
+- `npm run test:cold-claim` — passed from a fresh Cargo target within the
+  600-second claim startup limit. `bash scripts/test-zero-config.sh` and
+  `npm run test:durable-restart` also passed.
+- Local release smoke passed: URL verification found title/lang/main/alt and
+  no console/page errors; the 100-request forwarded-IP smoke saw both 200 and
+  429 responses with `Retry-After`.
+- Live URL verification passed at desktop and 390px. A fresh 390px/reduced
+  motion browser flow opened the keyboard menu with Enter, restored focus with
+  Escape, booked a fictional demo seat, reset it to two open seats, had no
+  horizontal overflow or page errors, and made same-origin requests only.
+- Live Playwright AxeBuilder scans returned zero serious/critical findings on
+  `/`, `/demo?demo=1`, `/app`, `/privacy`, `/terms`, and the real 404 route.
+  The standalone `@axe-core/cli` was also attempted, but its Selenium runner
+  cannot locate a Chrome binary in this worker; Playwright uses the installed
+  pinned browser and is the authoritative successful Axe run.
+- Live headers include `X-Content-Type-Options: nosniff`, strict referrer
+  policy, restrictive permissions policy, HTML no-cache, and response-header
+  CSP with `frame-ancestors 'none'`. Public routes `/`, `/demo?demo=1`,
+  `/app`, `/privacy`, `/terms`, `/auth/callback`, `/robots.txt`, and
+  `/sitemap.xml` return 200; a missing route returns 404.
+- Live forwarded-IP rate limiting returned ten 200 responses then two 429
+  responses for a fresh address. Both 429s included `Retry-After: 5`,
+  `X-RateLimit-Limit: 10`, and `X-RateLimit-Remaining: 0`.
+- Mobile Lighthouse against production scored 100 performance, 100
+  accessibility, 100 best practices, and 100 SEO; LCP was 1336.095 ms, CLS 0,
+  and TBT 10 ms.
 
 ## Scope, privacy, and known gaps
 
-The original web-with-backend artifact, research brief, data model, demo,
-authentication boundary, and all previously passing product behavior are
-unchanged. No analytics or advertising request was observed; no third-party
-font or script is loaded. This is a live backend product, not a PWA, and it
-makes no offline claim; its update path is the traffic-ready revision check
-added in this repair.
-
-No operator action is required. The next verifier can run its normal live
-identity and topology readback against the deployed `d27dc66` image.
+No analytics, third-party fonts, scripts, trackers, or third-party product
+requests were observed in the live public/demo flow. The product remains a
+server-backed capacity ledger and makes no offline/PWA claim; its update path
+was exercised by the healthy revision handoff and the live durable-restart
+drill. It is not a distributable package, so package/consumer verification is
+not applicable. No operator action remains.

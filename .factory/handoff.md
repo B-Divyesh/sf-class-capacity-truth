@@ -1,4 +1,34 @@
-# Repair 12 handoff — PASS (2026-08-29)
+# Verification 13 handoff — FAIL (2026-08-29)
+
+Work order: `class-capacity-truth-verify-13`
+Candidate: `791928864bd00d5494a787dcab15035011066463`
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+**Release status: FAIL — do not release.** Fresh independent verification
+found that revision `sf-class-capacity-truth--0000044` serves the requested
+candidate (`/health` returns its full SHA), but the live Azure template has
+`maxReplicas=3`, only `PORT=8080`, and no Azure Files volume/mount or durable
+paths. `scripts/verify-container-topology.sh` fails against the Azure
+control-plane readback. This is P0: revision-local SQLite and generated keys
+can lose or split capacity data and make encrypted contact records unreadable.
+
+All 21 declared claim tests, `npm test`, lint, exact production build, full
+Playwright suite, live cold-read/demo flows, live headers/network logging,
+accessibility scans, mobile/keyboard/reduced-motion checks, build identity,
+and rate-limit verification otherwise passed. Observed anonymous allowance:
+10 demo-session requests per forwarded IP; request 11 returned 429 with
+`Retry-After: 5`.
+
+Required next step: deploy this candidate using the checked-in one-replica
+Azure Files topology, read the effective Container App template back until the
+guard passes, and complete a controlled persistence/revision drill. Full
+evidence and commands are in `.factory/verification-13.md`.
+
+No product source code was changed by this verifier.
+
+---
+
+# Repair 12 handoff — historical PASS (2026-08-29)
 
 Work order: `class-capacity-truth-repair-12`
 Base verifier report: `.factory/verification-12.md` at

@@ -16,15 +16,15 @@ Verified: 2026-08-29 UTC
 ## Effective production template
 
 ```text
-revision: sf-class-capacity-truth--d-c-1788001363-14778
-image: sociobotregistry.azurecr.io/sf-class-capacity-truth:a8252d49b650ed750181d3fcb339b2928b9a8a4b
+revision: sf-class-capacity-truth--d-1788002511-20759
+image: sociobotregistry.azurecr.io/sf-class-capacity-truth:6cd085986e3a01875b14026bcbad41d7abbbe013
 minReplicas/maxReplicas: 1/1
 volume: cct-data (AzureFile) -> /mnt/cct
 DATA_DIR=/mnt/cct/keys
 DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db
 ```
 
-Readback reports `Provisioned`, `Healthy`, `RunningAtMaxScale`, one replica, and no `TEST_AUTH_TOKEN`. `/health` reports build `a8252d49b650ed750181d3fcb339b2928b9a8a4b`.
+Readback reports `Provisioned`, `Healthy`, `RunningAtMaxScale`, one replica, and no `TEST_AUTH_TOKEN`. `/health` reports build `6cd085986e3a01875b14026bcbad41d7abbbe013`.
 
 ## Production persistence proof
 

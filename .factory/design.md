@@ -8,7 +8,7 @@ This is a deliberately calm, useful classroom object, not a generic software das
 
 ## Stack decision
 
-The UI uses React 19 + Vite + strict TypeScript because booking, capacity, reconciliation, and staff dashboard flows have interdependent form and asynchronous state. It uses hand-authored CSS and tokenized primitives rather than a component framework so the abacus grammar remains specific to this product. The planned API is Rust/Axum/SQLx/PostgreSQL, with a SQLite zero-config local fallback. There are no hosted font or script dependencies.
+The UI uses React 19 + Vite + strict TypeScript because booking, capacity, reconciliation, and staff dashboard flows have interdependent form and asynchronous state. It uses hand-authored CSS and tokenized primitives rather than a component framework so the abacus grammar remains specific to this product. The shipped API is Rust/Axum/SQLx/SQLite: production is a single Container App replica that restores and atomically checkpoints SQLite plus generated keys on mounted Azure Files. There are no hosted font or script dependencies.
 
 ## Tokens
 

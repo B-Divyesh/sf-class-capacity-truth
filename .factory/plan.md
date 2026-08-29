@@ -1,6 +1,6 @@
 # Class Capacity Truth — venture plan
 
-Status: M1 remains shipped. The 2026-08-29 repairs delivered the release-blocking M2/M3 core and M4 data controls while preserving the demo. The recurring Sociobot product now returns a hosted Dodo checkout. Production has no approved SMTP relay, so the deployed path creates a durable one-click offer and receipt for staff to copy into an approved channel. The SMTP adapter remains available for configured deployments. The single production replica uses local SQLite with an atomic durable checkpoint on mounted Azure Files and stable keys supplied from Container App secrets. Every builder reads this file, .factory/design.md, the brief, and earlier milestone handoffs before changing scope.
+Status: M1 through M4 are shipped; M5 remains planned. The 2026-08-29 repairs delivered the release-blocking M2/M3 core and M4 data controls while preserving the demo. The recurring Sociobot product now returns a hosted Dodo checkout. Production has no approved SMTP relay, so the deployed path creates a durable one-click offer and receipt for staff to copy into an approved channel. The SMTP adapter remains available for configured deployments. The single production replica uses SQLite with an atomic checkpoint on mounted Azure Files. Its CSPRNG-generated cookie and contact-encryption keys are persisted beside that checkpoint under `/mnt/cct/keys`; they are not Container App secrets. Every builder reads this file, .factory/design.md, the brief, and earlier milestone handoffs before changing scope.
 
 ## PRD
 
@@ -46,7 +46,7 @@ The same revenue-impacting failure appears in a general scheduling complaint and
 ### Stack and deployment
 
 - **Web:** React 19, Vite, strict TypeScript, and hand-authored CSS tokens. React is justified by dense multi-step booking, tables, optimistic updates, and dashboard state; there is no visual framework. Public routes target under 150 KB gzip initial JavaScript; staff views load on demand.
-- **Service:** Rust 2021, Axum, Tokio, SQLx, Serde, tracing, and PostgreSQL in production. Rust makes reconciliation and concurrent allocation deterministic. A SQLite database at /data/class-capacity-truth.db is the no-environment local/default runtime so the container starts on PORT=8080 with no other variables; production supplies optional DATABASE_URL and never shares SQLite across replicas.
+- **Service:** Rust 2021, Axum, Tokio, SQLx, Serde, tracing, and SQLite. Rust makes reconciliation and concurrent allocation deterministic. The service starts with no configuration on `PORT=8080`, using `/data/class-capacity-truth.db`. Production stays deliberately single-replica and uses a process-local SQLite database restored from, and atomically checkpointed to, Azure Files at `/mnt/cct/snapshots/class-capacity-truth.db`; `DATA_DIR=/mnt/cct/keys` persists generated keys. `DATABASE_URL` remains an optional local override, not the production topology.
 - **Repository:** root Vite app; services/api Rust service; packages/contracts request/response schemas. The API serves /api; the deployment serves hashed dist assets and falls back to the client router. Container Apps is the intended deployment target. This repo never changes infrastructure.
 - **Build:** root npm test and npm run build are mandatory. M1 adds cargo test --manifest-path services/api/Cargo.toml and cargo build --release --manifest-path services/api/Cargo.toml to CI. The service Dockerfile is multi-stage and non-root, exposes 8080, accepts BUILD_SHA=dev, GIT_SHA=dev, and SOURCE_COMMIT=dev, and never reads .git.
 
@@ -73,7 +73,7 @@ M1 ships canonical URLs, descriptions, Open Graph/Twitter metadata, original aba
 
 ### Tenancy and data model
 
-Every durable record carries organization_id; repositories accept authorized organisation context rather than a browser-provided tenant ID. PostgreSQL row-level security is enabled before production data is accepted. Tests prove two organisations cannot read one another's records or public links.
+Every durable record carries a workspace/organisation scope; repositories accept authorized organisation context rather than a browser-provided tenant ID. The shipped SQLite queries enforce that scope, and tests prove two organisations cannot read one another's records or public links. Production is pinned to one replica precisely because this ledger is SQLite.
 
 | Entity | Purpose and ownership |
 | --- | --- |
@@ -90,7 +90,7 @@ Every durable record carries organization_id; repositories accept authorized org
 
 Public class IDs and offer tokens are high-entropy random values and never expose sequential IDs. A booking transaction locks the session row, checks cutoff and confirmed/held availability, writes an idempotency-keyed seat event, and commits atomically. A concurrent request receives either a seat or an intelligible full result. Calendar reconciliation can flag a conflict but cannot reduce confirmed capacity below local confirmed seats; an operator resolves that exception with a recorded reason.
 
-Guardian email/name are encrypted with a per-environment key from Key Vault in production and a CSPRNG-generated persisted key in the zero-config local runtime. Emails are normalized for matching and never logged. Defaults: incomplete booking data deleted after 30 days; completed booking contact data 90 days after class end; expired offers 30 days after expiry; audit events 24 months. M4 delivers per-organisation CSV/JSON export and verified delete. The privacy notice explains these defaults, controller/processor roles, and access/delete requests. There is no analytics SDK, pixel, or ad cookie; aggregate operational counters have no guardian identity.
+Guardian email/name are encrypted with a CSPRNG-generated per-environment key persisted in `DATA_DIR`; production mounts that directory at `/mnt/cct/keys` so the key survives revisions alongside the durable SQLite checkpoint. Emails are normalized for matching and never logged. Defaults: incomplete booking data deleted after 30 days; completed booking contact data 90 days after class end; expired offers 30 days after expiry; audit events 24 months. M4 delivers per-organisation CSV/JSON export and verified delete. The privacy notice explains these defaults, controller/processor roles, and access/delete requests. There is no analytics SDK, pixel, or ad cookie; aggregate operational counters have no guardian identity.
 
 There is no file upload in the initial product. A future import must use encrypted object storage, type allowlist, malware scanning, and expiry; it is not silently added to bookings.
 
@@ -106,7 +106,7 @@ M2 registers school-monthly-99 using the factory Sociobot/Dodo subscription cont
 
 M3 supports Google Calendar first through a provider adapter. It requests read-only access to the chosen calendar, encrypts refresh tokens, uses webhook/delta sync where available, and polls every five minutes as fallback. The UI tells operators exactly what is read and how to revoke it. A Microsoft 365 adapter is a future implementation of the same interface. Missing connector configuration disables that control plainly; it never prevents a zero-config service start.
 
-A DB-backed worker in the API process uses a lease and SKIP LOCKED so only one replica reconciles or sends an offer. It:
+An in-process, DB-backed worker runs in the single production replica and:
 
 - reconciles due calendars every five minutes and creates explicit discrepancies;
 - expires holds and unclaimed offers every minute;
@@ -125,7 +125,7 @@ Every API endpoint except /health is rate limited using the first X-Forwarded-Fo
 
 Health returns non-secret build SHA and dependency state. Structured JSON logs have request ID, route, status, duration, and opaque organisation ID. Protected metrics measure requests/errors/latency, job lag, discrepancies, and offer conversion. Initial targets: 99.9% monthly API availability; 99% of calendar changes reconciled in 10 minutes; no unresolved public capacity discrepancy. A failing dependency shows a conservative unavailable state rather than guessing.
 
-Production PostgreSQL receives encrypted daily backups and point-in-time recovery for 30 days. Restore is rehearsed before the first pilot. Development SQLite is a local fallback only, never described as production backup. M4 gives owners export/delete and a backup/restore runbook.
+Production SQLite is checkpointed atomically after every successful mutation to the mounted Azure Files share. On startup, the process restores that checkpoint to its local database before serving traffic. The deployment contract fixes `minReplicas=1` and `maxReplicas=1`; changing either requires a storage architecture migration. The release drill creates a synthetic booked record, starts a new revision, verifies its public seat count and decrypted guardian contact, then deletes the synthetic workspace and removes the temporary drill credential. M4 gives owners export/delete and a backup/restore runbook.
 
 ## Design system
 
@@ -140,9 +140,9 @@ Each is one 3–4 hour builder session and passes review → polish → PASS bef
 | Milestone | Status | Outcome |
 | --- | --- | --- |
 | M1 | Shipped 2026-08-28 | Public landing and isolated capacity-booking demo prove the core seat ledger interaction. |
-| M2 | Planned | A school can create real classes with Entra accounts, persistence, and paid entitlement. |
-| M3 | Planned | Google Calendar reconciliation and waitlist offers complete jobs two and three. |
-| M4 | Planned | Operators can run, audit, export, and notify safely. |
+| M2 | Shipped 2026-08-29 | Real classes, Entra staff identity, workspace recovery, subscription checkout, and durable single-replica SQLite storage. |
+| M3 | Shipped 2026-08-29 | Encrypted iCalendar polling, reconciliation, ordered waitlists, and one-click released-seat offers. |
+| M4 | Shipped 2026-08-29 | Export/delete, retention, audit receipts, rate limits, recovery drill, and production topology controls. |
 | M5 | Planned | Growth paths make adoption and controlled integrations easier. |
 
 ### M1 — prove capacity in one click
@@ -161,11 +161,11 @@ Each is one 3–4 hour builder session and passes review → polish → PASS bef
 
 **Routes/screens:** /auth/callback, /app, /app/classes/:classId, /app/settings, /app/settings/billing, protected class create/edit, real public /book/:publicClassId, unchanged demo.
 
-**Implementation:** add Entra CIAM frontend/server validation; owner/operator/viewer memberships; Postgres tenancy/RLS; create/edit time-zone-aware classes, capacity, cutoff, public link, and conservative status. Real bookings use the same transaction-tested ledger, without demo crossover. Register/verify school-monthly-99, owner-only hosted checkout, entitlement, renewal/cancel UI, and read-only grace. The real link is unlisted and opaque.
+**Implementation:** add Entra CIAM frontend/server validation; owner/operator/viewer memberships; SQLite workspace scoping; create/edit time-zone-aware classes, capacity, cutoff, public link, and conservative status. Real bookings use the same transaction-tested ledger, without demo crossover. Register/verify school-monthly-99, owner-only hosted checkout, entitlement, renewal/cancel UI, and read-only grace. The real link is unlisted and opaque.
 
 **Claims to add:** real-class-publishes-seat-count, concurrent-bookings-never-oversell, school-plan-price, demo-never-reads-real-data.
 
-**Tests:** reversible migrations and RLS two-tenant tests; valid/invalid/aud/tenant/issuer JWT fixtures; role tests; Sociobot subscription webhook/entitlement/grace fixtures; checkout-return fixture; concurrent booking race; rate limits; 100 rps protected API smoke; all M1 claims.
+**Tests:** reversible SQLite migrations and two-workspace isolation tests; valid/invalid/aud/tenant/issuer JWT fixtures; role tests; Sociobot subscription webhook/entitlement/grace fixtures; checkout-return fixture; concurrent booking race; rate limits; 100 rps protected API smoke; all M1 claims.
 
 **DoD:** an owner signs in, creates a class, publishes its link, takes a real booking, inspects capacity, and subscribes without help. No user can access another school. Billing loss does not lose bookings or block export. The handoff confirms Entra callback registration or names it as operator action.
 
@@ -214,6 +214,6 @@ Each is one 3–4 hour builder session and passes review → polish → PASS bef
 | Waitlist email does not convert. | The $99 story depends on recovered places. | M3/M4 measures claim within 24 hours against current call process; compare 24-hour and shorter offers; target 25% only after sufficient sample. |
 | Guardian privacy burden is too high. | A data incident breaks trust. | M2 review verifies minimum fields, retention, export/delete, processor list, and no PII logs before real bookings; legal review selects pilot region terms. |
 | Entra callback or billing plan registration blocks M2. | Shared factory configuration is outside the repo. | Request callback registration and test school-monthly-99 before M2; use fixtures until confirmed and name operator action in handoff. |
-| Concurrent bookings and calendar changes race. | Oversell violates the promise. | M1/M2 run property plus 100-race tests against Postgres; M3 replays calendar events out of order. Do not market real capacity until both pass. |
+| Concurrent bookings and calendar changes race. | Oversell violates the promise. | M1/M2 run property plus 100-race tests against the single-replica SQLite ledger; M3 replays calendar events out of order. Do not market real capacity until both pass. |
 | $99 is too high for one small site. | The problem may be valued but not purchased. | Price five discovery calls against saved staff time and one recovered assessment group; use transparent expiring pilots, not an unbounded free plan. |
 | Staff prefer calls to automatic offers. | Automation could lower conversion. | M3 pilot compares operator-approved email with calls and keeps a “call next” queue view with human control. |

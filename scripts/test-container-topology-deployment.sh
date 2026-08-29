@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Regression for verification-6 P0. The fixture is the exact defective
-# control-plane shape reported by the independent verifier. It proves the
-# checked-in deploy command registers Azure Files, replaces the stale template,
-# and verifies the effective topology after the PATCH.
+# Regression for verification-7 P0. The fixture is the exact defective active
+# control-plane shape reported by the independent verifier: candidate 023bc90,
+# only PORT, no Azure Files mount, and maxReplicas 3. It first proves that the
+# readback guard rejects that shape, then proves the checked-in deploy command
+# registers Azure Files, replaces the stale template, and verifies the repair.
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 fixture_dir="$(mktemp -d)"
 cleanup() { rm -rf "$fixture_dir"; }
@@ -15,9 +16,9 @@ cat >"$fixture_dir/state.json" <<'JSON'
 {
   "id": "/subscriptions/test/resourceGroups/sociobot/providers/Microsoft.App/containerApps/sf-class-capacity-truth",
   "properties": {
-    "latestRevisionName": "sf-class-capacity-truth--0000025",
+    "latestRevisionName": "sf-class-capacity-truth--0000036",
     "template": {
-      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:00edf2a9a366","env":[{"name":"PORT","value":"8080"}]}],
+      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:023bc90148ef","env":[{"name":"PORT","value":"8080"}]}],
       "scale": {"minReplicas":1,"maxReplicas":3}
     }
   }
@@ -62,6 +63,17 @@ jq -e '
   (.properties.template.containers[0].volumeMounts | not) and
   (.properties.template.volumes | not)
 ' "$fixture_dir/state.json" >/dev/null
+
+# The production verifier must reject this exact stale template before the
+# deployment repair is attempted. A raw jq assertion alone would not prove
+# that the same readback guard used by the deploy command catches the defect.
+if PATH="$fixture_dir/bin:$PATH" \
+  AZ_FIXTURE_STATE="$fixture_dir/state.json" \
+  AZ_FIXTURE_LOG="$fixture_dir/az.log" \
+  "$repo_root/scripts/verify-container-topology.sh" >/dev/null 2>&1; then
+  echo "the verifier accepted the known-unsafe one-PORT/no-volume/max-3 template" >&2
+  exit 1
+fi
 
 PATH="$fixture_dir/bin:$PATH" \
 AZ_FIXTURE_STATE="$fixture_dir/state.json" \

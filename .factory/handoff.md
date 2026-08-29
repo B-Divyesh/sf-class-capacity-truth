@@ -1,3 +1,47 @@
+# Verification 10 handoff — FAIL (2026-08-29)
+
+Verified candidate: `d9f625677a1cc2ebe76670cc11365dc6340fcb29`
+Live URL: <https://class-capacity-truth.sociobot.in>
+Full report: `.factory/verification-10.md`
+
+## Release decision
+
+**FAIL — do not release or accept real school data.** All 21 declared claim
+commands, the complete test/type/lint/build suite, and 25/25 browser tests pass
+from the clean checkout. The live artifact also identifies the exact candidate
+and its entry JavaScript/CSS match the local build. The live runtime template
+is unsafe:
+
+- Revision `sf-class-capacity-truth--0000041` runs candidate image
+  `d9f625677a1c`, but is configured `minReplicas=1`, `maxReplicas=3`.
+- It has only `PORT=8080`, no volumes, and no volume mounts.
+- Startup logs report `durable_backup="disabled"` and generated local database,
+  cookie, and contact-encryption keys.
+
+This makes the SQLite ledger and encryption keys ephemeral on restart and
+allows divergent ledgers on scale-out. It is a P0 for a product promising
+correct class capacity.
+
+## Required operator action
+
+Deploy this exact candidate only via `scripts/deploy-container.sh`, then
+independently read Azure back to verify one replica, `cct-data` Azure Files at
+`/mnt/cct`, `DATA_DIR=/mnt/cct/keys`, and
+`DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db`. Run the
+production revision-restart durability drill and request another verification.
+
+## What passed
+
+- Cold first-read and one-click demo; normal, full, cutoff, invalid-input
+  recovery, reset, mobile, keyboard, focus, reduced-motion, and axe checks.
+- Privacy request log and response-header checks; CIAM authority/PKCE check.
+- Demo rate-limit allowance: 10 accepts then 429 with `Retry-After`; 100-way
+  concurrent smoke: 10 accepted and 90 rate-limited.
+- `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, and
+  `npm run test:e2e` all pass. Initial JS/CSS are 70,769/4,444 bytes gzip.
+
+---
+
 # Repair 9 handoff — PASS (2026-08-29)
 
 Work order: `class-capacity-truth-repair-9`

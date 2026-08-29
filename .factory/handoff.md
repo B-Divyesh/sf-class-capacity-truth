@@ -1,4 +1,25 @@
-# Repair 11 handoff — PASS (2026-08-29)
+# Verification 12 handoff — FAIL (2026-08-29)
+
+**Current authoritative handoff: FAIL — do not release commit
+`28fcd19f33b513f4a3b365be90bda7ec457340c7`.** See
+[`verification-12.md`](verification-12.md) for full evidence.
+
+Live `/health` proves this candidate serves the URL, but Azure control-plane
+readback of revision `sf-class-capacity-truth--0000043` found `maxReplicas: 3`,
+no Azure Files volume/mount, and only `PORT=8080`. This violates the required
+durable SQLite topology, risking lost encrypted data on restart and divergent
+seat counts on scale-out. Deploy one replica with `cct-data` mounted at
+`/mnt/cct`, the required `DATA_DIR` and `DURABLE_BACKUP_PATH`, and re-verify
+before release.
+
+All 21 declared claims, local tests/build/lint, full 25-test browser suite,
+live demo, rate limits, privacy/headers, mobile/keyboard/axe, and fresh
+Lighthouse passed. Docker was unavailable in the verifier image. No product
+source was changed.
+
+---
+
+# Historic repair 11 handoff — superseded (2026-08-29)
 
 Work order: `class-capacity-truth-repair-11`
 Base verifier report: `.factory/verification-11.md` at `f6b336e10a2c317bd4133fbd7f0348139e7403b9`

@@ -1053,20 +1053,35 @@ async fn claim_durable_snapshot_survives_restart() {
         .await
         .unwrap();
     let now = 1_900_000_000;
-    db::create_or_refresh_demo(&pool, "durable-demo", now)
+    let cipher = class_capacity_truth_api::crypto::ContactCipher::from_key(&[71_u8; 32]).unwrap();
+    let (_workspace, access_key) =
+        db::create_workspace(&pool, "Restart School", "restart-owner", now)
+            .await
+            .unwrap();
+    let class = db::create_real_class(
+        &pool,
+        &access_key,
+        db::NewRealClass {
+            name: "Restart proof class",
+            starts_at: now + 86_400,
+            cutoff: now + 43_200,
+            timezone: "Europe/London",
+            capacity: 2,
+        },
+        now,
+    )
+    .await
+    .unwrap();
+    let class = db::publish_real_class(&pool, &access_key, &class.id, now)
         .await
         .unwrap();
-    let class = db::list_sessions(&pool, "durable-demo", now)
-        .await
-        .unwrap()
-        .remove(0);
-    db::book_seat(
+    db::book_real_seat(
         &pool,
-        "durable-demo",
+        &cipher,
         &class.public_id,
         "durable-booking",
-        "discarded",
-        "discarded@example.org",
+        "Restart Parent",
+        "restart.parent@example.org",
         now,
     )
     .await
@@ -1080,13 +1095,16 @@ async fn claim_durable_snapshot_survives_restart() {
     let restored = db::connect(&format!("sqlite://{}", restored_path.display()))
         .await
         .unwrap();
-    let classes = db::list_sessions(&restored, "durable-demo", now)
+    let restored_class = db::get_public_real_class(&restored, &class.public_id, now)
         .await
         .unwrap();
-    let booked = classes
-        .iter()
-        .find(|candidate| candidate.public_id == class.public_id)
+    let restored_class = restored_class.expect("published real class survives restart");
+    assert_eq!(restored_class.confirmed, 1);
+    assert_eq!(restored_class.open_seats, 1);
+    let bookings = db::list_confirmed_bookings(&restored, &cipher, &access_key, &class.id)
+        .await
         .unwrap();
-    assert_eq!(booked.confirmed, class.confirmed + 1);
-    assert_eq!(booked.open_seats, class.open_seats - 1);
+    assert_eq!(bookings.len(), 1);
+    assert_eq!(bookings[0].guardian_name, "Restart Parent");
+    assert_eq!(bookings[0].guardian_email, "restart.parent@example.org");
 }

@@ -81,8 +81,12 @@ impl AuthVerifier {
     }
 
     pub async fn verify(&self, token: &str) -> anyhow::Result<String> {
+        // A production release may temporarily use one exact fixture token for
+        // a controlled persistence drill. Never accept the broad test-owner
+        // prefix there; that convenience is restricted to debug test servers.
+        let debug_test_prefix = cfg!(debug_assertions) && token.starts_with("test-owner-");
         if self.test_token.is_some()
-            && (self.test_token.as_deref() == Some(token) || token.starts_with("test-owner-"))
+            && (self.test_token.as_deref() == Some(token) || debug_test_prefix)
         {
             return Ok(if token == "test-owner" {
                 "test-owner-oid".into()

@@ -38,5 +38,23 @@ jq --arg image "$image" '
 ' < <(az containerapp show --resource-group "$resource_group" --name "$app_name" -o json) > "$patch_file"
 az rest --method PATCH --uri "${app_id}?api-version=2024-03-01" --body "@$patch_file" --only-show-errors >/dev/null
 
-az containerapp show --resource-group "$resource_group" --name "$app_name" \
-  --query '{revision:properties.latestRevisionName,min:properties.template.scale.minReplicas,max:properties.template.scale.maxReplicas,mounts:properties.template.containers[0].volumeMounts,volumes:properties.template.volumes,env:properties.template.containers[0].env}' -o json
+# Do not treat a successful PATCH as a successful deployment. This is the
+# regression guard for the revision that kept only PORT and scaled SQLite to
+# three replicas: read the effective Container App template back from Azure.
+RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" \
+  "$(dirname "$0")/verify-container-topology.sh"
+
+actual="$(az containerapp show --resource-group "$resource_group" --name "$app_name" -o json)"
+jq -e --arg image "$image" '
+  .properties.template.containers[0].image == $image
+' <<<"$actual" >/dev/null
+
+jq '{
+  revision: .properties.latestRevisionName,
+  image: .properties.template.containers[0].image,
+  min: .properties.template.scale.minReplicas,
+  max: .properties.template.scale.maxReplicas,
+  mounts: .properties.template.containers[0].volumeMounts,
+  volumes: .properties.template.volumes,
+  env: .properties.template.containers[0].env
+}' <<<"$actual"

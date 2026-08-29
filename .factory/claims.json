@@ -101,8 +101,8 @@
     "id": "durable-restart",
     "claim": "Committed capacity changes survive a container restart.",
     "where": "README architecture and deployment",
-    "test": "npm run test:api -- claim_durable_snapshot_survives_restart",
-    "sandbox": "Fresh local SQLite database plus a separate mounted-storage directory; book a seat, create the durable snapshot, restore into a new database, and assert the seat counts remain changed."
+    "test": "npm run test:durable-restart",
+    "sandbox": "Fresh release process with a separate mounted-storage directory; create a real school, publish a class, book a seat, restart the process, and assert both the changed seat count and decrypted booking remain."
   },
   {
     "id": "configured-smtp-delivery",
@@ -143,7 +143,7 @@
     "id": "durable-one-replica-topology",
     "claim": "Production uses one replica with Azure Files for SQLite snapshots and generated keys.",
     "where": "README architecture and deployment",
-    "test": "npm run test:api -- claim_deployment_topology_is_one_replica_with_azure_files",
-    "sandbox": "Inspect the checked-in Azure Container App topology contract for an Azure Files mount, persistent data and snapshot paths, and a fixed one-replica scale."
+    "test": "npm run test:deployment",
+    "sandbox": "Begin with the verifier's stale Azure template shape: one PORT variable, no mount, no volume, and maxReplicas 3. Run the deploy command through a recorded Azure control-plane fixture and assert it registers cct-data, applies the Azure Files mount/paths, and reads back exactly one replica."
   }
 ]

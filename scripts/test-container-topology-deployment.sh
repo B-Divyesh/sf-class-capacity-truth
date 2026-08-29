@@ -79,10 +79,12 @@ PATH="$fixture_dir/bin:$PATH" \
 AZ_FIXTURE_STATE="$fixture_dir/state.json" \
 AZ_FIXTURE_LOG="$fixture_dir/az.log" \
 IMAGE="sociobotregistry.azurecr.io/sf-class-capacity-truth:deployment-regression" \
+REVISION_SUFFIX="d-regression-20260829" \
 "$repo_root/scripts/deploy-container.sh" >/dev/null
 
 jq -e '
   .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:deployment-regression" and
+  .properties.template.revisionSuffix == "d-regression-20260829" and
   .properties.template.scale == {minReplicas: 1, maxReplicas: 1} and
   (.properties.template.volumes | any(.name == "cct-data" and .storageType == "AzureFile" and .storageName == "cct-data")) and
   (.properties.template.containers[0].volumeMounts | any(.volumeName == "cct-data" and .mountPath == "/mnt/cct")) and

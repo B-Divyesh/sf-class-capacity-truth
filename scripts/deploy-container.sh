@@ -11,6 +11,50 @@ storage_account="${AZURE_FILES_ACCOUNT:-sociobotblob}"
 share_name="${AZURE_FILES_SHARE:-class-capacity-truth}"
 storage_name="cct-data"
 image="${IMAGE:?Set IMAGE to the immutable ACR image tag to deploy}"
+# A revision suffix must be unique across a Container App. Do not copy the
+# currently-ready suffix from the readback template: ARM will accept that
+# request asynchronously but Container Apps cannot create the next revision.
+# Keep this below the Container App's suffix-length limit.
+revision_suffix="${REVISION_SUFFIX:-d-$(date +%s)-$RANDOM}"
+
+wait_for_effective_template() {
+  local actual
+  for _ in $(seq 1 120); do
+    actual="$(az containerapp show --resource-group "$resource_group" --name "$app_name" -o json)"
+    if jq -e --arg image "$image" '
+      .properties.template.containers[0].image == $image and
+      .properties.template.scale.minReplicas == 1 and
+      .properties.template.scale.maxReplicas == 1 and
+      (.properties.template.volumes | any(.name == "cct-data" and .storageType == "AzureFile" and .storageName == "cct-data")) and
+      (.properties.template.containers[0].volumeMounts | any(.volumeName == "cct-data" and .mountPath == "/mnt/cct")) and
+      (.properties.template.containers[0].env | any(.name == "DATA_DIR" and .value == "/mnt/cct/keys")) and
+      (.properties.template.containers[0].env | any(.name == "DURABLE_BACKUP_PATH" and .value == "/mnt/cct/snapshots/class-capacity-truth.db"))
+    ' <<<"$actual" >/dev/null; then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "Azure did not apply the requested durable template and image in time" >&2
+  return 1
+}
+
+apply_template_patch() {
+  local response
+  for _ in $(seq 1 120); do
+    if response="$(az rest --method PATCH --uri "${app_id}?api-version=2024-03-01" \
+      --body "@$patch_file" --only-show-errors 2>&1)"; then
+      return 0
+    fi
+    if grep -q 'ContainerAppOperationInProgress' <<<"$response"; then
+      sleep 2
+      continue
+    fi
+    printf '%s\n' "$response" >&2
+    return 1
+  done
+  echo "Azure did not accept the durable template patch in time" >&2
+  return 1
+}
 
 account_key="$(az storage account keys list --resource-group "$resource_group" --account-name "$storage_account" --query '[0].value' -o tsv)"
 az storage share create --account-name "$storage_account" --account-key "$account_key" --name "$share_name" --quota 5 --only-show-errors >/dev/null
@@ -22,9 +66,10 @@ az containerapp env storage set --resource-group "$resource_group" --name "$envi
 app_id="$(az containerapp show --resource-group "$resource_group" --name "$app_name" --query id -o tsv)"
 patch_file="$(mktemp)"
 trap 'rm -f "$patch_file"' EXIT
-jq --arg image "$image" '
+jq --arg image "$image" --arg revision_suffix "$revision_suffix" '
   { properties: { template: (
     .properties.template |
+    .revisionSuffix = $revision_suffix |
     .containers[0].image = $image |
     .containers[0].env = [
       {name:"PORT", value:"8080"},
@@ -36,7 +81,12 @@ jq --arg image "$image" '
     .scale = {minReplicas: 1, maxReplicas: 1}
   )} }
 ' < <(az containerapp show --resource-group "$resource_group" --name "$app_name" -o json) > "$patch_file"
-az rest --method PATCH --uri "${app_id}?api-version=2024-03-01" --body "@$patch_file" --only-show-errors >/dev/null
+apply_template_patch
+
+# The PATCH is asynchronous in Container Apps. Never read a still-old template
+# as though it were a deployment result; wait for the exact image and durable
+# topology before attempting a follow-up environment cleanup.
+wait_for_effective_template
 
 # Azure's template PATCH merges environment entries by name. A short-lived
 # exact test credential used for a persistence drill must never survive the
@@ -45,6 +95,7 @@ actual="$(az containerapp show --resource-group "$resource_group" --name "$app_n
 if jq -e '.properties.template.containers[0].env | any(.name == "TEST_AUTH_TOKEN")' <<<"$actual" >/dev/null; then
   az containerapp update --resource-group "$resource_group" --name "$app_name" \
     --remove-env-vars TEST_AUTH_TOKEN --only-show-errors >/dev/null
+  wait_for_effective_template
 fi
 
 # Do not treat a successful PATCH as a successful deployment. This is the
@@ -53,6 +104,7 @@ fi
 RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" \
   "$(dirname "$0")/verify-container-topology.sh"
 
+wait_for_effective_template
 actual="$(az containerapp show --resource-group "$resource_group" --name "$app_name" -o json)"
 jq -e --arg image "$image" '
   .properties.template.containers[0].image == $image

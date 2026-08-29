@@ -113,32 +113,8 @@ cleanup() {
 trap cleanup EXIT
 
 wait_for_revision() {
-  local previous="$1"
-  local expected=""
-  for _ in $(seq 1 120); do
-    expected="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
-      --query properties.latestRevisionName -o tsv)"
-    if [[ -n "$expected" && "$expected" != "$previous" ]]; then
-      local state provisioning
-      state="$(az containerapp revision show --resource-group "$resource_group" --name "$app_name" \
-        --revision "$expected" --query properties.healthState -o tsv)"
-      provisioning="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
-        --query properties.provisioningState -o tsv)"
-      # A revision can report Healthy before Container Apps has completed the
-      # template operation and shifted the single-revision endpoint. Waiting
-      # for the resource operation prevents a request using the temporary
-      # exact token from reaching the old revision.
-      if [[ "$state" == "Healthy" && "$provisioning" == "Succeeded" ]] \
-        && curl --silent --fail "$base_url/health" \
-        | jq -e '.status == "ok" and .database == "ready"' >/dev/null; then
-        printf '%s\n' "$expected"
-        return 0
-      fi
-    fi
-    sleep 2
-  done
-  echo "new revision did not become healthy" >&2
-  return 1
+  RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" BASE_URL="$base_url" \
+    "$(dirname "$0")/wait-for-containerapp-revision.sh" "$1"
 }
 
 current="$(az containerapp show --resource-group "$resource_group" --name "$app_name" -o json)"

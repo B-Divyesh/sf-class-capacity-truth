@@ -11,7 +11,9 @@ resource_group="${RESOURCE_GROUP:-sociobot}"
 app_name="${CONTAINER_APP_NAME:-sf-class-capacity-truth}"
 base_url="${BASE_URL:-https://class-capacity-truth.sociobot.in}"
 secret_name="cct-persist-drill"
-drill_id="$(date -u +%Y%m%d%H%M%S)-$RANDOM"
+# Container App revision names include the app name and `--`, so keep this
+# unique suffix below the combined 54-character Azure limit.
+drill_id="$(date -u +%s)-$RANDOM"
 token="$(openssl rand -hex 32)"
 token_created=false
 token_attached=false
@@ -27,7 +29,7 @@ cleanup() {
   fi
   if [[ "$token_attached" == true ]]; then
     az containerapp update --resource-group "$resource_group" --name "$app_name" \
-      --remove-env-vars TEST_AUTH_TOKEN --revision-suffix "cct-drill-clean-$drill_id" \
+      --remove-env-vars TEST_AUTH_TOKEN --revision-suffix "d-c-$drill_id" \
       --only-show-errors >/dev/null 2>&1 || true
   fi
   if [[ "$token_created" == true ]]; then
@@ -80,7 +82,7 @@ before="$(az containerapp show --resource-group "$resource_group" --name "$app_n
   --query properties.latestRevisionName -o tsv)"
 az containerapp update --resource-group "$resource_group" --name "$app_name" \
   --set-env-vars "TEST_AUTH_TOKEN=secretref:$secret_name" \
-  --revision-suffix "cct-drill-auth-$drill_id" --only-show-errors >/dev/null
+  --revision-suffix "d-a-$drill_id" --only-show-errors >/dev/null
 token_attached=true
 auth_revision="$(wait_for_revision "$before")"
 
@@ -108,7 +110,7 @@ curl --silent --show-error --fail-with-body -X POST "$base_url/api/classes/$publ
 # or the temporary exact credential used only to read the decrypted contact.
 before="$auth_revision"
 az containerapp update --resource-group "$resource_group" --name "$app_name" \
-  --revision-suffix "cct-drill-restart-$drill_id" --only-show-errors >/dev/null
+  --revision-suffix "d-r-$drill_id" --only-show-errors >/dev/null
 restart_revision="$(wait_for_revision "$before")"
 RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" \
   "$(dirname "$0")/verify-container-topology.sh"
@@ -126,7 +128,7 @@ status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$base_url
 
 before="$restart_revision"
 az containerapp update --resource-group "$resource_group" --name "$app_name" \
-  --remove-env-vars TEST_AUTH_TOKEN --revision-suffix "cct-drill-clean-$drill_id" \
+  --remove-env-vars TEST_AUTH_TOKEN --revision-suffix "d-c-$drill_id" \
   --only-show-errors >/dev/null
 token_attached=false
 final_revision="$(wait_for_revision "$before")"

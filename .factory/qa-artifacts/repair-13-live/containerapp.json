@@ -1,0 +1,55 @@
+{
+  "properties": {
+    "latestRevisionName": "sf-class-capacity-truth--d-c-1788047158-22872",
+    "latestReadyRevisionName": "sf-class-capacity-truth--d-c-1788047158-22872",
+    "provisioningState": "Succeeded",
+    "traffic": [
+      {
+        "latestRevision": true,
+        "weight": 100
+      }
+    ],
+    "template": {
+      "containers": [
+        {
+          "name": "app",
+          "image": "sociobotregistry.azurecr.io/sf-class-capacity-truth:757c8bdc8e71",
+          "env": [
+            {
+              "name": "PORT",
+              "value": "8080"
+            },
+            {
+              "name": "DATA_DIR",
+              "value": "/mnt/cct/keys"
+            },
+            {
+              "name": "DURABLE_BACKUP_PATH",
+              "value": "/mnt/cct/snapshots/class-capacity-truth.db"
+            }
+          ],
+          "volumeMounts": [
+            {
+              "mountPath": "/mnt/cct",
+              "volumeName": "cct-data"
+            }
+          ]
+        }
+      ],
+      "scale": {
+        "cooldownPeriod": 300,
+        "maxReplicas": 1,
+        "minReplicas": 1,
+        "pollingInterval": 30,
+        "rules": null
+      },
+      "volumes": [
+        {
+          "name": "cct-data",
+          "storageName": "cct-data",
+          "storageType": "AzureFile"
+        }
+      ]
+    }
+  }
+}

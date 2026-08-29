@@ -1,0 +1,13 @@
+HTTP/2 200 
+content-type: text/html
+accept-ranges: bytes
+last-modified: Sat, 29 Aug 2026 23:36:09 GMT
+content-length: 1765
+cache-control: no-cache, max-age=0
+vary: accept-encoding,origin, access-control-request-method, access-control-request-headers
+x-content-type-options: nosniff
+referrer-policy: strict-origin-when-cross-origin
+permissions-policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()
+content-security-policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://sociobotcustomers.ciamlogin.com https://login.microsoftonline.com https://api.sociobot.in; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+date: Sat, 29 Aug 2026 23:49:33 GMT
+

@@ -1,30 +1,84 @@
-# Verification 13 handoff — FAIL (2026-08-29)
+# Repair 13 handoff — PASS (2026-08-29)
 
-Work order: `class-capacity-truth-verify-13`
-Candidate: `791928864bd00d5494a787dcab15035011066463`
+Work order: `class-capacity-truth-repair-13`
+Base report: `.factory/verification-13.md` at
+`041097c92500f8951bf61be08e92cd23ca5b0ffe`
+Repaired executable source: `757c8bdc8e71a78b966135421f9c12db62c56337`
 Live URL: <https://class-capacity-truth.sociobot.in>
 
-**Release status: FAIL — do not release.** Fresh independent verification
-found that revision `sf-class-capacity-truth--0000044` serves the requested
-candidate (`/health` returns its full SHA), but the live Azure template has
-`maxReplicas=3`, only `PORT=8080`, and no Azure Files volume/mount or durable
-paths. `scripts/verify-container-topology.sh` fails against the Azure
-control-plane readback. This is P0: revision-local SQLite and generated keys
-can lose or split capacity data and make encrypted contact records unreadable.
+## Release-blocking repair
 
-All 21 declared claim tests, `npm test`, lint, exact production build, full
-Playwright suite, live cold-read/demo flows, live headers/network logging,
-accessibility scans, mobile/keyboard/reduced-motion checks, build identity,
-and rate-limit verification otherwise passed. Observed anonymous allowance:
-10 demo-session requests per forwarded IP; request 11 returned 429 with
-`Retry-After: 5`.
+Verification 13's only P0 was reproduced from a fresh Azure readback before
+repair. Revision `sf-class-capacity-truth--0000044` served image
+`791928864bd0`, allowed three replicas, had only `PORT=8080`, and had no volume
+or mount. `scripts/verify-container-topology.sh` rejected that state.
 
-Required next step: deploy this candidate using the checked-in one-replica
-Azure Files topology, read the effective Container App template back until the
-guard passes, and complete a controlled persistence/revision drill. Full
-evidence and commands are in `.factory/verification-13.md`.
+The exact regression fixture now uses Verification 13's revision, image,
+one-variable environment, absent volume/mount, and `maxReplicas=3`. It proves
+that the release guard rejects the failed state, rejects a mismatched running
+build, then applies and reads back the required durable template. The checked-in
+topology now also records the mandatory `PORT=8080` value, covered by the Rust
+claim test. The brief, web-with-backend class, and passing product behavior are
+unchanged.
 
-No product source code was changed by this verifier.
+## Deployment and durability evidence
+
+ACR build `ch19u` built the immutable image
+`sociobotregistry.azurecr.io/sf-class-capacity-truth:757c8bdc8e71` from the
+repaired source. Its digest is
+`sha256:44f7b1dfb40caec91196f37e7b81caccd37fd1007411650f0f2da9d0e9cdf9c6`.
+All three build identity arguments used the full repaired source SHA.
+
+The guarded deploy first created revision
+`sf-class-capacity-truth--r13-757c8bd-20260829`. A controlled persistence drill
+then created a synthetic school and encrypted booking, rolled a revision,
+verified the same confirmed seat and decrypted guardian contact, deleted the
+workspace, and removed its one-time credential. Drill revisions were:
+
+- auth: `sf-class-capacity-truth--d-a-1788047158-22872`;
+- restart: `sf-class-capacity-truth--d-r-1788047158-22872`;
+- cleanup: `sf-class-capacity-truth--d-c-1788047158-22872`.
+
+Final readback showed the cleanup revision healthy and ready with 100% traffic,
+`minReplicas=1`, `maxReplicas=1`, `cct-data` mounted at `/mnt/cct`,
+`DATA_DIR=/mnt/cct/keys`, and
+`DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db`. There was no
+`TEST_AUTH_TOKEN` environment entry or `cct-persist-drill` secret. `/health`
+returned the full repaired SHA with `database: ready`.
+
+## Verification evidence
+
+- `npm ci` passed with 0 vulnerabilities. `npm test` passed 7 Vitest tests, 5
+  Rust unit tests, 18 Rust API/integration tests, and both deployment tests.
+- `npm run typecheck`, `npm run lint`, and `npm run build` passed. `dist/` was
+  produced. Initial JS is 70.86 kB gzip, the lazy app chunk is 79.59 kB gzip,
+  and CSS is 4.43 kB gzip.
+- `npm run test:e2e` passed 25 Chromium tests. Coverage includes all 21 claims,
+  desktop, 390px, keyboard, route focus, dark mode, reduced motion, 200% text,
+  same-origin privacy logging, and AxeBuilder checks.
+- The clean-target browser claim passed in 104 seconds against its 600-second
+  limit. Zero-config boot and the local durable restart test passed.
+- Standalone Axe 4.10.3 found 0 violations on `/`, `/demo?demo=1`, `/app`,
+  `/privacy`, and `/terms`, both locally and live. Live desktop and 390px dark/
+  reduced-motion flows had no console or page errors, no horizontal overflow,
+  and only same-origin product requests. The keyboard menu restored focus after
+  Escape; a sample booking and reset returned the seeded two open seats.
+- Local load smoke completed 100 requests: 10 accepted and 90 limited. Live
+  allowance returned ten 200 responses then two 429 responses, both with
+  `Retry-After: 5`.
+- Live routes returned 200 for `/`, demo, app, callback, privacy, terms,
+  robots, and sitemap; a missing route returned 404. HTML is no-cache, hashed
+  assets are immutable, and the response CSP includes `frame-ancestors 'none'`.
+- Live OIDC discovery returned the Sociobot tenant issuer and JWKS URL. The
+  signed-out app and callback route are public; no test account was used.
+- Mobile Lighthouse 12.8.2 scored 100 performance, 100 accessibility, 100 best
+  practices, and 100 SEO. LCP was 1,230 ms, CLS 0, and TBT 0 ms.
+
+Evidence is in `.factory/qa-artifacts/repair-13-live/`. This server-backed
+product makes no offline/PWA claim; update behavior was exercised by the
+traffic-ready revision handoff and persistence drill. Package/consumer checks
+do not apply. No analytics, trackers, external fonts, or third-party scripts
+were observed. No operator action remains.
 
 ---
 

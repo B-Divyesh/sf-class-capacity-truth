@@ -2,10 +2,10 @@
 
 Class Capacity Truth is a capacity ledger for small language schools and
 tutoring centres. Staff connect an iCalendar feed, publish parent booking
-links, and record one expiring offer when a named booking is cancelled. A
-configured SMTP relay sends it; without one, the workspace says it was not
-sent. The
-school plan costs $99 each month through Sociobot checkout.
+links, and create one expiring offer when a named booking is cancelled. Staff
+can copy its one-click URL into an approved school channel. A configured SMTP
+relay can send it instead. The school plan costs $99 each month through
+Sociobot checkout.
 
 Try the deployed demo at
 [class-capacity-truth.sociobot.in/demo?demo=1](https://class-capacity-truth.sociobot.in/demo?demo=1).
@@ -21,9 +21,11 @@ Calendar feeds are encrypted and checked every five minutes. A disagreement
 is visible as **Attention** and never changes confirmed seats automatically.
 
 Parents can book while seats remain or consent to the waitlist. Staff select
-the exact booking to cancel. The server records a 24-hour offer for the oldest
-waiting guardian and retries delivery only when SMTP is configured. Owners can export or
-delete the workspace. Contact fields are encrypted and scrubbed after 90 days.
+the exact booking to cancel. The server creates a 24-hour offer for the oldest
+waiting guardian. Its durable receipt includes the offer URL and delivery
+state. Without SMTP, staff use **Copy offer** and send the URL through their
+approved channel. Owners can export or delete the workspace. Contact fields
+are encrypted and scrubbed after 90 days.
 
 ## Run locally
 
@@ -41,7 +43,8 @@ container. A cookie-signing key is generated with a CSPRNG and persisted in the
 data directory when none is supplied. A separate contact-encryption key is
 generated and persisted the same way. Optional SMTP variables are
 `SMTP_RELAY`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_FROM`. Without them,
-the workspace explicitly says offers are recorded but not sent.
+the workspace creates a durable, copyable offer and states that no email was
+sent.
 
 ## Test and build
 
@@ -67,7 +70,8 @@ produces `dist/` and a release API binary.
   Startup restores that checkpoint. Production is fixed at one replica.
 - Entra JWT discovery/JWKS validation, owner/operator/viewer authorization,
   encrypted contact and calendar fields, retention cleanup, transaction-checked
-  bookings, an email outbox, and forwarded-IP rate limits.
+  bookings, encrypted offer tokens, durable delivery receipts, an optional
+  email outbox, and forwarded-IP rate limits.
 - One non-root container serves both the API and built web assets on `PORT`.
 
 The factory deploys the container. This repository does not change DNS,

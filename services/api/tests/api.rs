@@ -468,21 +468,49 @@ async fn regression_real_school_flow_configures_books_reconciles_and_converts_re
         .await
         .unwrap();
     assert_eq!(checked.reconciliation_status.as_deref(), Some("attention"));
-    let token =
-        db::release_oldest_booking_and_offer(&pool, &key, &class.id, "https://example.test", now)
+    let release = db::release_oldest_booking_and_offer(
+        &pool,
+        db::OfferDelivery {
+            cipher: &cipher,
+            public_base_url: "https://example.test",
+            email_configured: false,
+        },
+        &key,
+        &class.id,
+        now,
+    )
+    .await
+    .unwrap();
+    let token = release.offer_token.expect("one fair offer");
+    assert_eq!(release.delivery_status, "ready_to_copy");
+    assert_eq!(
+        release.offer_url.as_deref(),
+        Some(format!("https://example.test/offer/{token}").as_str())
+    );
+    let outbox_count =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM email_outbox WHERE workspace_id = ?1")
+            .bind(&workspace.id)
+            .fetch_one(&pool)
             .await
-            .unwrap()
-            .offer_token
-            .expect("one fair offer");
-    let outbox = sqlx::query("SELECT status, text_body FROM email_outbox WHERE workspace_id = ?1")
-        .bind(&workspace.id)
-        .fetch_one(&pool)
+            .unwrap();
+    assert_eq!(outbox_count, 0, "no SMTP means no pretend email queue");
+    let receipts = db::list_offer_receipts(&pool, &cipher, &key, "https://example.test", now + 1)
         .await
         .unwrap();
-    assert_eq!(outbox.get::<String, _>("status"), "pending");
-    assert!(outbox
-        .get::<String, _>("text_body")
-        .contains(&format!("/offer/{token}")));
+    assert_eq!(receipts.len(), 1);
+    assert_eq!(receipts[0].recipient_name, "Waiting Parent");
+    assert_eq!(receipts[0].delivery_status, "ready_to_copy");
+    assert_eq!(
+        receipts[0].offer_url,
+        format!("https://example.test/offer/{token}")
+    );
+    let stored_token =
+        sqlx::query_scalar::<_, String>("SELECT token_encrypted FROM seat_offers LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_ne!(stored_token, token);
+    assert_eq!(cipher.decrypt(&stored_token).unwrap(), token);
     let offer = db::get_offer(&pool, &token, now)
         .await
         .unwrap()
@@ -495,6 +523,50 @@ async fn regression_real_school_flow_configures_books_reconciles_and_converts_re
         db::accept_offer(&pool, &token, now).await.unwrap_err(),
         db::RealError::OfferUnavailable
     );
+    db::join_waitlist(
+        &pool,
+        &cipher,
+        &class.public_id,
+        "smtp-waitlist-request",
+        "Email Parent",
+        "email-parent@example.org",
+        now + 2,
+    )
+    .await
+    .unwrap();
+    let booking_to_cancel = db::list_confirmed_bookings(&pool, &cipher, &key, &class.id)
+        .await
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    let emailed = db::cancel_booking_and_offer(
+        &pool,
+        db::OfferDelivery {
+            cipher: &cipher,
+            public_base_url: "https://example.test",
+            email_configured: true,
+        },
+        &key,
+        &class.id,
+        &booking_to_cancel.id,
+        now + 2,
+    )
+    .await
+    .unwrap();
+    assert_eq!(emailed.delivery_status, "email_queued");
+    let queued = sqlx::query(
+        "SELECT status, seat_offer_id, text_body FROM email_outbox WHERE workspace_id = ?1",
+    )
+    .bind(&workspace.id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(queued.get::<String, _>("status"), "pending");
+    assert!(queued.get::<Option<String>, _>("seat_offer_id").is_some());
+    assert!(queued
+        .get::<String, _>("text_body")
+        .contains(emailed.offer_url.as_deref().unwrap()));
     sqlx::query("INSERT INTO workspace_members (workspace_id, oid, role, created_at) VALUES (?1, 'viewer-oid', 'viewer', ?2)")
         .bind(&workspace.id).bind(now).execute(&pool).await.unwrap();
     assert!(

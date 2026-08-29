@@ -84,15 +84,24 @@ pub async fn deliver_due_email(
     cipher: &ContactCipher,
     now: i64,
 ) -> anyhow::Result<u64> {
-    let rows = sqlx::query("SELECT id, recipient_encrypted, subject, text_body, attempts FROM email_outbox WHERE status IN ('pending', 'failed') AND next_attempt_at <= ?1 AND attempts < 5 LIMIT 20")
+    let rows = sqlx::query("SELECT id, seat_offer_id, recipient_encrypted, subject, text_body, attempts FROM email_outbox WHERE status IN ('pending', 'failed') AND next_attempt_at <= ?1 AND attempts < 5 LIMIT 20")
         .bind(now).fetch_all(pool).await?;
     let relay = env::var("SMTP_RELAY").ok();
     let mut delivered = 0;
     for row in rows {
         let id: String = row.get("id");
+        let seat_offer_id: Option<String> = row.get("seat_offer_id");
         if relay.is_none() {
             sqlx::query("UPDATE email_outbox SET status = 'captured', attempts = attempts + 1, sent_at = ?1 WHERE id = ?2")
                 .bind(now).bind(id).execute(pool).await?;
+            if let Some(offer_id) = seat_offer_id.as_deref() {
+                sqlx::query(
+                    "UPDATE seat_offers SET delivery_status = 'ready_to_copy' WHERE id = ?1",
+                )
+                .bind(offer_id)
+                .execute(pool)
+                .await?;
+            }
             delivered += 1;
             continue;
         }
@@ -113,11 +122,27 @@ pub async fn deliver_due_email(
         match builder.build().send(email).await {
             Ok(_) => {
                 sqlx::query("UPDATE email_outbox SET status = 'sent', attempts = attempts + 1, sent_at = ?1, last_error = NULL WHERE id = ?2").bind(now).bind(id).execute(pool).await?;
+                if let Some(offer_id) = seat_offer_id.as_deref() {
+                    sqlx::query(
+                        "UPDATE seat_offers SET delivery_status = 'email_sent' WHERE id = ?1",
+                    )
+                    .bind(offer_id)
+                    .execute(pool)
+                    .await?;
+                }
                 delivered += 1;
             }
             Err(error) => {
                 sqlx::query("UPDATE email_outbox SET status = 'failed', attempts = attempts + 1, next_attempt_at = ?1, last_error = ?2 WHERE id = ?3")
                     .bind(now + 60).bind(error.to_string().chars().take(240).collect::<String>()).bind(id).execute(pool).await?;
+                if let Some(offer_id) = seat_offer_id.as_deref() {
+                    sqlx::query(
+                        "UPDATE seat_offers SET delivery_status = 'email_failed' WHERE id = ?1",
+                    )
+                    .bind(offer_id)
+                    .execute(pool)
+                    .await?;
+                }
             }
         }
     }

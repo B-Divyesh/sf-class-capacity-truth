@@ -175,11 +175,16 @@ test("all routes reflow at 390px and 200 percent text size with 44px targets", a
   }
 });
 
-test("@claim:school-capacity-flow creates, reconciles, waits, and converts", async ({ page }) => {
+test("@claim:school-capacity-flow @claim:released-seat-delivery creates, copies, reloads, and converts", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "http://127.0.0.1:4173" });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/app");
   await page.getByLabel("School name").fill("Harbour Languages");
   await page.getByRole("button", { name: "Create school workspace" }).click();
   await expect(page.getByRole("heading", { name: "Manage class capacity" })).toBeVisible();
+  await expect(page.getByText("This deployment does not send email. Cancelling creates a one-click offer below. Copy it and send it through your school's approved channel.")).toBeVisible();
+  const runtime = await page.request.get("/api/runtime");
+  expect(await runtime.json()).toEqual({ emailDelivery: "not_configured" });
   await page.getByLabel("Class name").fill("Saturday level check");
   await page.getByLabel("Starts at").fill("2030-06-10T10:00");
   await page.getByLabel("Booking cutoff").fill("2030-06-09T10:00");
@@ -212,9 +217,21 @@ test("@claim:school-capacity-flow creates, reconciles, waits, and converts", asy
     classCard.getByRole("button", { name: "Cancel Alex Morgan booking" }).click()
   ]);
   const token = (await cancelResponse.json()).offerToken as string;
-  await expect(page.getByText(/offer was recorded/)).toBeVisible();
+  await expect(page.getByText(/Copy the one-click offer below/)).toBeVisible();
   expect(token).toBeTruthy();
-  await page.goto(`/offer/${token}`);
+  const receipt = page.getByRole("article").filter({ hasText: "Ready to share — no email was sent." });
+  const offerUrl = await receipt.getByLabel("One-click offer URL").inputValue();
+  expect(offerUrl).toBe(`https://class-capacity-truth.sociobot.in/offer/${token}`);
+  await receipt.getByRole("button", { name: "Copy offer" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(receipt.getByText("Offer copied.")).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(offerUrl);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  const receiptAxe = await new AxeBuilder({ page }).analyze();
+  expect(receiptAxe.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
+  await page.reload();
+  await expect(page.getByLabel("One-click offer URL")).toHaveValue(offerUrl);
+  await page.goto(new URL(offerUrl).pathname);
   await page.getByRole("button", { name: "Accept this seat" }).click();
   await expect(page.getByText(/Your released seat is confirmed/)).toBeVisible();
 });
@@ -236,10 +253,18 @@ test("release regression: school wall time does not drift with the browser zone"
   await context.close();
 });
 
-test("@claim:school-plan-price shows the exact price and Sociobot checkout", async ({ page }) => {
+test("@claim:school-plan-price shows the exact price and opens hosted Sociobot checkout", async ({ page }) => {
+  let checkoutMethod = "";
+  await page.route("https://api.sociobot.in/api/v1/products/class-capacity-truth/checkout", async (route) => {
+    checkoutMethod = route.request().method();
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ checkout_url: "https://checkout.dodopayments.com/session/test_class_capacity_truth" }) });
+  });
+  await page.route("https://checkout.dodopayments.com/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>Hosted checkout</title>" }));
   await page.goto("/");
   await expect(page.getByText("The school plan costs $99 each month.")).toBeVisible();
-  await expect(page.getByRole("link", { name: /Open the \$99 monthly Sociobot checkout/ })).toHaveAttribute("href", "https://api.sociobot.in/api/v1/products/class-capacity-truth/checkout");
+  await page.getByRole("button", { name: /Open the \$99 monthly Sociobot checkout/ }).click();
+  await page.waitForURL("https://checkout.dodopayments.com/session/test_class_capacity_truth");
+  expect(checkoutMethod).toBe("POST");
 });
 
 test("@claim:data-export-delete exports and deletes the workspace", async ({ page }) => {
@@ -253,16 +278,6 @@ test("@claim:data-export-delete exports and deletes the workspace", async ({ pag
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete school workspace" }).click();
   await expect(page.getByRole("heading", { name: "Create your school workspace" })).toBeVisible();
-});
-
-test("@claim:released-seat-delivery reports the unconfigured live delivery boundary", async ({ page }) => {
-  await page.goto("/app");
-  await page.getByLabel("School name").fill("Delivery Status School");
-  await page.getByRole("button", { name: "Create school workspace" }).click();
-  await expect(page.getByText("Email delivery is not configured on this deployment. Cancelling a booking records an offer but sends no email.")).toBeVisible();
-  const status = await page.request.get("/api/runtime");
-  expect(status.status()).toBe(200);
-  expect(await status.json()).toEqual({ emailDelivery: "not_configured" });
 });
 
 test("@claim:calendar-poll checks the feed without changing confirmed seats", async ({ page }) => {

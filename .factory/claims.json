@@ -43,17 +43,17 @@
   },
   {
     "id": "released-seat-delivery",
-    "claim": "The workspace reports when email delivery is not configured; recorded offers are not described as sent.",
-    "where": "School plan and staff workspace status",
+    "claim": "Without SMTP, staff get a durable one-click released-seat offer, a Copy offer action, and a delivery receipt that says no email was sent.",
+    "where": "Staff workspace offer receipts",
     "test": "npm run test:e2e -- --grep @claim:released-seat-delivery",
-    "sandbox": "Fresh signed-out workspace and runtime-status API; assert the visible limitation and not_configured server state."
+    "sandbox": "Fresh signed-in workspace with no SMTP; cancel a booking for a waitlisted guardian, copy the offer, reload, and assert the same usable URL and no-email receipt remain."
   },
   {
     "id": "school-plan-price",
     "claim": "The school plan costs $99 each month.",
     "where": "Landing facts, signed-out workspace, billing section, and terms",
     "test": "npm run test:e2e -- --grep @claim:school-plan-price",
-    "sandbox": "Assert the exact price and the Sociobot hosted checkout link."
+    "sandbox": "Intercept the Sociobot API, assert the product creates the checkout with POST, and assert navigation reaches its hosted Dodo URL."
   },
   {
     "id": "no-third-party-tracking",

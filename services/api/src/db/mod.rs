@@ -82,11 +82,33 @@ pub struct NewRealClass<'a> {
     pub capacity: i64,
 }
 
+pub struct OfferDelivery<'a> {
+    pub cipher: &'a ContactCipher,
+    pub public_base_url: &'a str,
+    pub email_configured: bool,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReleaseResult {
     pub offer_token: Option<String>,
+    pub offer_url: Option<String>,
+    pub expires_at: Option<i64>,
     pub delivery_status: &'static str,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OfferReceipt {
+    pub id: String,
+    pub class_id: String,
+    pub class_name: String,
+    pub recipient_name: String,
+    pub offer_url: String,
+    pub expires_at: i64,
+    pub offer_status: String,
+    pub delivery_status: String,
+    pub created_at: i64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -852,10 +874,10 @@ pub async fn join_waitlist(
 
 pub async fn cancel_booking_and_offer(
     pool: &SqlitePool,
+    delivery: OfferDelivery<'_>,
     access_key: &str,
     class_id: &str,
     booking_id: &str,
-    offer_base_url: &str,
     now: i64,
 ) -> Result<ReleaseResult, RealError> {
     let workspace = workspace_for_key(pool, access_key).await?;
@@ -875,14 +897,21 @@ pub async fn cancel_booking_and_offer(
             let entry: String = row.get("id");
             let recipient: String = row.get("guardian_email");
             let token = opaque_id("offer_");
-            sqlx::query("INSERT INTO seat_offers (id, waitlist_entry_id, class_id, token_hash, expires_at, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5, 'open', ?6)").bind(Uuid::new_v4().to_string()).bind(&entry).bind(class_id).bind(digest(&token)).bind(now + 86_400).bind(now).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+            let offer_id = Uuid::new_v4().to_string();
+            let expires_at = now + 86_400;
+            let offer_url = format!("{}/offer/{token}", delivery.public_base_url.trim_end_matches('/'));
+            let token_encrypted = delivery.cipher.encrypt(&token).map_err(|_| RealError::Database)?;
+            let delivery_status = if delivery.email_configured { "email_queued" } else { "ready_to_copy" };
+            sqlx::query("INSERT INTO seat_offers (id, waitlist_entry_id, class_id, token_hash, expires_at, status, created_at, token_encrypted, delivery_status) VALUES (?1, ?2, ?3, ?4, ?5, 'open', ?6, ?7, ?8)").bind(&offer_id).bind(&entry).bind(class_id).bind(digest(&token)).bind(expires_at).bind(now).bind(token_encrypted).bind(delivery_status).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
             sqlx::query("UPDATE waitlist_entries SET status = 'offered' WHERE id = ?1").bind(entry).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
-            let body = format!("A class seat is available for 24 hours. Accept it at {offer_base_url}/offer/{token}");
-            sqlx::query("INSERT INTO email_outbox (id, workspace_id, recipient_encrypted, subject, text_body, status, attempts, next_attempt_at, created_at) VALUES (?1, ?2, ?3, 'A class seat is available', ?4, 'pending', 0, ?5, ?5)")
-                .bind(Uuid::new_v4().to_string()).bind(&workspace.id).bind(recipient).bind(body).bind(now).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
-            Ok(ReleaseResult { offer_token: Some(token), delivery_status: "queued" })
+            if delivery.email_configured {
+                let body = format!("A class seat is available for 24 hours. Accept it at {offer_url}");
+                sqlx::query("INSERT INTO email_outbox (id, workspace_id, recipient_encrypted, subject, text_body, status, attempts, next_attempt_at, created_at, seat_offer_id) VALUES (?1, ?2, ?3, 'A class seat is available', ?4, 'pending', 0, ?5, ?5, ?6)")
+                    .bind(Uuid::new_v4().to_string()).bind(&workspace.id).bind(recipient).bind(body).bind(now).bind(&offer_id).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+            }
+            Ok(ReleaseResult { offer_token: Some(token), offer_url: Some(offer_url), expires_at: Some(expires_at), delivery_status })
         } else {
-            Ok(ReleaseResult { offer_token: None, delivery_status: "not_needed" })
+            Ok(ReleaseResult { offer_token: None, offer_url: None, expires_at: None, delivery_status: "not_needed" })
         }
     }.await;
     match result {
@@ -902,9 +931,9 @@ pub async fn cancel_booking_and_offer(
 
 pub async fn release_oldest_booking_and_offer(
     pool: &SqlitePool,
+    delivery: OfferDelivery<'_>,
     access_key: &str,
     class_id: &str,
-    offer_base_url: &str,
     now: i64,
 ) -> Result<ReleaseResult, RealError> {
     let workspace = workspace_for_key(pool, access_key).await?;
@@ -913,13 +942,55 @@ pub async fn release_oldest_booking_and_offer(
         .ok_or(RealError::NotFound)?;
     cancel_booking_and_offer(
         pool,
+        delivery,
         access_key,
         class_id,
         &booking.get::<String, _>("id"),
-        offer_base_url,
         now,
     )
     .await
+}
+
+pub async fn list_offer_receipts(
+    pool: &SqlitePool,
+    cipher: &ContactCipher,
+    access_key: &str,
+    offer_base_url: &str,
+    now: i64,
+) -> Result<Vec<OfferReceipt>, RealError> {
+    let workspace = workspace_for_key(pool, access_key).await?;
+    let rows = sqlx::query("SELECT o.id, o.class_id, c.name AS class_name, w.guardian_name, o.token_encrypted, o.expires_at, o.status, o.delivery_status, o.created_at FROM seat_offers o JOIN real_classes c ON c.id = o.class_id JOIN waitlist_entries w ON w.id = o.waitlist_entry_id WHERE c.workspace_id = ?1 AND o.token_encrypted IS NOT NULL ORDER BY o.created_at DESC LIMIT 50")
+        .bind(workspace.id).fetch_all(pool).await.map_err(|_| RealError::Database)?;
+    rows.iter()
+        .map(|row| {
+            let token = cipher
+                .decrypt(&row.get::<String, _>("token_encrypted"))
+                .map_err(|_| RealError::Database)?;
+            let status: String = row.get("status");
+            let expires_at: i64 = row.get("expires_at");
+            let stored_delivery: String = row.get("delivery_status");
+            let delivery_status = if status == "accepted" {
+                "accepted".to_owned()
+            } else if expires_at <= now {
+                "expired".to_owned()
+            } else {
+                stored_delivery
+            };
+            Ok(OfferReceipt {
+                id: row.get("id"),
+                class_id: row.get("class_id"),
+                class_name: row.get("class_name"),
+                recipient_name: cipher
+                    .decrypt(&row.get::<String, _>("guardian_name"))
+                    .map_err(|_| RealError::Database)?,
+                offer_url: format!("{}/offer/{token}", offer_base_url.trim_end_matches('/')),
+                expires_at,
+                offer_status: status,
+                delivery_status,
+                created_at: row.get("created_at"),
+            })
+        })
+        .collect()
 }
 
 pub async fn list_confirmed_bookings(

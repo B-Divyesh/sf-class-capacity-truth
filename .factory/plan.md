@@ -1,6 +1,6 @@
 # Class Capacity Truth — venture plan
 
-Status: M1 remains shipped. The 2026-08-29 repair delivered the release-blocking M2/M3 core and M4 data controls while preserving the demo. The single production replica uses local SQLite with an atomic durable checkpoint on mounted Azure Files and stable keys supplied from Container App secrets. External Sociobot product registration and SMTP configuration still require factory operator configuration; the interface states the mail limitation when SMTP is absent. Every builder reads this file, .factory/design.md, the brief, and earlier milestone handoffs before changing scope.
+Status: M1 remains shipped. The 2026-08-29 repairs delivered the release-blocking M2/M3 core and M4 data controls while preserving the demo. The recurring Sociobot product now returns a hosted Dodo checkout. Production has no approved SMTP relay, so the deployed path creates a durable one-click offer and receipt for staff to copy into an approved channel. The SMTP adapter remains available for configured deployments. The single production replica uses local SQLite with an atomic durable checkpoint on mounted Azure Files and stable keys supplied from Container App secrets. Every builder reads this file, .factory/design.md, the brief, and earlier milestone handoffs before changing scope.
 
 ## PRD
 
@@ -16,7 +16,7 @@ Show each family the seat count the school can stand behind, then turn a cancell
 
 1. **Set and publish trustworthy capacity.** An operator defines a class, capacity, booking cutoff, and public link. A guardian can book while seats remain; the system never creates an extra confirmed seat.
 2. **Reconcile the calendar before families see a wrong count.** The operator connects one calendar and sees which imported bookings changed the local seat ledger, which records need attention, and why.
-3. **Fill released seats from a consented waitlist.** A guardian joins a queue; after a cancellation, the next eligible guardian receives one expiring offer with a visible outcome for staff.
+3. **Fill released seats from a consented waitlist.** A guardian joins a queue; after a cancellation, staff send the next eligible guardian one expiring offer and see its delivery state.
 
 ### Monetisation
 
@@ -115,7 +115,7 @@ A DB-backed worker in the API process uses a lease and SKIP LOCKED so only one r
 - deletes 24-hour demo workspaces and expired retained data; and
 - reconciles subscription events while preserving audit history.
 
-Transactional email uses a factory-managed SMTP relay adapter in production and captured mail in tests. It sends booking receipts, waitlist offers, and essential notices only: no tracking pixels. Waitlist entry includes explicit email consent and a control path.
+Transactional email uses the SMTP relay adapter only when a deployment configures one. Without SMTP, the server stores an encrypted offer token and a durable no-email receipt; staff copy its URL into an approved school channel. Messages contain no tracking pixels. Waitlist entry includes explicit offer consent and a control path.
 
 AI is deliberately absent from capacity and reconciliation. M5 may add optional **Draft offer message** only if pilots demonstrate a need. The operator previews non-identifying class details, explicitly runs it, may discard it, and has normal templates without AI. It calls only the Sociobot gateway https://api.sociobot.in/v1/responses from the server with FACTORY_SOCIOBOT_KEY, daily spend cap, IP/user limits, and canned demo/test responses. It sends no guardian name, email, or child data. No AI marketing claim is made.
 

@@ -7,6 +7,9 @@ export interface RealClass extends ClassSession { id: string; published: boolean
 export interface Workspace { id: string; schoolName: string; subscriptionStatus: "trial" | "active" | "grace" | "inactive"; trialEndsAt: number | null }
 export interface BookingSummary { id: string; guardianName: string; guardianEmail: string; createdAt: number }
 export interface RuntimeStatus { emailDelivery: "smtp" | "not_configured" }
+export type OfferDeliveryStatus = "ready_to_copy" | "email_queued" | "email_sent" | "email_failed" | "accepted" | "expired" | "legacy_recorded";
+export interface OfferReceipt { id: string; classId: string; className: string; recipientName: string; offerUrl: string; expiresAt: number; offerStatus: string; deliveryStatus: OfferDeliveryStatus; createdAt: number }
+export interface ReleaseResult { offerToken: string | null; offerUrl: string | null; expiresAt: number | null; deliveryStatus: "ready_to_copy" | "email_queued" | "not_needed" }
 
 interface ApiErrorBody { code?: string; message?: string }
 export class ApiError extends Error {
@@ -46,10 +49,22 @@ export async function connectCalendar(label: string, feedUrl: string) { return r
 export async function checkCalendar() { return responseJson<{ checked: number }>(await fetch("/api/workspaces/calendar/check", { method: "POST", headers: await workspaceHeaders() })); }
 export async function reconcileClass(id: string, calendarConfirmed: number) { return responseJson<RealClass>(await fetch(`/api/workspaces/classes/${encodeURIComponent(id)}/reconcile`, { method: "POST", headers: await workspaceHeaders(true), body: JSON.stringify({ calendarConfirmed }) })); }
 export async function listBookings(id: string) { return responseJson<BookingSummary[]>(await fetch(`/api/workspaces/classes/${encodeURIComponent(id)}/bookings`, { headers: await workspaceHeaders() })); }
-export async function cancelBooking(classId: string, bookingId: string) { return responseJson<{ offerToken: string | null; deliveryStatus: string }>(await fetch(`/api/workspaces/classes/${encodeURIComponent(classId)}/bookings/${encodeURIComponent(bookingId)}/cancel`, { method: "POST", headers: await workspaceHeaders() })); }
+export async function cancelBooking(classId: string, bookingId: string) { return responseJson<ReleaseResult>(await fetch(`/api/workspaces/classes/${encodeURIComponent(classId)}/bookings/${encodeURIComponent(bookingId)}/cancel`, { method: "POST", headers: await workspaceHeaders() })); }
+export async function listOfferReceipts() { return responseJson<OfferReceipt[]>(await fetch("/api/workspaces/offers", { headers: await workspaceHeaders() })); }
 export async function exportWorkspace() { return responseJson<unknown>(await fetch("/api/workspaces/export", { headers: await workspaceHeaders() })); }
 export async function deleteWorkspace() { return responseJson<void>(await fetch("/api/workspaces/data", { method: "DELETE", headers: await workspaceHeaders() })); }
 export async function verifyBilling(license: string) { return responseJson<Workspace>(await fetch("/api/workspaces/billing/verify", { method: "POST", headers: await workspaceHeaders(true), body: JSON.stringify({ license }) })); }
+
+export async function createCheckoutSession() {
+  const result = await responseJson<{ checkout_url: string }>(await fetch("https://api.sociobot.in/api/v1/products/class-capacity-truth/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}"
+  }));
+  const url = new URL(result.checkout_url);
+  if (url.protocol !== "https:" || url.hostname !== "checkout.dodopayments.com") throw new Error("The checkout returned an unexpected address. Try again.");
+  return url.toString();
+}
 
 export async function loadPublicClass(publicId: string) { return responseJson<RealClass>(await fetch(`/api/classes/${encodeURIComponent(publicId)}`)); }
 export async function bookRealClass(publicId: string, guardianName: string, guardianEmail: string, idempotencyKey: string) { return responseJson<RealClass>(await fetch(`/api/classes/${encodeURIComponent(publicId)}/book`, { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey }, body: JSON.stringify({ guardianName, guardianEmail }) })); }

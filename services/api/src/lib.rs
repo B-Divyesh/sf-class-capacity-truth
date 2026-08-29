@@ -133,6 +133,7 @@ pub fn app(
             "/workspaces/classes/{class_id}/release-seat",
             post(routes::release_oldest_and_offer),
         )
+        .route("/workspaces/offers", get(routes::list_offer_receipts))
         .route("/workspaces/calendar", put(routes::connect_calendar))
         .route("/workspaces/calendar/check", post(routes::check_calendar))
         .route("/workspaces/export", get(routes::export_workspace))

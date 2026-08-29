@@ -716,10 +716,14 @@ pub async fn cancel_and_offer(
     };
     match db::cancel_booking_and_offer(
         &state.pool,
+        db::OfferDelivery {
+            cipher: &state.contact_cipher,
+            public_base_url: &state.public_base_url,
+            email_configured: state.email_delivery_configured,
+        },
         key,
         &class_id,
         &booking_id,
-        &state.public_base_url,
         unix_now(),
     )
     .await
@@ -740,14 +744,37 @@ pub async fn release_oldest_and_offer(
     };
     match db::release_oldest_booking_and_offer(
         &state.pool,
+        db::OfferDelivery {
+            cipher: &state.contact_cipher,
+            public_base_url: &state.public_base_url,
+            email_configured: state.email_delivery_configured,
+        },
         key,
         &class_id,
-        &state.public_base_url,
         unix_now(),
     )
     .await
     {
         Ok(result) => Json(result).into_response(),
+        Err(error) => real_error(error),
+    }
+}
+
+pub async fn list_offer_receipts(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    let key = match workspace_access(&state, &headers, &["owner", "operator", "viewer"]).await {
+        Ok(key) => key,
+        Err(response) => return *response,
+    };
+    match db::list_offer_receipts(
+        &state.pool,
+        &state.contact_cipher,
+        key,
+        &state.public_base_url,
+        unix_now(),
+    )
+    .await
+    {
+        Ok(receipts) => Json(receipts).into_response(),
         Err(error) => real_error(error),
     }
 }

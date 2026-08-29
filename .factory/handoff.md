@@ -1,90 +1,136 @@
-# Independent verification handoff — FAIL
-
-Candidate `450bd409fe2a7c81838b376b128fe0504516532f` was independently verified
-on 2026-08-28 at https://class-capacity-truth.sociobot.in. **Result: FAIL — do
-not release.** The deployment build identity and JS match the candidate.
-
-The five declared claim commands, `npm test`, `npm run test:api`, all 17
-Playwright tests, TypeScript checking, and the exact production build pass.
-Fresh Lighthouse is 97 performance / 100 accessibility / 100 best practices /
-100 SEO. Axe has no serious/critical result on the landing, demo, app, legal,
-or 404 pages. Live demo/workspace rate limits enforce bursts of 10/40 and
-return 429 with `Retry-After` after those allowances.
-
-Release-blocking defects:
-
-- The live waitlist form receives an empty 201, then silently remains on the
-  form with no success or error. The passing claim test bypasses this UI with
-  a direct fetch.
-- “Connect one calendar” only stores a label and manual count. There is no
-  calendar API connection or recurring reconciliation.
-- No email is sent. Releasing a seat exposes an offer URL to the operator even
-  though the product promises the guardian an emailed offer.
-- There is no Sociobot Entra sign-in, owner/operator/viewer access, $99
-  subscription, or Sociobot billing integration. A localStorage owner key is
-  the only durable-workspace credential.
-- Real guardian names/emails are plaintext with no retention cleanup,
-  encryption, export, deletion, or complete real-workspace privacy notice.
-- Releasing a seat cancels the oldest booking rather than a staff-selected
-  cancellation.
-- Class inputs are browser-local datetimes but are always labelled/displayed
-  as Europe/London; a New York browser's entered 10:00 displays as 15:00.
-- `cargo fmt --check` and strict `cargo clippy -D warnings` fail.
-- Material privacy/email claims are missing from `.factory/claims.json`.
-
-Full commands, exact responses, severity, responsive/accessibility evidence,
-and artifact paths are in `.factory/verification-2.md`. No product code was
-changed during verification.
-
----
-
-# Previous repair handoff — class-capacity-truth-repair-1
+# Repair handoff — class-capacity-truth-repair-2
 
 ## Result
 
-This repair closes the verifier findings recorded at `5563fa03da09ec224245e420530d7e6b78c214b9` while preserving the isolated public demo.
+Repository repair and container deployment completed on 2026-08-29 UTC. The live
+revision is `sf-class-capacity-truth--0000009`, built from
+`3fce0cc1cc4870855e9952cf288326ae4430fd9c`. `/health` returns that full SHA and
+`database: ready`. The deployment remains one non-root container on `PORT=8080`
+with one replica.
 
-- The service now has a durable school workspace path at `/app`: create a class with capacity, cutoff and time zone; publish an opaque parent link; take transactional public bookings; record a calendar count; and keep any disagreement visible as `attention` rather than mutating confirmed seats.
-- A full public class accepts a consented waitlist entry. Releasing the oldest confirmed booking creates exactly one opaque 24-hour offer for the oldest waiting entry; `/offer/:token` atomically accepts it once. The database regression test recreates this whole previously missing flow and asserts a third booking cannot oversell.
-- Demo tables and cookie tenancy remain separate from school tables. All four original demo claims still pass.
-- `Dockerfile` now uses the required unpinned `rust:1-alpine` builder base.
-- Hashed `/assets/*` responses have `Cache-Control: public, max-age=31536000, immutable`; application HTML is short-lived. Unknown server paths render the styled 404 document with HTTP `404`, while documented client links still serve the SPA.
-- The strict anonymous-demo rate limit remains 10 burst. The multi-step school flow has its own bounded 40-burst limiter so a legitimate setup flow is not blocked by demo creation protection.
+Two factory-owned production integrations still need operator configuration:
+the Sociobot billing catalogue has no `class-capacity-truth` product, so its
+required hosted checkout currently returns 404; and no SMTP relay is supplied
+to the Container App, so live offer mail is captured in the encrypted outbox
+instead of leaving the service. The source now contains and tests the complete
+billing verification/entitlement and SMTP delivery/retry paths. No Dodo or mail
+provider secret was embedded or bypassed.
 
-## Verification evidence
+## Verifier findings repaired
 
-Run from a clean clone:
+- The public waitlist endpoint now returns JSON for 201, requires an idempotency
+  key, and the visible form announces success or a useful error. The claim test
+  uses the form; it no longer inserts with a hidden `fetch`.
+- A school connects a private HTTPS iCalendar feed. Its URL is encrypted. The
+  background worker and manual check poll the feed, map event summaries to
+  classes, store checks, and schedule the next poll for five minutes.
+- Cancelling a named booking atomically selects the oldest eligible waitlist
+  entry, creates one 24-hour offer, and writes an encrypted-recipient outbox
+  record. SMTP delivery has retry state and never exposes the offer URL in the
+  staff UI.
+- Staff sign in through the shared Sociobot Entra CIAM SPA. The client uses PKCE
+  and session storage. The API discovers issuer/JWKS and validates RS256,
+  audience, tenant, issuer, expiry/not-before, then keys access by `oid`.
+  Owner/operator/viewer checks are server-side, and a workspace is recoverable
+  on another signed-in device. The production redirect URI reaches the Entra
+  sign-in page.
+- New workspaces receive a 14-day trial. Writes require trial/active/grace
+  entitlement. The $99 monthly plan and hosted Sociobot checkout are shown;
+  owners can restore a purchase token through the Sociobot verification API.
+- Guardian names, emails, waitlist contacts, and calendar URLs use
+  XChaCha20-Poly1305 at rest. The key is generated with a CSPRNG and persisted.
+  A 90-day cleanup scrubs contact fields. Owners can export JSON or confirm full
+  workspace deletion. Privacy copy now states controller/processor roles,
+  recipients, retention, regional rights, and access/deletion choices.
+- Staff choose a named confirmed booking and confirm before cancellation. The
+  old "cancel oldest family" route is gone.
+- `datetime-local` values are interpreted in the selected school IANA time
+  zone, independent of the browser zone. Display uses the same zone.
+- The claims registry has 12 observable claims covering demo isolation,
+  calendar polling, offer queuing, price, tracking, encryption/retention,
+  roles, export/deletion, and the full visible school flow.
+- Initial focus leaves the skip link first. Route changes still focus and
+  announce the H1. Skip/footer targets are at least 44 px. `/app` is in the
+  sitemap and the landing copy audit matches current text.
+- Rust formatting and strict Clippy findings are fixed and enforced by
+  `npm run lint`.
+
+The passing demo, concurrency protection, 404 behavior, security/cache headers,
+rate limiting, responsive design, and original classroom-abacus identity were
+preserved.
+
+## Exact verification evidence
+
+From a clean dependency install:
 
 ```bash
 npm ci
 npm test
-npm run test:api
-env -u CI npm run test:e2e
+npm run lint
 npm run build
+npm run test:e2e
+jq -r '.[].test' .factory/claims.json | sort -u
+./scripts/load-smoke.sh http://127.0.0.1:4174
 ```
 
-Executed 2026-08-28 in this repair:
+- `npm ci`: 170 packages installed, 171 audited, 0 vulnerabilities.
+- `npm test`: 6/6 Vitest, 4/4 Rust unit, and 8/8 API/integration tests passed.
+- `npm run lint`: strict TypeScript, `cargo fmt --check`, and Clippy with
+  `-D warnings` passed.
+- Every distinct command in `.factory/claims.json` was run independently and
+  passed. The full Chromium run passed 21/21.
+- Browser coverage includes 1440×900, 390×844 dark/reduced-motion, 200% text,
+  keyboard order, route focus, dialog confirmation, request logging, loading
+  and error recovery, all public/legal/404 routes, and axe on those routes.
+- The 100-request policy smoke returned 10 accepted and 90 rate-limited
+  responses; 429 responses included `Retry-After`.
+- A zero-configuration release binary started under `env -i PORT=18083`,
+  generated/persisted its defaults, and returned a ready health response.
+- Production build: initial JS 69.63 KB gzip; CSS 3.98 KB gzip. The Entra library
+  is a lazy 79.59 KB gzip chunk and is not part of the cold landing load.
+- Served-release Lighthouse: 100 performance, 100 accessibility, 100 best
+  practices, 100 SEO; LCP 1.3 s, CLS 0, TBT 0 ms.
+- Live Lighthouse: 100/100/100/100; LCP 1.2 s, CLS 0, TBT 0 ms.
+- Live browser smoke: first Tab focused `Skip to main content`; sample booking
+  completed; desktop and 390 px app axe scans found zero violations; 390 px had
+  no horizontal overflow; no console errors were recorded.
+- Live initial JavaScript SHA-256 exactly matches local production output:
+  `4afbf40b23f10ee6d9d189aebec51648e82eb128c40185309ba577dcf1f96793`.
+- HTML is `no-cache`; hashed assets are one-year immutable. Live CSP includes
+  only self, Entra, and Sociobot API connections and sends `frame-ancestors`
+  as a response header. Unknown routes retain the styled HTTP 404.
+- Entra discovery returned 200, and an authorize request using the production
+  callback returned the Microsoft sign-in page rather than a redirect error.
+- Offline/update and package-consumer checks are not applicable: this remains a
+  connected `web-with-backend` container and makes no offline or package claim.
 
-- `npm ci`: 169 packages installed; audit reported 0 vulnerabilities.
-- `npm test`: 4 Vitest tests, 3 Rust unit tests, and 7 Rust API/integration tests passed.
-- `npm run test:api`: 7/7 passed, including `regression_real_school_flow_configures_books_reconciles_and_converts_released_waitlist_seat`.
-- `env -u CI npm run test:e2e`: 17/17 Chromium tests passed. It covers all five declared claims, keyboard flow, 390px/reduced motion, axe serious/critical checks, dark treatment, full browser school workflow, immutable asset headers, and HTTP 404 handling.
-- `npm run build`: Vite output is `dist/`; initial JavaScript is 66.77 KB gzip and CSS is 3.88 KB gzip. The release Rust binary built successfully.
-- The local container engine is unavailable in this worker, so no local `docker build/run` was possible. The Dockerfile’s base-image correction is checked in source and the regular release binary starts with only `PORT` plus its generated/persisted local configuration.
+Evidence is committed under `.factory/qa-artifacts/repair-local/` and
+`.factory/qa-artifacts/repair-live/`.
 
 ## Deployment
 
-Deployment class remains **container**. ACR run `chng` built
-`sociobotregistry.azurecr.io/sf-class-capacity-truth:44db2b4` successfully,
-and Container App `sf-class-capacity-truth` in resource group `sociobot` was
-updated to revision `sf-class-capacity-truth--0000005` with min/max replicas
-set to 1 for its SQLite single-writer datastore. Live verification at
-`https://class-capacity-truth.sociobot.in` returned
-`{"status":"ok","build":"44db2b4","database":"ready"}`. The live
-hashed JavaScript response has the immutable cache policy and
-`/missing-page` returns HTTP 404 with the expected CSP. No DNS, billing, or
-external identity configuration was changed.
+- ACR run `chqk` built and pushed
+  `sociobotregistry.azurecr.io/sf-class-capacity-truth:3fce0cc1cc48`, digest
+  `sha256:ac99e154a1149f7c2a188d1e283cf43d598c84cb1bb9ef5c0966971c61cbc314`.
+- Container App `sf-class-capacity-truth`, resource group `sociobot`, serves the
+  custom domain with revision `--0000009`, min/max replicas `1/1`.
+- Live health: `{"status":"ok","build":"3fce0cc1cc4870855e9952cf288326ae4430fd9c","database":"ready"}`.
+- An attempted Azure Files mount was rejected before traffic because SMB file
+  locking is incompatible with SQLite. Both failed revisions were deactivated,
+  their never-used share was removed, and no production data was deleted.
 
-## Known next steps
+## Needs operator action
 
-The durable SQLite workspace is suitable for the configured single-instance deployment. Shared staff accounts, Entra CIAM callback registration, PostgreSQL/RLS tenancy, encrypted guardian fields, and the registered Sociobot subscription entitlement remain the next planned production-hardening milestone in `.factory/plan.md`; this repair does not pretend those external registrations occurred.
+1. Register the recurring `$99/month` product slug `class-capacity-truth` in the
+   Sociobot billing service. As of handoff,
+   `https://api.sociobot.in/api/v1/products/class-capacity-truth/checkout`
+   returns 404. The product calls only Sociobot checkout/verify endpoints.
+2. Supply `SMTP_RELAY` and, when required, `SMTP_USERNAME`, `SMTP_PASSWORD`, and
+   `SMTP_FROM` to the Container App. Until then, outbox records use the explicit
+   local-capture fallback and are not delivered externally.
+3. Provide a datastore that supports durable SQLite locking, or migrate the
+   service to managed PostgreSQL before onboarding a real school. The current
+   `/data` is revision-local because Azure Files SMB could not safely host this
+   SQLite workload. Keep max replicas at one until that migration is complete.
+
+No DNS, payment-provider, or email-provider credential was created or changed.

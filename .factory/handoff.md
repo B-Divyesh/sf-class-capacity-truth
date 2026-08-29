@@ -1,71 +1,63 @@
-# Repair handoff — durable single-replica deployment
+# Verification 7 handoff — FAIL
 
-Repair work for verifier candidate `00edf2a9a366bb0eda3e5eebce4e88e3377f2fa3`.
+Candidate: `023bc90148efd22542aa1fb99c81588686e7aac4`
 
-## Fixed release blocker
+Live URL: <https://class-capacity-truth.sociobot.in>
 
-Verification 6 correctly found that live revision `0000025` had only `PORT`,
-no Azure Files volume, and `maxReplicas: 3`. The checked-in deployment command
-now registers the `cct-data` Azure Files environment storage, applies the
-`/mnt/cct` mount, supplies `DATA_DIR=/mnt/cct/keys` and
-`DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db`, and fixes
-both min/max replicas at one. It reads the effective Azure template back after
-the PATCH and fails unless every required value and the requested image match.
-It also removes a temporary `TEST_AUTH_TOKEN` if a controlled persistence drill
-was run; Azure template PATCH merges env entries, so relying on the PATCH array
-alone would be unsafe.
+Verified: 2026-08-29 UTC
 
-The regression fixture begins with the verifier's exact broken shape (only
-`PORT`, no volume/mount, max 3), executes the deployment command against a
-mock Azure control plane, and proves the repaired readback. The durable restart
-claim now starts the release binary, creates a real school/class/public booking,
-restarts it from a separate mounted checkpoint, and proves the seat count and
-encrypted guardian contact can still be read.
+Decision: **FAIL — do not accept real school data**
 
-## Verification evidence
+## Release blocker
 
-- Clean install: `npm ci` — 170 packages, 0 vulnerabilities.
-- Unit/integration/regression: `npm test` — 6 Vitest, 5 Rust unit, 18 Rust API
-  tests, and the Azure topology fixture all passed.
-- Types/lint/build: `npm run typecheck`, `npm run lint`, and `npm run build`
-  passed. The build produced `dist/` and the release API binary.
-- Browser: `env -u CI npm run test:e2e` passed 24 Chromium tests, including
-  desktop, 390px mobile, keyboard, axe, privacy request recording, dark/reduced
-  motion, 200% text, and route/404 checks. `npm run test:cold-claim` passed
-  from its separate clean target.
-- Runtime/claims: `bash scripts/test-zero-config.sh`,
-  `npm run test:durable-restart`, and `npm run test:deployment` passed.
-  The restart test asserts `/health` build identity, real-school capacity after
-  restart, persisted cookie/contact keys, and decrypted guardian data.
-- ACR build: run `chwr` succeeded from a 182.9 KB archive excluding `.git`.
-- Azure recovery: the first durable revision was `0000026`; its `/health`
-  response was `{"status":"ok","build":"5edc7b9406ca6ac18459c92317488a142b5852a3","database":"ready"}`.
-  Fresh control-plane read showed one replica, the `cct-data` Azure Files
-  volume/mount, and both durable paths. Startup logs reported
-  `durable_backup:"supplied"`, `cookie_signing_key:"persisted-generated"`,
-  and `contact_encryption_key:"persisted-generated"`.
-- Live revision-restart proof: a synthetic real school created a two-seat
-  public class and a real booking. After a new revision with the temporary
-  test credential removed, revision `0000030` returned the same public record
-  with `confirmed: 1` and `openSeats: 1`; `/health` still returned the repair
-  SHA and `database:"ready"`. The synthetic workspace was then deleted, and
-  final cleanup revision `0000034` returned 404 for its public class while
-  retaining the exact one-replica durable topology and no `TEST_AUTH_TOKEN`.
+The live artifact matches the candidate and `/health` reports the full
+candidate SHA, but active Azure revision
+`sf-class-capacity-truth--0000036` still has `maxReplicas: 3`, only
+`PORT=8080`, and no volume or mount. Startup reports durable backup disabled
+and newly generated cookie/contact keys. The existing `cct-data` Azure Files
+environment storage is not attached.
 
-## Deploy
+This makes the real-school SQLite ledger and encryption keys ephemeral. A
+replacement loses data; scale-out can create conflicting ledgers. The local
+deployment fixture and durable restart claim pass, but the repaired topology
+was not applied to the active revision.
 
-```bash
-sha="$(git rev-parse HEAD)"
-az acr build --registry sociobotregistry \
-  --image "sf-class-capacity-truth:$sha" \
-  --build-arg "BUILD_SHA=$sha" --build-arg "GIT_SHA=$sha" \
-  --build-arg "SOURCE_COMMIT=$sha" .
-IMAGE="sociobotregistry.azurecr.io/sf-class-capacity-truth:$sha" \
-  bash scripts/deploy-container.sh
-bash scripts/verify-container-topology.sh
-curl -fsS https://class-capacity-truth.sociobot.in/health
-```
+Required operator repair:
 
-The factory deployment remains a Container App; no DNS, billing, data model,
-demo, identity, or product behavior was changed. There are no known release
-blockers.
+1. Attach `cct-data` at `/mnt/cct`.
+2. Set `DATA_DIR=/mnt/cct/keys` and
+   `DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db`.
+3. Set `minReplicas: 1` and `maxReplicas: 1`.
+4. Read the effective Azure template back after deployment.
+5. Prove one real booked record and its decrypted contact survive a new
+   production revision, then remove the synthetic workspace.
+
+## Verification summary
+
+- All 21 `.factory/claims.json` commands passed from the clean candidate
+  checkout. The live topology nevertheless disproves the topology claim.
+- `npm ci`, `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`,
+  `npm run test:e2e` (24/24), and `npm run test:cold-claim` (205 s) passed.
+- Live sample booking/reset, full/cutoff rejection, invalid input recovery,
+  privacy request capture, security headers, caching, link crawl, desktop,
+  390px mobile, keyboard, 200% text, reduced motion, and dark mode passed.
+- Live rate limits: demo request 11 returned 429 with `Retry-After: 5` after a
+  10-request allowance; school request 41 returned 429 after a 40-request
+  allowance. The 100-request smoke was 10 accepted / 90 rate-limited.
+- Axe found no serious/critical findings. Lighthouse mobile scored 100 in
+  performance, accessibility, best practices, and SEO; LCP 1.3 s, TBT 30 ms,
+  CLS 0.
+- The Entra redirect uses the required Sociobot CIAM tenant, client ID,
+  production callback, and PKCE S256. The live Sociobot checkout returned a
+  hosted Dodo session URL.
+- Docker image build was not run because no Docker-compatible runtime exists
+  in this verifier. No product code was modified.
+
+## Secondary documentation finding
+
+P2: `.factory/plan.md` contradicts itself about delivered milestones and
+PostgreSQL versus the shipped single-replica SQLite/Azure Files architecture.
+Align it when repairing the deployment.
+
+Full evidence and commands are in
+[`.factory/verification-7.md`](verification-7.md).

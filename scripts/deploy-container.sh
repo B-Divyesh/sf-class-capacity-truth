@@ -7,10 +7,16 @@ set -euo pipefail
 resource_group="${RESOURCE_GROUP:-sociobot}"
 app_name="${CONTAINER_APP_NAME:-sf-class-capacity-truth}"
 environment_name="${CONTAINER_APP_ENVIRONMENT:-factory-env}"
+base_url="${BASE_URL:-https://class-capacity-truth.sociobot.in}"
 storage_account="${AZURE_FILES_ACCOUNT:-sociobotblob}"
 share_name="${AZURE_FILES_SHARE:-class-capacity-truth}"
 storage_name="cct-data"
 image="${IMAGE:?Set IMAGE to the immutable ACR image tag to deploy}"
+# A source SHA is supplied by the release build when available. For the
+# factory's immutable SHA-tagged images, the tag itself is still enough to
+# prove that the traffic-serving process came from the requested source.
+expected_build_sha="${EXPECTED_BUILD_SHA:-}"
+image_tag="${image##*:}"
 # A revision suffix must be unique across a Container App. Do not copy the
 # currently-ready suffix from the readback template: ARM will accept that
 # request asynchronously but Container Apps cannot create the next revision.
@@ -64,6 +70,8 @@ az containerapp env storage set --resource-group "$resource_group" --name "$envi
   --access-mode ReadWrite --only-show-errors >/dev/null
 
 app_id="$(az containerapp show --resource-group "$resource_group" --name "$app_name" --query id -o tsv)"
+previous_revision="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
+  --query properties.latestRevisionName -o tsv)"
 patch_file="$(mktemp)"
 trap 'rm -f "$patch_file"' EXIT
 jq --arg image "$image" --arg revision_suffix "$revision_suffix" '
@@ -109,6 +117,25 @@ actual="$(az containerapp show --resource-group "$resource_group" --name "$app_n
 jq -e --arg image "$image" '
   .properties.template.containers[0].image == $image
 ' <<<"$actual" >/dev/null
+
+# A template readback alone is not a release result: Container Apps can expose
+# a new template before its revision becomes healthy and receives ingress
+# traffic. Wait for that handoff, then prove the running process identifies as
+# the source that was just deployed.
+BASE_URL="$base_url" \
+RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" \
+  "$(dirname "$0")/wait-for-containerapp-revision.sh" "$previous_revision" >/dev/null
+
+health="$(curl --silent --show-error --fail "$base_url/health")"
+if [[ -n "$expected_build_sha" ]]; then
+  jq -e --arg build "$expected_build_sha" '
+    .status == "ok" and .database == "ready" and .build == $build
+  ' <<<"$health" >/dev/null
+else
+  jq -e --arg tag "$image_tag" '
+    .status == "ok" and .database == "ready" and (.build | startswith($tag))
+  ' <<<"$health" >/dev/null
+fi
 
 jq '{
   revision: .properties.latestRevisionName,

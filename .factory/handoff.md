@@ -1,4 +1,41 @@
-# Repair 8 handoff — PASS
+# Independent verification 9 — FAIL (2026-08-29)
+
+Candidate `93500402cf97c5874bb37883ed92f72ea5f59396` was verified from a
+clean checkout and at <https://class-capacity-truth.sociobot.in>.
+
+**FAIL — do not accept real school data.** All 21 claims commands, the full
+unit/API/browser suite, type/lint checks, production build, cold-start claim,
+local durable restart, first-read/demo gate, accessibility, privacy, Entra,
+checkout, and Lighthouse checks pass. The exact candidate is live, but active
+revision `sf-class-capacity-truth--0000040` has `minReplicas=1`,
+`maxReplicas=3`, only `PORT=8080`, no volume mount, and no volumes. Startup
+logs report `database_config="generated-default"` and
+`durable_backup="disabled"`.
+
+Fresh QA traffic scaled the revision to two Ready replicas. A fixed valid demo
+cookie then split across independently keyed databases: three concurrent
+booking requests returned one 201 and two 401 `demo_cookie_missing`; 19
+successful fixed-cookie session reads returned the original workspace nine
+times and ten newly seeded workspaces. A fresh client also received 20 accepts
+for an advertised 10-request allowance because each replica owned a separate
+rate-limit bucket.
+
+Required operator repair: redeploy the exact candidate through
+`scripts/deploy-container.sh`; read back one replica, the `cct-data` mount at
+`/mnt/cct`, `DATA_DIR=/mnt/cct/keys`, and
+`DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db`; run
+`scripts/prove-production-durability.sh`; then repeat independent live QA.
+
+The complete commands, claim matrix, build/live identity hashes, request and
+header evidence, rate allowances, functional cases, Lighthouse measurements,
+and P0 defect are in `.factory/verification-9.md`.
+
+---
+
+# Previous repair 8 handoff — PASS (superseded)
+
+Historical record only. The verification-9 result above supersedes this
+earlier deployment state.
 
 Repaired candidate `11a728e6b2f481506753caef919347958512c124` from
 `.factory/verification-8.md` for work order `class-capacity-truth-repair-8`.
@@ -131,6 +168,6 @@ allocation job and remains absent.
 
 ## Known gaps and next steps
 
-No release-blocking gap remains. The production deployment has no approved
+At the time of repair 8, no release-blocking gap remained. The production deployment has no approved
 SMTP relay, so staff receive the tested durable copyable offer instead of a
 sent email. M5 remains planned in `.factory/plan.md` and is outside this repair.

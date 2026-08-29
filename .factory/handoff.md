@@ -83,8 +83,51 @@ Evidence on 2026-08-29 UTC:
 
 ## Deployment and live evidence
 
-Deployment evidence is appended in the final handoff commit after the image is
-built and the Container App revision is healthy.
+Implementation commit `ee0d22b4051dda5a93887769b99411599bf16497` was
+pushed to `origin/main`. ACR build `chu8` produced
+`sociobotregistry.azurecr.io/sf-class-capacity-truth:ee0d22b4051d` with digest
+`sha256:e2e9214827d7e8ad1925c9a380b25fb5bb9af73aef7e89fdc43e11cff321ea94`.
+The final handoff-only commit is rebuilt and deployed after this file is
+written so live `/health` can match repository HEAD.
+
+The image first reached revision `--0000018`. Deployment inspection exposed a
+pre-existing regression in revision `--0000017`: its template had reverted to
+three possible replicas, no Azure Files mount, and only `PORT`. The repair
+restored the last proven storage template, removed the now-lost external key
+references, and relied on the application’s required CSPRNG-generated keys on
+the mounted volume. Active revision `sf-class-capacity-truth--0000020` now has:
+
+- exactly one replica (`minReplicas: 1`, `maxReplicas: 1`);
+- Azure Files storage `class-capacity-truth-data` mounted at `/data`;
+- local WAL SQLite with eight connections and an atomic checkpoint at
+  `/data/class-capacity-truth.snapshot.db`;
+- mounted persisted generated cookie/contact keys; and
+- no SMTP relay, accurately reported as `emailDelivery: not_configured`.
+
+Live verification on 2026-08-29 UTC:
+
+- `/health` returned `database: ready` and build
+  `ee0d22b4051dda5a93887769b99411599bf16497` before the final handoff rebuild.
+- A controlled demo changed a class from six to seven confirmed seats. After
+  restarting revision `--0000020`, the signed demo cookie still returned seven.
+  The mounted checkpoint is 237,568 bytes; both 32-byte generated key files
+  are present on the same share.
+- A real 390 px Chromium click issued `POST` to the production Sociobot
+  endpoint and navigated to a fresh
+  `https://checkout.dodopayments.com/session/...` URL with no console errors.
+  A second fresh POST returned HTTP 200 with `checkout_url` and `intent_id`.
+- The signed-out workspace says it creates a copyable offer for an approved
+  channel. `/api/runtime` returns `{"emailDelivery":"not_configured"}` and
+  does not advertise email delivery.
+- CIAM sign-in reached `sociobotcustomers.ciamlogin.com` with client
+  `25c704f4-465a-47af-80ab-2c489466b697`, the production callback, code flow,
+  PKCE S256, and `openid profile email` scopes.
+- Live JS/CSS SHA-256 values exactly matched `dist/`. The final live URL
+  verifier passed in 553 ms with no browser errors. The live rate smoke again
+  returned 10 accepted and 90 rate-limited requests.
+- Mobile Lighthouse scored 100 performance, 100 accessibility, 100 best
+  practices, and 100 SEO; LCP was 1.3 s, CLS 0, and TBT 0 ms. Evidence is in
+  `.factory/qa-artifacts/repair-4-live/`.
 
 ## Known gaps and next steps
 

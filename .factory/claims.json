@@ -96,5 +96,12 @@
     "where": "README and school workspace",
     "test": "npm run test:api -- claim_reconciliation_never_mutates_confirmed_seats",
     "sandbox": "Fresh workspace and class; reconcile a different calendar count and assert the discrepancy is recorded while confirmed and open seats stay unchanged."
+  },
+  {
+    "id": "durable-restart",
+    "claim": "Committed capacity changes survive a container restart.",
+    "where": "README architecture and deployment",
+    "test": "npm run test:api -- claim_durable_snapshot_survives_restart",
+    "sandbox": "Fresh local SQLite database plus a separate mounted-storage directory; book a seat, create the durable snapshot, restore into a new database, and assert the seat counts remain changed."
   }
 ]

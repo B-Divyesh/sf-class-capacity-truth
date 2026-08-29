@@ -43,6 +43,8 @@ pub struct AppState {
     pub public_base_url: Arc<String>,
     pub http: reqwest::Client,
     pub email_delivery_configured: bool,
+    pub durable_backup_path: Option<Arc<PathBuf>>,
+    pub backup_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 pub fn app(
@@ -172,7 +174,11 @@ pub fn app(
         .route_service("/sitemap.xml", ServeFile::new(frontend_dist.join("sitemap.xml")))
         .nest("/api", api)
         .fallback(get(routes::not_found_page))
-        .with_state(state)
+        .with_state(state.clone())
+        .layer(middleware::from_fn_with_state(
+            state,
+            persist_successful_mutation,
+        ))
         .layer(middleware::from_fn(cache_headers))
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())
@@ -199,6 +205,35 @@ pub fn app(
         })))
 }
 
+async fn persist_successful_mutation(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    request: Request<Body>,
+    next: Next,
+) -> axum::response::Response {
+    let persist = !matches!(
+        *request.method(),
+        Method::GET | Method::HEAD | Method::OPTIONS
+    );
+    let response = next.run(request).await;
+    if persist && response.status().is_success() {
+        if let Some(path) = state.durable_backup_path.as_deref() {
+            let _guard = state.backup_lock.lock().await;
+            if let Err(error) = db::persist_durable_snapshot(&state.pool, path).await {
+                tracing::error!(error = %error, "durable snapshot failed");
+                return (
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    Json(json!({
+                        "code": "durability_failed",
+                        "message": "The change could not be stored durably. Try again."
+                    })),
+                )
+                    .into_response();
+            }
+        }
+    }
+    response
+}
+
 async fn cache_headers(request: Request<Body>, next: Next) -> axum::response::Response {
     let assets = request.uri().path().starts_with("/assets/");
     let mut response = next.run(request).await;
@@ -215,20 +250,30 @@ async fn cache_headers(request: Request<Body>, next: Next) -> axum::response::Re
     response
 }
 
-pub async fn cleanup_task(pool: SqlitePool) {
+async fn persist_if_configured(state: &AppState) {
+    if let Some(path) = state.durable_backup_path.as_deref() {
+        let _guard = state.backup_lock.lock().await;
+        if let Err(error) = db::persist_durable_snapshot(&state.pool, path).await {
+            tracing::error!(error = %error, "background durable snapshot failed");
+        }
+    }
+}
+
+pub async fn cleanup_task(state: AppState) {
     let mut interval = tokio::time::interval(Duration::from_secs(15 * 60));
     loop {
         interval.tick().await;
-        match db::cleanup_expired(&pool, routes::unix_now()).await {
+        match db::cleanup_expired(&state.pool, routes::unix_now()).await {
             Ok(count) if count > 0 => {
                 tracing::info!(expired_demo_tenants = count, "cleaned expired demos")
             }
             Ok(_) => {}
             Err(error) => tracing::warn!(error = %error, "demo cleanup failed"),
         }
-        if let Err(error) = db::cleanup_retained_contacts(&pool, routes::unix_now()).await {
+        if let Err(error) = db::cleanup_retained_contacts(&state.pool, routes::unix_now()).await {
             tracing::warn!(error = %error, "contact retention cleanup failed");
         }
+        persist_if_configured(&state).await;
     }
 }
 
@@ -245,5 +290,6 @@ pub async fn integration_task(state: AppState) {
         if let Err(error) = jobs::deliver_due_email(&state.pool, &state.contact_cipher, now).await {
             tracing::warn!(error = %error, "email delivery failed");
         }
+        persist_if_configured(&state).await;
     }
 }

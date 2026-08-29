@@ -26,6 +26,8 @@ async fn test_app(period_ms: u64, burst: u32) -> (Router, TempDir, sqlx::SqliteP
         public_base_url: Arc::new("https://example.test".into()),
         http: reqwest::Client::new(),
         email_delivery_configured: false,
+        durable_backup_path: None,
+        backup_lock: Arc::new(tokio::sync::Mutex::new(())),
     };
     (
         app(state, PathBuf::from("does-not-exist"), period_ms, burst),
@@ -714,4 +716,53 @@ async fn claim_staff_roles_enforce_owner_actions() {
             .unwrap_err(),
         db::RealError::Forbidden
     );
+}
+
+#[tokio::test]
+async fn claim_durable_snapshot_survives_restart() {
+    // @claim:durable-restart
+    let directory = tempfile::tempdir().unwrap();
+    let live_path = directory.path().join("live.db");
+    let backup_path = directory.path().join("mounted").join("snapshot.db");
+    let restored_path = directory.path().join("restored.db");
+    let pool = db::connect(&format!("sqlite://{}", live_path.display()))
+        .await
+        .unwrap();
+    let now = 1_900_000_000;
+    db::create_or_refresh_demo(&pool, "durable-demo", now)
+        .await
+        .unwrap();
+    let class = db::list_sessions(&pool, "durable-demo", now)
+        .await
+        .unwrap()
+        .remove(0);
+    db::book_seat(
+        &pool,
+        "durable-demo",
+        &class.public_id,
+        "durable-booking",
+        "discarded",
+        "discarded@example.org",
+        now,
+    )
+    .await
+    .unwrap();
+    db::persist_durable_snapshot(&pool, &backup_path)
+        .await
+        .unwrap();
+    pool.close().await;
+
+    db::restore_durable_snapshot(&backup_path, &restored_path).unwrap();
+    let restored = db::connect(&format!("sqlite://{}", restored_path.display()))
+        .await
+        .unwrap();
+    let classes = db::list_sessions(&restored, "durable-demo", now)
+        .await
+        .unwrap();
+    let booked = classes
+        .iter()
+        .find(|candidate| candidate.public_id == class.public_id)
+        .unwrap();
+    assert_eq!(booked.confirmed, class.confirmed + 1);
+    assert_eq!(booked.open_seats, class.open_seats - 1);
 }

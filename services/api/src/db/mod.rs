@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, str::FromStr, time::Duration};
+use std::{collections::HashMap, env, fs, path::Path, str::FromStr, time::Duration};
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -166,6 +166,38 @@ pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
         .await?;
     sqlx::migrate!("./migrations").run(&pool).await?;
     Ok(pool)
+}
+
+pub fn restore_durable_snapshot(backup_path: &Path, database_path: &Path) -> anyhow::Result<()> {
+    if backup_path
+        .metadata()
+        .is_ok_and(|metadata| metadata.len() > 0)
+    {
+        fs::copy(backup_path, database_path)?;
+    }
+    Ok(())
+}
+
+pub async fn persist_durable_snapshot(pool: &SqlitePool, backup_path: &Path) -> anyhow::Result<()> {
+    if let Some(parent) = backup_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let local_snapshot = env::temp_dir().join(format!("cct-{}.db", Uuid::new_v4()));
+    let statement = format!(
+        "VACUUM INTO '{}'",
+        local_snapshot.to_string_lossy().replace('\'', "''")
+    );
+    if let Err(error) = sqlx::query(&statement).execute(pool).await {
+        let _ = fs::remove_file(&local_snapshot);
+        return Err(error.into());
+    }
+
+    let next_path = backup_path.with_extension("db.next");
+    fs::copy(&local_snapshot, &next_path)?;
+    fs::File::open(&next_path)?.sync_all()?;
+    fs::rename(&next_path, backup_path)?;
+    fs::remove_file(local_snapshot)?;
+    Ok(())
 }
 
 pub async fn create_or_refresh_demo(

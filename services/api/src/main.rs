@@ -30,15 +30,23 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| PathBuf::from("/data"));
     fs::create_dir_all(&data_dir)
         .with_context(|| format!("create data directory {}", data_dir.display()))?;
-    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
-        format!(
-            "sqlite://{}",
-            data_dir.join("class-capacity-truth.db").display()
-        )
-    });
+    let durable_backup_path = env::var("DURABLE_BACKUP_PATH").ok().map(PathBuf::from);
+    let default_database_path = if durable_backup_path.is_some() {
+        PathBuf::from("/tmp/class-capacity-truth.db")
+    } else {
+        data_dir.join("class-capacity-truth.db")
+    };
+    if let Some(backup_path) = durable_backup_path.as_deref() {
+        db::restore_durable_snapshot(backup_path, &default_database_path)?;
+    }
+    let database_url = env::var("DATABASE_URL")
+        .unwrap_or_else(|_| format!("sqlite://{}", default_database_path.display()));
     let (cookie_key, key_source) = load_cookie_key(&data_dir)?;
     let (contact_cipher, contact_key_source) = crypto::load_or_create_key(&data_dir)?;
     let pool = db::connect(&database_url).await?;
+    if let Some(backup_path) = durable_backup_path.as_deref() {
+        db::persist_durable_snapshot(&pool, backup_path).await?;
+    }
     let frontend_dist = env::var("FRONTEND_DIST")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("/app/dist"));
@@ -53,6 +61,11 @@ async fn main() -> anyhow::Result<()> {
         sqlite_journal_mode = env::var("SQLITE_JOURNAL_MODE").unwrap_or_else(|_| "wal".into()),
         sqlite_max_connections =
             env::var("SQLITE_MAX_CONNECTIONS").unwrap_or_else(|_| "automatic".into()),
+        durable_backup = if durable_backup_path.is_some() {
+            "supplied"
+        } else {
+            "disabled"
+        },
         cookie_signing_key = key_source,
         contact_encryption_key = contact_key_source,
         smtp = if env::var_os("SMTP_RELAY").is_some() {
@@ -76,9 +89,11 @@ async fn main() -> anyhow::Result<()> {
             .timeout(std::time::Duration::from_secs(10))
             .build()?,
         email_delivery_configured: env::var_os("SMTP_RELAY").is_some(),
+        durable_backup_path: durable_backup_path.map(Arc::new),
+        backup_lock: Arc::new(tokio::sync::Mutex::new(())),
     };
     let router = app(state.clone(), frontend_dist, 6_000, 10);
-    tokio::spawn(cleanup_task(pool));
+    tokio::spawn(cleanup_task(state.clone()));
     tokio::spawn(integration_task(state));
     let address = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(address).await?;

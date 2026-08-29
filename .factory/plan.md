@@ -1,6 +1,6 @@
 # Class Capacity Truth — venture plan
 
-Status: M1 remains shipped. The 2026-08-28 release repair delivered the release-blocking M2/M3 core and M4 data controls while preserving the demo. External Entra callback, Sociobot product registration, and SMTP configuration still require factory operator configuration. Every builder reads this file, .factory/design.md, the brief, and earlier milestone handoffs before changing scope.
+Status: M1 remains shipped. The 2026-08-29 repair delivered the release-blocking M2/M3 core and M4 data controls while preserving the demo. The single production replica uses local SQLite with an atomic durable checkpoint on mounted Azure Files and stable keys supplied from Container App secrets. External Sociobot product registration and SMTP configuration still require factory operator configuration; the interface states the mail limitation when SMTP is absent. Every builder reads this file, .factory/design.md, the brief, and earlier milestone handoffs before changing scope.
 
 ## PRD
 

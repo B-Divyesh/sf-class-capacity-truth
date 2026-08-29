@@ -62,8 +62,9 @@ produces `dist/` and a release API binary.
 
 - React 19, Vite, strict TypeScript, and hand-authored CSS for the web app.
 - Rust, Axum, SQLx, and SQLite for both the isolated demo and the
-  single-instance school ledger. Production mounts `/data` on durable Azure
-  Files storage, uses rollback journaling, and is fixed at one replica.
+  single-instance school ledger. Production runs SQLite on local disk and
+  atomically checkpoints each successful change to durable Azure Files storage.
+  Startup restores that checkpoint. Production is fixed at one replica.
 - Entra JWT discovery/JWKS validation, owner/operator/viewer authorization,
   encrypted contact and calendar fields, retention cleanup, transaction-checked
   bookings, an email outbox, and forwarded-IP rate limits.

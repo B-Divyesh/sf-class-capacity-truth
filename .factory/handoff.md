@@ -1,69 +1,68 @@
-# Verification 5 handoff — FAIL
+# Repair 5 handoff — PASS
 
-## Result
+## Released repair
 
-**FAIL — do not release or accept school data.** Independent verification was
-performed on 2026-08-29 UTC against commit
-`029c619bf3bba1c156f650f15cc14e49ef733146` and
-<https://class-capacity-truth.sociobot.in>. The live health build, image tag,
-and all hashed frontend assets match that candidate.
+Commit `190ad1ef2105385352c381951938ec47ab1bac50` was built in ACR run
+`chvm` and deployed as Container App revision
+`sf-class-capacity-truth--0000024`. Its live `/health` response reports the
+same full build SHA and `database: ready`.
 
-The code gates are healthy: all 15 exact claim commands, `npm test`, typecheck,
-lint/Clippy, the exact production build, and 23/23 Playwright tests passed.
-Fresh mobile Lighthouse scored 98/100/100/100. Checkout now creates a real
-hosted Dodo session, the no-SMTP copyable offer path is tested, and sign-in uses
-the required Sociobot CIAM tenant.
+The prior verification-5 configuration was reproduced first: revision 0000022
+had `maxReplicas: 3`, no volumes/mounts, and only `PORT`. The repair registers
+Azure Files environment storage `cct-data` backed by the dedicated
+`class-capacity-truth` file share, fixes `minReplicas` and `maxReplicas` to 1,
+mounts it at `/mnt/cct`, persists generated cookie/contact keys at
+`/mnt/cct/keys`, and checkpoints/restores SQLite at
+`/mnt/cct/snapshots/class-capacity-truth.db`.
 
-## Release blockers
+Azure Files rejects POSIX `chmod`; the first mounted revision exposed that as
+`Operation not permitted`. Key creation now accepts only that expected error,
+with a unit regression, while local files retain mode 0600.
 
-- **P0 — live state is replica-local and ephemeral.** Active revision
-  `sf-class-capacity-truth--0000022` has `maxReplicas: 3`, no volume mount, and
-  only `PORT`. Required load created two running replicas. Both logged a
-  generated default SQLite database, disabled durable backup, and independently
-  generated signing/encryption keys. With one valid demo cookie, ten identical
-  booking calls produced four 201 and six `401 demo_cookie_missing` responses.
-  Real school data can split or disappear on replacement.
-- **P1 — rate limits multiply by replica.** Locally, the anonymous burst is 10
-  and protected burst is 40. With two live replicas, one forwarded client got
-  20 anonymous successes before 429 and 82 protected authentication responses
-  in a 100-request burst. 429 responses do carry `Retry-After`.
-- **P1 — claim coverage is incomplete.** Public statements about configured
-  SMTP delivery, cross-device workspace recovery, oldest/24-hour offer
-  semantics, zero-env startup, and forwarded-IP limiting are not registered.
-  The tagged calendar test does not prove encryption at rest or the automatic
-  five-minute schedule in its claim.
-- **P2 — standalone 404 accessibility.** At 390px and 200% text it overflows by
-  72px and its only recovery link is 21px high, below the 44px target rule.
+## Evidence
 
-## Reproduce
+- Azure readback: revision 0000024 has image
+  `sociobotregistry.azurecr.io/sf-class-capacity-truth:190ad1ef2105`, one
+  running replica, `minReplicas: 1`, `maxReplicas: 1`, one AzureFile
+  `cct-data` volume/mount, and both persistent path variables.
+- Actual restart proof: booked a fresh demo seat from two open to one, ran
+  `az containerapp revision restart` on 0000024, and fetched the same signed
+  cookie afterward. The class still had one open seat.
+- Live limiter: one forwarded IP received ten 200 demo-session responses then
+  429; the 429 carried `Retry-After: 0`, `X-RateLimit-Limit: 10`, and
+  `X-RateLimit-Remaining: 0`.
+- Live auth boundary: unauthenticated `POST /api/workspaces` returned 401 with
+  `WWW-Authenticate: Bearer`.
+- Live 404 at 390px/200% text: HTTP 404, zero horizontal overflow, recovery
+  link height 86px. The exact regression is in Playwright.
+- ACR image build passed; Docker is unavailable locally, so ACR is the
+  container-build evidence.
+
+## Verification run
+
+From a clean `npm ci` install:
 
 ```bash
-npm ci
 npm test
 npm run typecheck
 npm run lint
 npm run build
+bash scripts/test-zero-config.sh
 env -u CI npm run test:e2e
-# In another terminal, serve the built product:
-DATA_DIR=/tmp/cct-qa-data FRONTEND_DIST="$PWD/dist" npm start
-./scripts/load-smoke.sh http://127.0.0.1:8080
 ```
 
-Read-only deployment inspection:
+These passed locally. Every exact command in `.factory/claims.json` was also
+run separately and passed: 21 claims including the new persisted topology,
+runtime, forwarded-IP, SMTP queue, cross-device recovery, fair 24-hour offer,
+and encrypted five-minute calendar-poll proofs. The suite contains 6 Vitest,
+5 Rust unit, 18 Rust API/integration, and 24 Playwright tests.
 
-```bash
-az containerapp show -g sociobot -n sf-class-capacity-truth
-az containerapp replica list -g sociobot -n sf-class-capacity-truth \
-  --revision sf-class-capacity-truth--0000022
-```
+`scripts/verify-container-topology.sh` performs the live Azure readback;
+`scripts/deploy-container.sh` is the repeatable deployment operation. It
+creates/updates the dedicated Azure Files share and environment storage before
+patching only the app template.
 
-Full evidence, claim-by-claim results, headers, hashes, CIAM parameters, and
-remediation are in [.factory/verification-5.md](verification-5.md). Browser and
-Lighthouse artifacts are in `.factory/qa-artifacts/verification-5-live/`.
+## Remaining operator action
 
-## Required next step
-
-Restore the one-replica limit plus Azure Files data/key/snapshot mounts (or use
-a replica-safe shared database and limiter), then prove state through a real
-restart. Afterward add the missing claim tests and repair the zoomed 404 before
-requesting verification again. No product code was changed during this QA run.
+None for this repair. The production CIAM callback and Sociobot checkout had
+already been live-verified in verification 5 and were preserved unchanged.

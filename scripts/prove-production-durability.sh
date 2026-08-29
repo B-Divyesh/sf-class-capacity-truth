@@ -19,6 +19,82 @@ token_created=false
 token_attached=false
 workspace_key=""
 
+patch_test_token() {
+  local mode="$1"
+  local suffix="$2"
+  local app_id body response
+  app_id="$(az containerapp show --resource-group "$resource_group" --name "$app_name" --query id -o tsv)"
+  body="$(az containerapp show --resource-group "$resource_group" --name "$app_name" -o json \
+    | jq --arg mode "$mode" --arg suffix "$suffix" --arg secret "$secret_name" '
+        {properties: {template: (
+          .properties.template
+          # `az containerapp show` expands server-default scale fields that
+          # this PATCH API rejects. Preserve the one-replica contract without
+          # sending those read-only defaults back to Azure.
+          | .scale = {minReplicas: 1, maxReplicas: 1}
+          | .revisionSuffix = $suffix
+          | .containers[0].env |= (
+              map(select(.name != "TEST_AUTH_TOKEN"))
+              + (if $mode == "attach" then [{name:"TEST_AUTH_TOKEN", secretRef:$secret}] else [] end)
+            )
+        )}}
+      ')"
+  # A secret update and a template update are separate Azure operations. The
+  # control plane can accept the first before it permits the second, so retry
+  # only that documented transient conflict rather than racing it.
+  for _ in $(seq 1 60); do
+    if response="$(az rest --method PATCH --uri "${app_id}?api-version=2024-03-01" \
+      --body "$body" --only-show-errors 2>&1)"; then
+      return 0
+    fi
+    if grep -q 'ContainerAppOperationInProgress' <<<"$response"; then
+      sleep 5
+      continue
+    fi
+    printf '%s\n' "$response" >&2
+    return 1
+  done
+  echo "Container Apps did not accept the $mode template patch in time" >&2
+  return 1
+}
+
+remove_test_secret() {
+  local response
+  for _ in $(seq 1 60); do
+    if response="$(az containerapp secret remove --resource-group "$resource_group" --name "$app_name" \
+      --secret-names "$secret_name" --only-show-errors 2>&1)"; then
+      return 0
+    fi
+    if grep -q 'ContainerAppOperationInProgress' <<<"$response"; then
+      sleep 5
+      continue
+    fi
+    # A failed earlier cleanup may already have removed the one-time secret.
+    if grep -q 'SecretRef.*not found' <<<"$response"; then
+      return 0
+    fi
+    printf '%s\n' "$response" >&2
+    return 1
+  done
+  echo "Container Apps did not remove the one-time drill secret in time" >&2
+  return 1
+}
+
+wait_for_test_token_reference() {
+  for _ in $(seq 1 60); do
+    if az containerapp show --resource-group "$resource_group" --name "$app_name" -o json \
+      | jq -e --arg secret "$secret_name" '
+          .properties.template.containers[0].env
+          | any(.name == "TEST_AUTH_TOKEN" and .secretRef == $secret)
+        ' >/dev/null; then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "temporary test token reference did not appear in the effective template" >&2
+  return 1
+}
+
 cleanup() {
   # Never leave the temporary production auth bypass behind, even if a request
   # or revision fails. Failures here are intentionally quiet so the original
@@ -28,13 +104,10 @@ cleanup() {
       -H "Authorization: Bearer $token" -H "X-Workspace-Key: $workspace_key" || true
   fi
   if [[ "$token_attached" == true ]]; then
-    az containerapp update --resource-group "$resource_group" --name "$app_name" \
-      --remove-env-vars TEST_AUTH_TOKEN --revision-suffix "d-c-$drill_id" \
-      --only-show-errors >/dev/null 2>&1 || true
+    patch_test_token detach "d-c-$drill_id" >/dev/null 2>&1 || true
   fi
   if [[ "$token_created" == true ]]; then
-    az containerapp secret remove --resource-group "$resource_group" --name "$app_name" \
-      --secret-names "$secret_name" --only-show-errors >/dev/null 2>&1 || true
+    remove_test_secret >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
@@ -46,10 +119,17 @@ wait_for_revision() {
     expected="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
       --query properties.latestRevisionName -o tsv)"
     if [[ -n "$expected" && "$expected" != "$previous" ]]; then
-      local state
+      local state provisioning
       state="$(az containerapp revision show --resource-group "$resource_group" --name "$app_name" \
         --revision "$expected" --query properties.healthState -o tsv)"
-      if [[ "$state" == "Healthy" ]] && curl --silent --fail "$base_url/health" \
+      provisioning="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
+        --query properties.provisioningState -o tsv)"
+      # A revision can report Healthy before Container Apps has completed the
+      # template operation and shifted the single-revision endpoint. Waiting
+      # for the resource operation prevents a request using the temporary
+      # exact token from reaching the old revision.
+      if [[ "$state" == "Healthy" && "$provisioning" == "Succeeded" ]] \
+        && curl --silent --fail "$base_url/health" \
         | jq -e '.status == "ok" and .database == "ready"' >/dev/null; then
         printf '%s\n' "$expected"
         return 0
@@ -80,10 +160,9 @@ az containerapp secret set --resource-group "$resource_group" --name "$app_name"
 token_created=true
 before="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
   --query properties.latestRevisionName -o tsv)"
-az containerapp update --resource-group "$resource_group" --name "$app_name" \
-  --set-env-vars "TEST_AUTH_TOKEN=secretref:$secret_name" \
-  --revision-suffix "d-a-$drill_id" --only-show-errors >/dev/null
+patch_test_token attach "d-a-$drill_id"
 token_attached=true
+wait_for_test_token_reference
 auth_revision="$(wait_for_revision "$before")"
 
 workspace="$(curl --silent --show-error --fail-with-body -X POST "$base_url/api/workspaces" \
@@ -127,13 +206,10 @@ status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$base_url
 [[ "$status" == "404" ]]
 
 before="$restart_revision"
-az containerapp update --resource-group "$resource_group" --name "$app_name" \
-  --remove-env-vars TEST_AUTH_TOKEN --revision-suffix "d-c-$drill_id" \
-  --only-show-errors >/dev/null
+patch_test_token detach "d-c-$drill_id"
 token_attached=false
 final_revision="$(wait_for_revision "$before")"
-az containerapp secret remove --resource-group "$resource_group" --name "$app_name" \
-  --secret-names "$secret_name" --only-show-errors >/dev/null
+remove_test_secret
 token_created=false
 RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" \
   "$(dirname "$0")/verify-container-topology.sh"

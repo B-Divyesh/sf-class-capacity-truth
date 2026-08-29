@@ -1,49 +1,41 @@
-# Repair 4 handoff — Class Capacity Truth
+# Verification 5 handoff — FAIL
 
 ## Result
 
-The two P0 findings in verifier report commit
-`fc9fd6c2946752a553d21c43359c4ecd62a5d5a3` are repaired without changing
-the researched brief, visual system, demo isolation, or deployment class.
+**FAIL — do not release or accept school data.** Independent verification was
+performed on 2026-08-29 UTC against commit
+`029c619bf3bba1c156f650f15cc14e49ef733146` and
+<https://class-capacity-truth.sociobot.in>. The live health build, image tag,
+and all hashed frontend assets match that candidate.
 
-- The live Sociobot billing endpoint now creates the registered recurring
-  checkout. A fresh `POST /api/v1/products/class-capacity-truth/checkout`
-  returned HTTP 200 and a hosted
-  `https://checkout.dodopayments.com/session/...` URL. Product checkout
-  controls now perform that POST, validate the hosted destination, and then
-  navigate to it.
-- Production still has no approved SMTP relay. A cancellation now creates an
-  encrypted, durable one-click offer and a staff receipt with its recipient,
-  expiry, and delivery state. **Copy offer** works by keyboard and pointer.
-  The receipt survives reload and the URL accepts the seat once. The UI says
-  “Ready to share — no email was sent.” and tells staff to use their existing
-  approved channel.
-- Configured deployments retain the SMTP adapter. They create a linked outbox
-  item and move the receipt through `email_queued`, `email_sent`, or
-  `email_failed`. No-SMTP deployments do not create a pretend email queue.
+The code gates are healthy: all 15 exact claim commands, `npm test`, typecheck,
+lint/Clippy, the exact production build, and 23/23 Playwright tests passed.
+Fresh mobile Lighthouse scored 98/100/100/100. Checkout now creates a real
+hosted Dodo session, the no-SMTP copyable offer path is tested, and sign-in uses
+the required Sociobot CIAM tenant.
 
-## Root cause and regression coverage
+## Release blockers
 
-The previous no-SMTP path returned a bearer token only in the cancellation
-response, stored only its hash, and then labelled an outbox item as captured.
-After the toast or reload, staff had no URL to send. Migration
-`0004_offer_receipts.sql` adds an encrypted retrievable token, delivery state,
-and optional outbox relationship. `GET /api/workspaces/offers` reconstructs
-authorized receipts without exposing tokens to other workspaces.
+- **P0 — live state is replica-local and ephemeral.** Active revision
+  `sf-class-capacity-truth--0000022` has `maxReplicas: 3`, no volume mount, and
+  only `PORT`. Required load created two running replicas. Both logged a
+  generated default SQLite database, disabled durable backup, and independently
+  generated signing/encryption keys. With one valid demo cookie, ten identical
+  booking calls produced four 201 and six `401 demo_cookie_missing` responses.
+  Real school data can split or disappear on replacement.
+- **P1 — rate limits multiply by replica.** Locally, the anonymous burst is 10
+  and protected burst is 40. With two live replicas, one forwarded client got
+  20 anonymous successes before 429 and 82 protected authentication responses
+  in a 100-request burst. 429 responses do carry `Retry-After`.
+- **P1 — claim coverage is incomplete.** Public statements about configured
+  SMTP delivery, cross-device workspace recovery, oldest/24-hour offer
+  semantics, zero-env startup, and forwarded-IP limiting are not registered.
+  The tagged calendar test does not prove encryption at rest or the automatic
+  five-minute schedule in its claim.
+- **P2 — standalone 404 accessibility.** At 390px and 200% text it overflows by
+  72px and its only recovery link is 21px high, below the 44px target rule.
 
-Exact browser coverage is registered as `@claim:released-seat-delivery`. At
-390×844 it creates a real school and waitlist, reproduces
-`emailDelivery: not_configured`, cancels the selected booking, checks the
-no-email receipt, copies by keyboard, reads the clipboard, reloads, confirms
-the same URL remains, runs axe on the receipt UI, and accepts the offered seat.
-The Rust integration test separately proves the token is encrypted at rest,
-no SMTP outbox is created in fallback mode, and configured SMTP still queues a
-linked message. `@claim:school-plan-price` now proves a POST creates a hosted
-Dodo checkout instead of checking only static link text.
-
-## Local verification
-
-Run from a clean checkout:
+## Reproduce
 
 ```bash
 npm ci
@@ -52,88 +44,26 @@ npm run typecheck
 npm run lint
 npm run build
 env -u CI npm run test:e2e
-npm run test:cold-claim
-jq -r '.[] | [.id, .test] | @tsv' .factory/claims.json
-./scripts/load-smoke.sh http://127.0.0.1:4174
+# In another terminal, serve the built product:
+DATA_DIR=/tmp/cct-qa-data FRONTEND_DIST="$PWD/dist" npm start
+./scripts/load-smoke.sh http://127.0.0.1:8080
 ```
 
-Evidence on 2026-08-29 UTC:
+Read-only deployment inspection:
 
-- `npm ci`: 170 packages, zero vulnerabilities.
-- Unit/integration: 6/6 TypeScript, 4/4 Rust unit, and 13/13 Rust API tests.
-- TypeScript strict check, Rust format, and Clippy with `-D warnings`: pass.
-- Production build: `dist/` produced; initial app JS 230.56 KB raw / 70.63 KB
-  gzip and CSS 18.88 KB raw / 4.35 KB gzip. The lazy Entra chunk is 316.56 KB
-  raw / 79.59 KB gzip.
-- Chromium: 23/23 pass across desktop and 390 px, keyboard, 200% text,
-  dark/reduced-motion, public/legal/404 routes, request privacy, and axe.
-- All 15 claim commands pass when invoked separately. The clean Rust-cache
-  browser claim passed in 99 seconds against its 600-second limit.
-- `/opt/fleet/lib/verify-url.sh` against the release server passed in 585 ms:
-  title, `lang`, one H1, main landmark, labels/alt, and console checks are
-  clean. Evidence is in `.factory/qa-artifacts/repair-4-local/`.
-- Zero-environment-compatible release start generated and persisted its keys,
-  reported `database: ready`, and exposed `emailDelivery: not_configured`.
-- The 100-request response-policy smoke returned 10 accepted and 90 HTTP 429
-  responses; 429 included `Retry-After`. HTML carried CSP with header-only
-  `frame-ancestors`, nosniff, strict referrer, permissions, and no-cache rules.
-- This is a connected `web-with-backend` container with no offline claim and
-  no published package, so offline/update and package-consumer gates do not
-  apply.
+```bash
+az containerapp show -g sociobot -n sf-class-capacity-truth
+az containerapp replica list -g sociobot -n sf-class-capacity-truth \
+  --revision sf-class-capacity-truth--0000022
+```
 
-## Deployment and live evidence
+Full evidence, claim-by-claim results, headers, hashes, CIAM parameters, and
+remediation are in [.factory/verification-5.md](verification-5.md). Browser and
+Lighthouse artifacts are in `.factory/qa-artifacts/verification-5-live/`.
 
-Implementation commit `ee0d22b4051dda5a93887769b99411599bf16497` was
-pushed to `origin/main`. ACR build `chu8` produced
-`sociobotregistry.azurecr.io/sf-class-capacity-truth:ee0d22b4051d` with digest
-`sha256:e2e9214827d7e8ad1925c9a380b25fb5bb9af73aef7e89fdc43e11cff321ea94`.
-The final handoff-only commit is rebuilt and deployed after this file is
-written so live `/health` can match repository HEAD.
+## Required next step
 
-The image first reached revision `--0000018`. Deployment inspection exposed a
-pre-existing regression in revision `--0000017`: its template had reverted to
-three possible replicas, no Azure Files mount, and only `PORT`. The repair
-restored the last proven storage template, removed the now-lost external key
-references, and relied on the application’s required CSPRNG-generated keys on
-the mounted volume. Active revision `sf-class-capacity-truth--0000020` now has:
-
-- exactly one replica (`minReplicas: 1`, `maxReplicas: 1`);
-- Azure Files storage `class-capacity-truth-data` mounted at `/data`;
-- local WAL SQLite with eight connections and an atomic checkpoint at
-  `/data/class-capacity-truth.snapshot.db`;
-- mounted persisted generated cookie/contact keys; and
-- no SMTP relay, accurately reported as `emailDelivery: not_configured`.
-
-Live verification on 2026-08-29 UTC:
-
-- `/health` returned `database: ready` and build
-  `ee0d22b4051dda5a93887769b99411599bf16497` before the final handoff rebuild.
-- A controlled demo changed a class from six to seven confirmed seats. After
-  restarting revision `--0000020`, the signed demo cookie still returned seven.
-  The mounted checkpoint is 237,568 bytes; both 32-byte generated key files
-  are present on the same share.
-- A real 390 px Chromium click issued `POST` to the production Sociobot
-  endpoint and navigated to a fresh
-  `https://checkout.dodopayments.com/session/...` URL with no console errors.
-  A second fresh POST returned HTTP 200 with `checkout_url` and `intent_id`.
-- The signed-out workspace says it creates a copyable offer for an approved
-  channel. `/api/runtime` returns `{"emailDelivery":"not_configured"}` and
-  does not advertise email delivery.
-- CIAM sign-in reached `sociobotcustomers.ciamlogin.com` with client
-  `25c704f4-465a-47af-80ab-2c489466b697`, the production callback, code flow,
-  PKCE S256, and `openid profile email` scopes.
-- Live JS/CSS SHA-256 values exactly matched `dist/`. The final live URL
-  verifier passed in 553 ms with no browser errors. The live rate smoke again
-  returned 10 accepted and 90 rate-limited requests.
-- Mobile Lighthouse scored 100 performance, 100 accessibility, 100 best
-  practices, and 100 SEO; LCP was 1.3 s, CLS 0, and TBT 0 ms. Evidence is in
-  `.factory/qa-artifacts/repair-4-live/`.
-
-## Known gaps and next steps
-
-- No approved SMTP relay exists in production. This is no longer a blocked or
-  falsely advertised workflow: staff have the complete one-click copy-and-send
-  path. Configure `SMTP_RELAY`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and
-  `SMTP_FROM` only if an approved relay is added later.
-- No real card was charged during verification. The live boundary was checked
-  through creation of a hosted Dodo session only.
+Restore the one-replica limit plus Azure Files data/key/snapshot mounts (or use
+a replica-safe shared database and limiter), then prove state through a real
+restart. Afterward add the missing claim tests and repair the zoomed 404 before
+requesting verification again. No product code was changed during this QA run.

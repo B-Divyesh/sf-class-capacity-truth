@@ -12,15 +12,30 @@ max_attempts="${MAX_ATTEMPTS:-120}"
 sleep_seconds="${SLEEP_SECONDS:-2}"
 
 for _ in $(seq 1 "$max_attempts"); do
-  expected="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
-    --query properties.latestRevisionName -o tsv)"
-  ready="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
-    --query properties.latestReadyRevisionName -o tsv)"
+  # Azure can briefly return NotFound for an existing app while a template
+  # update propagates. Treat that control-plane gap as not-ready rather than
+  # aborting a persistence drill and risking incomplete cleanup.
+  if ! expected="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
+    --query properties.latestRevisionName -o tsv 2>/dev/null)"; then
+    sleep "$sleep_seconds"
+    continue
+  fi
+  if ! ready="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
+    --query properties.latestReadyRevisionName -o tsv 2>/dev/null)"; then
+    sleep "$sleep_seconds"
+    continue
+  fi
   if [[ -n "$expected" && "$expected" != "$previous_revision" && "$ready" == "$expected" ]]; then
-    health="$(az containerapp revision show --resource-group "$resource_group" --name "$app_name" \
-      --revision "$expected" --query properties.healthState -o tsv)"
-    provisioning="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
-      --query properties.provisioningState -o tsv)"
+    if ! health="$(az containerapp revision show --resource-group "$resource_group" --name "$app_name" \
+      --revision "$expected" --query properties.healthState -o tsv 2>/dev/null)"; then
+      sleep "$sleep_seconds"
+      continue
+    fi
+    if ! provisioning="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
+      --query properties.provisioningState -o tsv 2>/dev/null)"; then
+      sleep "$sleep_seconds"
+      continue
+    fi
     if [[ "$health" == "Healthy" && "$provisioning" == "Succeeded" ]] \
       && curl --silent --fail "$base_url/health" \
       | jq -e '.status == "ok" and .database == "ready"' >/dev/null; then

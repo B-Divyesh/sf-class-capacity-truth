@@ -59,8 +59,9 @@ produces `dist/` and a release API binary.
 ## Architecture and deployment
 
 - React 19, Vite, strict TypeScript, and hand-authored CSS for the web app.
-- Rust, Axum, SQLx, and SQLite for both the isolated demo and the durable
-  single-instance school ledger.
+- Rust, Axum, SQLx, and SQLite for both the isolated demo and the
+  single-instance school ledger. Production onboarding requires durable
+  storage as noted in `.factory/handoff.md`.
 - Entra JWT discovery/JWKS validation, owner/operator/viewer authorization,
   encrypted contact and calendar fields, retention cleanup, transaction-checked
   bookings, an email outbox, and forwarded-IP rate limits.

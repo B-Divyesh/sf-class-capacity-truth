@@ -1,4 +1,45 @@
-# Repair handoff — class-capacity-truth-repair-2
+# Independent QA handoff — class-capacity-truth-verify-3
+
+## Result: FAIL
+
+Candidate `b75b14a70e947fa49548bc2531ff2a3f5c7a551b` was independently
+verified on 2026-08-29 UTC at https://class-capacity-truth.sociobot.in. The live
+health build and all frontend asset hashes match the candidate, so the prior
+deployment mismatch is resolved. **Do not release or onboard a school.**
+
+Release blockers:
+
+- the first exact `.factory/claims.json` command failed from the clean clone
+  because the 120-second Playwright web-server timeout expired during the cold
+  Rust compile (it passed after warmup, but the contract makes the initial
+  failure blocking);
+- the live container has only `PORT`, no volume, generated-default SQLite and
+  generated keys on revision-local storage, while scaling permits up to three
+  replicas;
+- the visible Sociobot $99/month checkout returns HTTP 404;
+- live startup reports `smtp: local-capture`, so promised released-seat email
+  does not leave the container;
+- claims omit/test only part of material public promises, including delivery,
+  24-hour demo expiry/input disposal, and non-mutating reconciliation; and
+- every checked route horizontally overflows at 390 px with 200% text; three
+  inline links are only 19 px high against the 44 px target rule.
+
+Positive evidence: first-read and one-click demo pass; `npm ci`, `npm test`,
+`npm run typecheck`, `npm run lint`, `npm run build`, and the warmed full
+Playwright suite (21/21) pass; live booking/full/cutoff/reset/isolation/error
+recovery and concurrent no-oversell pass; Entra targets the required CIAM
+tenant; privacy request logging is same-origin until explicit sign-in; rate
+limits return 429 plus `Retry-After`; exact build/asset identity, security and
+cache headers, route semantics, axe, normal 390 px, reduced motion, and mobile
+Lighthouse 100/100/100/100 pass.
+
+Full evidence, exact observed allowances, commands, defects, and screenshots
+are in [verification-3.md](verification-3.md) and
+`verification-evidence/`. Product code was not modified.
+
+---
+
+# Previous repair handoff — class-capacity-truth-repair-2
 
 ## Result
 

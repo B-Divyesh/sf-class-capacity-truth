@@ -136,6 +136,35 @@ test("the demo remains usable at 390px and with reduced motion", async ({ page }
   expect(await page.locator(".loading-state > span").count()).toBe(0);
 });
 
+test("release regression: the 390px header uses a labelled keyboard menu", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  const menu = page.getByRole("button", { name: "Open main menu" });
+  await expect(menu).toBeVisible();
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeHidden();
+  const menuBox = await menu.boundingBox();
+  expect(menuBox?.width).toBeGreaterThanOrEqual(44);
+  expect(menuBox?.height).toBeGreaterThanOrEqual(44);
+
+  await menu.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Close main menu" })).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  const openMenuAxe = await new AxeBuilder({ page }).analyze();
+  expect(openMenuAxe.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeFocused();
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
+
+  await page.keyboard.press("Space");
+  await page.getByRole("link", { name: "Privacy", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  await expect(page.getByRole("button", { name: "Open main menu" })).toHaveAttribute("aria-expanded", "false");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
 test("release regression: hashed assets are immutable and unknown paths are HTTP 404", async ({ page }) => {
   const assetHeaders: string[] = [];
   page.on("response", (response) => { if (response.url().includes("/assets/")) assetHeaders.push(response.headers()["cache-control"] ?? ""); });

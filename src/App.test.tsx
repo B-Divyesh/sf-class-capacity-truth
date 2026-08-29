@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { App, zonedDateTimeToEpoch } from "./App";
 import { bearerFromAuthenticationResult } from "./lib/auth";
@@ -21,6 +21,19 @@ describe("public app", () => {
     expect(screen.getByRole("link", { name: "Try it with sample data" })).toHaveAttribute(
       "href",
       "/demo?demo=1"
+    );
+  });
+
+  it("exposes a labelled mobile navigation disclosure", () => {
+    render(<App />);
+    const menu = screen.getByRole("button", { name: "Open main menu" });
+
+    expect(menu).toHaveAttribute("aria-controls", "main-navigation");
+    expect(menu).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(menu);
+    expect(screen.getByRole("button", { name: "Close main menu" })).toHaveAttribute(
+      "aria-expanded",
+      "true"
     );
   });
 });

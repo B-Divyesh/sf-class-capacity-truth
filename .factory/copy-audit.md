@@ -7,6 +7,8 @@ text uses a banned marketing word.
 | Landing text | Words | Result |
 | --- | ---: | --- |
 | Class Capacity Truth | 3 | Pass |
+| Menu | 1 | Pass |
+| Close | 1 | Pass |
 | Demo | 1 | Pass |
 | How it works | 3 | Pass |
 | School workspace | 2 | Pass |

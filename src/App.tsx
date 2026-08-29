@@ -56,6 +56,51 @@ function updateMetadata(route: RouteInfo) {
   document.querySelector<HTMLMetaElement>('meta[name="twitter:description"]')?.setAttribute("content", route.description);
 }
 
+function SiteHeader({ route }: { route: RouteInfo }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [route.kind]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      menuButton.current?.focus();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [menuOpen]);
+
+  const closeMenu = () => setMenuOpen(false);
+
+  return (
+    <header className="site-header">
+      <AppLink className="wordmark" href="/" onClick={closeMenu}><RailMark /><span>Class Capacity Truth</span></AppLink>
+      <button
+        ref={menuButton}
+        className="mobile-nav-toggle"
+        type="button"
+        aria-controls="main-navigation"
+        aria-expanded={menuOpen}
+        aria-label={`${menuOpen ? "Close" : "Open"} main menu`}
+        onClick={() => setMenuOpen((current) => !current)}
+      >
+        <span aria-hidden="true">{menuOpen ? "Close" : "Menu"}</span>
+      </button>
+      <nav id="main-navigation" className={`main-nav${menuOpen ? " is-open" : ""}`} aria-label="Main navigation">
+        <AppLink href="/demo?demo=1" onClick={closeMenu}>Demo</AppLink>
+        <a href={route.kind === "home" ? "#how-it-works" : "/#how-it-works"} onClick={closeMenu}>How it works</a>
+        <AppLink href="/app" onClick={closeMenu}>School workspace</AppLink>
+        <AppLink href="/privacy" onClick={closeMenu}>Privacy</AppLink>
+      </nav>
+    </header>
+  );
+}
+
 export function App() {
   const route = useRoute();
   const firstRender = useRef(true);
@@ -69,15 +114,7 @@ export function App() {
   return (
     <>
       <a className="skip-link" href="#main">Skip to main content</a>
-      <header className="site-header">
-        <AppLink className="wordmark" href="/"><RailMark /><span>Class Capacity Truth</span></AppLink>
-        <nav aria-label="Main navigation">
-          <AppLink href="/demo?demo=1">Demo</AppLink>
-          <a href={route.kind === "home" ? "#how-it-works" : "/#how-it-works"}>How it works</a>
-          <AppLink href="/app">School workspace</AppLink>
-          <AppLink href="/privacy">Privacy</AppLink>
-        </nav>
-      </header>
+      <SiteHeader route={route} />
       <div className="route-announcer sr-only" aria-live="polite" aria-atomic="true">{route.title}</div>
       {route.kind === "home" && <HomePage />}
       {route.kind === "demo" && <DemoPage />}

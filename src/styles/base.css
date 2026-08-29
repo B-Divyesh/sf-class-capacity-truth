@@ -19,7 +19,9 @@ h3 { margin-bottom: var(--space-1); font-size: 1.25rem; }
 .site-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-6); width: min(calc(100% - 2rem), 73.75rem); margin-inline: auto; padding-block: var(--space-4); border-bottom: .25rem solid var(--color-rail); }
 .site-header nav, .site-footer nav { display: flex; align-items: center; gap: var(--space-6); }
 .site-header nav a { min-height: 2.75rem; display: inline-grid; place-items: center; font-weight: 700; }
+.mobile-nav-toggle { display: none; }
 .wordmark { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 2.75rem; font-weight: 800; text-decoration: none; }
+.wordmark span { min-width: 0; }
 .wordmark-mark { flex: 0 0 auto; overflow: visible; }
 .wordmark-mark path { stroke: var(--color-rail); stroke-width: 3; }
 .wordmark-mark circle { fill: var(--color-open); stroke: var(--color-ink); stroke-width: 2; }
@@ -102,7 +104,11 @@ h3 { margin-bottom: var(--space-1); font-size: 1.25rem; }
 .legal-page a, .two-column a:not(.button) { display: inline-flex; min-width: 2.75rem; min-height: 2.75rem; align-items: center; }
 
 @media (max-width: 48rem) {
-  .site-header { align-items: flex-start; flex-direction: column; gap: var(--space-2); }.site-header nav { width: 100%; justify-content: space-between; gap: var(--space-2); }.site-header nav a { padding-inline: .25rem; }
+  .site-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-4); }
+  .mobile-nav-toggle { min-width: 4.5rem; min-height: 2.75rem; display: inline-flex; align-items: center; justify-content: center; padding: .5rem .75rem; border: .125rem solid var(--color-ink); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-ink); cursor: pointer; font-weight: 800; }
+  .site-header .main-nav { display: none; grid-column: 1 / -1; width: 100%; padding-top: var(--space-2); border-top: .125rem solid var(--color-rail); }
+  .site-header .main-nav.is-open { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+  .site-header .main-nav a { min-width: 0; justify-items: start; padding-inline: var(--space-2); text-align: left; }
   .hero { grid-template-columns: 1fr; min-height: auto; padding-block: var(--space-8) var(--space-16); }.hero-object { margin-inline: var(--space-2); box-shadow: -.4rem .5rem 0 var(--color-open); }.paper-panel { transform: none; }.action-row, .class-card-heading { align-items: stretch; flex-direction: column; }.action-row > span { max-width: none; }
   .hero, .product-preview, .two-column, .booking-card, .workspace-grid { grid-template-columns: minmax(0, 1fr); }.hero > *, .product-preview > *, .two-column > *, .booking-card > *, .workspace-grid > * { min-width: 0; }.preview-row { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }.steps { grid-template-columns: minmax(0, 1fr); }.booking-card > .state-panel { border-left: 0; border-top: .4rem solid var(--color-confirmed); }
   .demo-banner { position: relative; align-items: flex-start; flex-direction: column; }.demo-banner > div { width: 100%; justify-content: space-between; }
@@ -112,8 +118,6 @@ h3 { margin-bottom: var(--space-1); font-size: 1.25rem; }
 
 @media (max-width: 30rem) {
   .site-header, .page-width, .site-footer { width: min(calc(100% - 1rem), 73.75rem); }
-  .site-header nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .site-header nav a { min-width: 0; text-align: center; }
   h1, .app-main > h1, .legal-page h1 { max-width: 100%; font-size: clamp(2rem, 11vw, 3rem); overflow-wrap: anywhere; }
   h2, h3, p, a, label, button, input, select { min-width: 0; max-width: 100%; }
   .button { white-space: normal; }

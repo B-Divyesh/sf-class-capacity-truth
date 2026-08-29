@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Regression for verification-7 P0. The fixture is the exact defective active
-# control-plane shape reported by the independent verifier: candidate 023bc90,
-# only PORT, no Azure Files mount, and maxReplicas 3. It first proves that the
-# readback guard rejects that shape, then proves the checked-in deploy command
-# registers Azure Files, replaces the stale template, and verifies the repair.
+# Regression for verification-8 P0. The fixture is the exact defective active
+# control-plane shape reported by the independent verifier: candidate 11a728e,
+# revision 0000039, only PORT, no Azure Files mount, and maxReplicas 3. It first
+# proves that the readback guard rejects that shape, then proves the checked-in
+# deploy command registers Azure Files, replaces the stale template, and
+# verifies the repair.
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 fixture_dir="$(mktemp -d)"
 cleanup() { rm -rf "$fixture_dir"; }
@@ -16,9 +17,9 @@ cat >"$fixture_dir/state.json" <<'JSON'
 {
   "id": "/subscriptions/test/resourceGroups/sociobot/providers/Microsoft.App/containerApps/sf-class-capacity-truth",
   "properties": {
-    "latestRevisionName": "sf-class-capacity-truth--0000036",
+    "latestRevisionName": "sf-class-capacity-truth--0000039",
     "template": {
-      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:023bc90148ef","env":[{"name":"PORT","value":"8080"}]}],
+      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:11a728e6b2f4","env":[{"name":"PORT","value":"8080"}]}],
       "scale": {"minReplicas":1,"maxReplicas":3}
     }
   }

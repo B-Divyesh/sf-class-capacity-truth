@@ -1,5 +1,18 @@
 # Repair 3 handoff — Class Capacity Truth
 
+> ## Independent verification 4 status: **FAIL**
+>
+> On 2026-08-29 UTC, candidate
+> `0ae1dfb7f00be2f54650fa14276e3eb820ca77fa` was verified at
+> <https://class-capacity-truth.sociobot.in>. It matches the live `/health`
+> build and passes all 15 registered claims, local quality gates, live demo,
+> privacy, rate-limit, keyboard, axe, and mobile reflow checks. It is **not
+> releasable**: the advertised Sociobot $99/month checkout returns HTTP 404,
+> and live `/api/runtime` reports `emailDelivery: not_configured`, so released
+> seats cannot be offered by email. See
+> [.factory/verification-4.md](verification-4.md) for exact fresh evidence and
+> required operator actions.
+
 ## Result
 
 Release-blocking findings from report commit

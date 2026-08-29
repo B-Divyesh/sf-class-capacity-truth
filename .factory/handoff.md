@@ -1,61 +1,66 @@
-# Repair handoff — PASS
+# Independent QA handoff — FAIL
 
-Repaired verifier candidate `023bc90148efd22542aa1fb99c81588686e7aac4` from `.factory/verification-7.md`.
+Candidate: `11a728e6b2f481506753caef919347958512c124`
 
 Live URL: <https://class-capacity-truth.sociobot.in>
 
 Verified: 2026-08-29 UTC
 
-## What changed
+## Verdict
 
-- Reproduced P0 exactly: revision `0000036` had only `PORT`, no Azure Files mount, and `maxReplicas: 3`. The fixture now rejects that unsafe template first.
-- The deploy command creates a unique revision suffix, retries only Azure's transient in-progress conflict, then reads the effective template back. Copying the active suffix had let ARM accept an update without creating the requested revision.
-- A separately tested traffic-readiness guard waits for `latestReadyRevisionName == latestRevisionName`; this fixes the drill race where a temporary credential could reach the old revision and receive 401.
-- Aligned `.factory/plan.md`, `.factory/design.md`, and `services/api/README.md` with shipped SQLite/Azure Files topology and M1–M4 status.
+**FAIL — do not accept real school data.** The candidate artifact and local
+quality gates pass, but the active deployment is an ephemeral, multi-replica
+SQLite service. See [.factory/verification-8.md](verification-8.md) for the
+complete evidence.
 
-## Effective production template
+## Release blocker
 
-```text
-revision: sf-class-capacity-truth--d-1788002511-20759
-image: sociobotregistry.azurecr.io/sf-class-capacity-truth:6cd085986e3a01875b14026bcbad41d7abbbe013
-minReplicas/maxReplicas: 1/1
-volume: cct-data (AzureFile) -> /mnt/cct
-DATA_DIR=/mnt/cct/keys
-DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db
-```
+### P0 — active candidate revision has no durable storage and scaled to two replicas
 
-Readback reports `Provisioned`, `Healthy`, `RunningAtMaxScale`, one replica, and no `TEST_AUTH_TOKEN`. `/health` reports build `6cd085986e3a01875b14026bcbad41d7abbbe013`.
+`/health` identifies the exact candidate build. Fresh Azure readback found
+active revision `sf-class-capacity-truth--0000039`, image
+`sociobotregistry.azurecr.io/sf-class-capacity-truth:11a728e6b2f4`,
+`minReplicas/maxReplicas: 1/3`, only `PORT=8080`, and no volumes or mounts.
+Startup reports `durable_backup="disabled"` and generated local signing and
+encryption keys.
 
-## Production persistence proof
+During QA the revision had two Ready/Running replicas. Each has its own
+disposable database and keys, so requests can see conflicting seat counts and
+a replacement can lose all real-school data. The registered `cct-data` Azure
+Files storage exists but is not attached.
 
-`RESOURCE_GROUP=sociobot bash scripts/prove-production-durability.sh` passed on the final image. It created a synthetic workspace, class, and booking; forced a new revision; verified public `confirmed=1, openSeats=1` and the exact decrypted synthetic guardian contact; then deleted the workspace, confirmed its class returned 404, removed the temporary credential/secret, and reached this clean revision:
+Required repair: deploy this immutable candidate image through
+`scripts/deploy-container.sh`, read back one replica plus the `/mnt/cct` mount
+and both durable path variables, then run
+`scripts/prove-production-durability.sh`. Do not run the drill before the
+effective template is safe.
 
-```text
-auth=sf-class-capacity-truth--d-a-1788001363-14778
-restart=sf-class-capacity-truth--d-r-1788001363-14778
-cleanup=sf-class-capacity-truth--d-c-1788001363-14778
-```
+### P3 — mobile navigation differs from the design contract
 
-## Verification
+At 390 px the four navigation links wrap into two rows instead of collapsing
+to the labelled menu specified in `.factory/design.md`. It remains readable
+and usable.
 
-- `npm ci`: 170 packages, 0 vulnerabilities.
-- `npm test`: 6 frontend, 5 Rust unit, 18 API/integration, topology and traffic-readiness regressions passed.
-- `npm run typecheck`, `npm run lint`, `npm run build`: passed. CSS 4.35 kB gzip; initial JS chunks 70.63 and 79.59 kB gzip.
-- `npm run test:e2e`: 24/24 Chromium passed, including claims, desktop, 390px, 200% text, keyboard, dark/reduced motion, privacy, and axe.
-- `npm run test:durable-restart`, `bash scripts/test-zero-config.sh`, and `npm run test:cold-claim` passed; cold claim was 111 seconds (limit 600).
-- Final live browser smoke: semantic desktop page, skip-link and route-focus keyboard behavior, same-origin requests, no console/page errors, zero axe serious/critical issues, and no 390px overflow.
-- Live response policy has CSP `frame-ancestors 'none'`, no-cache HTML, nosniff, strict referrer policy, and restrictive permissions policy. Live CIAM sign-in uses the required host, client ID, callback, code flow, and PKCE S256.
+## Verification summary
 
-This is a web service, not a package or PWA: package-consumer and offline-update checks do not apply, and no product claim promises offline operation.
+- All 21 commands in `.factory/claims.json` passed from the clean checkout.
+  The durable-topology command passes its fixture, but the claim fails against
+  the live control plane.
+- `npm ci`, `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`,
+  `npm run test:e2e` (24/24), `npm run test:cold-claim`, durable restart,
+  zero-config startup, and the 100-request live load smoke passed.
+- The live HTML/primary JS/CSS exactly match local `dist/`; `/health` reports
+  the full candidate SHA.
+- First-read/demo, normal/full/cutoff booking behavior, invalid-input recovery,
+  same-origin privacy, CORS/CSP/cache headers, Entra PKCE sign-in, Sociobot
+  checkout, keyboard, 390 px, 200% text, reduced motion, and link crawl passed.
+- Axe found zero serious/critical issues. Lighthouse mobile scored 100 in
+  Performance, Accessibility, Best Practices, and SEO; LCP was 1.3 s and CLS
+  was 0. Initial JS was 70,505 bytes gzip and CSS 4,343 bytes gzip.
+- Live allowance observed: demo request 11 returned 429 with `Retry-After: 5`;
+  staff request 41 returned 429 with `Retry-After: 1`; the 100-request smoke
+  accepted 10 and rate-limited 90.
+- Docker image build was not run because no Docker-compatible runtime is
+  installed in the verifier container.
 
-## Run/deploy
-
-```bash
-npm ci && npm test
-npm run typecheck && npm run lint && npm run build
-npm run test:e2e
-IMAGE=sociobotregistry.azurecr.io/sf-class-capacity-truth:<immutable-tag> bash scripts/deploy-container.sh
-RESOURCE_GROUP=sociobot bash scripts/prove-production-durability.sh
-```
-
-No known release-blocking gaps remain. The drill removes its synthetic data and does not alter DNS, billing, or real-school data.
+No product code or infrastructure was modified during verification.

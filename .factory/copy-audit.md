@@ -1,6 +1,6 @@
 # Landing copy audit
 
-Audited 2026-08-28 after repair. Counts are whitespace-separated. This lists
+Audited 2026-08-29 after verifier repair. Counts are whitespace-separated. This lists
 every visible landing-page text string. No sentence exceeds 22 words and no
 text uses a banned marketing word.
 
@@ -43,8 +43,9 @@ text uses a banned marketing word.
 | The sample does not manage grades, attendance, tuition, or learning history. | 10 | Pass |
 | Read how sample data is handled | 6 | Pass |
 | Set a real class capacity | 5 | Pass |
-| Create a persistent class, publish its booking link, compare calendar bookings, and offer released seats. | 14 | Pass |
+| Create a persistent class, publish its booking link, compare calendar bookings, and record released-seat offers. | 14 | Pass |
 | Open school workspace | 3 | Pass |
+| Open the $99 monthly Sociobot checkout | 6 | Pass |
 | Seat counts for small schools. | 5 | Pass |
 | Terms | 1 | Pass |
 | Built by Param Factory | 4 | Pass |

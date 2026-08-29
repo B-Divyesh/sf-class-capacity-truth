@@ -6,6 +6,7 @@ export interface DemoData { schoolName: string; expiresAt: number; classes: Clas
 export interface RealClass extends ClassSession { id: string; published: boolean; calendarConfirmed: number | null; reconciliationStatus: "matched" | "attention" | null }
 export interface Workspace { id: string; schoolName: string; subscriptionStatus: "trial" | "active" | "grace" | "inactive"; trialEndsAt: number | null }
 export interface BookingSummary { id: string; guardianName: string; guardianEmail: string; createdAt: number }
+export interface RuntimeStatus { emailDelivery: "smtp" | "not_configured" }
 
 interface ApiErrorBody { code?: string; message?: string }
 export class ApiError extends Error {
@@ -37,6 +38,7 @@ export async function createWorkspace(schoolName: string) {
   return result.workspace;
 }
 export async function loadWorkspace() { const result = await responseJson<{ workspace: Workspace; accessKey: string }>(await fetch("/api/workspaces", { headers: await workspaceHeaders() })); localStorage.setItem("cct:workspace-key", result.accessKey); return result.workspace; }
+export async function loadRuntimeStatus() { return responseJson<RuntimeStatus>(await fetch("/api/runtime")); }
 export async function listClasses() { return responseJson<RealClass[]>(await fetch("/api/workspaces/classes", { headers: await workspaceHeaders() })); }
 export async function createClass(input: { name: string; startsAt: number; bookingCutoff: number; timezone: string; capacity: number }) { return responseJson<RealClass>(await fetch("/api/workspaces/classes", { method: "POST", headers: await workspaceHeaders(true), body: JSON.stringify(input) })); }
 export async function publishClass(id: string) { return responseJson<RealClass>(await fetch(`/api/workspaces/classes/${encodeURIComponent(id)}/publish`, { method: "POST", headers: await workspaceHeaders() })); }

@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ context }, testInfo) => {
-  const seed = [...testInfo.title].reduce((total, character) => total + character.charCodeAt(0), 0);
+  const seed = [...testInfo.title].reduce((total, character) => total + character.charCodeAt(0), 0) + testInfo.retry * 211 + testInfo.workerIndex * 17;
   await context.setExtraHTTPHeaders({ "x-forwarded-for": `198.51.100.${10 + (seed % 200)}` });
   await context.addInitScript((token) => sessionStorage.setItem("cct:test-access-token", token), `test-owner-${seed}`);
 });
@@ -156,15 +156,26 @@ test("school workspace stays usable at 390px", async ({ page }) => {
   expect(results.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
 });
 
-test("school workspace keeps controls at 200 percent text size", async ({ page }) => {
-  await page.goto("/app");
-  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
-  await expect(page.getByRole("heading", { name: "Create your school workspace" })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  await expect(page.getByRole("button", { name: "Create school workspace" })).toBeVisible();
+test("all routes reflow at 390px and 200 percent text size with 44px targets", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const route of ["/", "/demo?demo=1", "/app", "/privacy", "/terms"]) {
+    await page.goto(route);
+    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    if (route.startsWith("/demo")) await expect(page.getByRole("article")).toHaveCount(3);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), route).toBe(true);
+  }
+  await page.evaluate(() => { document.documentElement.style.fontSize = "100%"; });
+  for (const route of ["/", "/privacy", "/terms"]) {
+    await page.goto(route);
+    const sizes = await page.locator("main a, main button, footer a").evaluateAll((items) => items.map((item) => ({
+      label: item.textContent?.trim(), width: item.getBoundingClientRect().width, height: item.getBoundingClientRect().height
+    })));
+    expect(sizes.filter((size) => size.width < 44 || size.height < 44), route).toEqual([]);
+  }
 });
 
-test("@claim:school-capacity-flow @claim:calendar-poll @claim:released-seat-delivery creates, reconciles, waits, and converts", async ({ page }) => {
+test("@claim:school-capacity-flow creates, reconciles, waits, and converts", async ({ page }) => {
   await page.goto("/app");
   await page.getByLabel("School name").fill("Harbour Languages");
   await page.getByRole("button", { name: "Create school workspace" }).click();
@@ -201,7 +212,7 @@ test("@claim:school-capacity-flow @claim:calendar-poll @claim:released-seat-deli
     classCard.getByRole("button", { name: "Cancel Alex Morgan booking" }).click()
   ]);
   const token = (await cancelResponse.json()).offerToken as string;
-  await expect(page.getByText(/offer was queued/)).toBeVisible();
+  await expect(page.getByText(/offer was recorded/)).toBeVisible();
   expect(token).toBeTruthy();
   await page.goto(`/offer/${token}`);
   await page.getByRole("button", { name: "Accept this seat" }).click();
@@ -225,11 +236,13 @@ test("release regression: school wall time does not drift with the browser zone"
   await context.close();
 });
 
-test("@claim:school-plan-price @claim:data-export-delete pricing, export, deletion, and 44px targets work", async ({ page }) => {
+test("@claim:school-plan-price shows the exact price and Sociobot checkout", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("The school plan costs $99 each month.")).toBeVisible();
-  const sizes = await page.locator(".skip-link, footer a").evaluateAll((items) => items.map((item) => ({ width: item.getBoundingClientRect().width, height: item.getBoundingClientRect().height })));
-  expect(sizes.every((size) => size.width >= 44 && size.height >= 44)).toBe(true);
+  await expect(page.getByRole("link", { name: /Open the \$99 monthly Sociobot checkout/ })).toHaveAttribute("href", "https://api.sociobot.in/api/v1/products/class-capacity-truth/checkout");
+});
+
+test("@claim:data-export-delete exports and deletes the workspace", async ({ page }) => {
   await page.goto("/app");
   await page.getByLabel("School name").fill("Data Rights School");
   await page.getByRole("button", { name: "Create school workspace" }).click();
@@ -240,6 +253,36 @@ test("@claim:school-plan-price @claim:data-export-delete pricing, export, deleti
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete school workspace" }).click();
   await expect(page.getByRole("heading", { name: "Create your school workspace" })).toBeVisible();
+});
+
+test("@claim:released-seat-delivery reports the unconfigured live delivery boundary", async ({ page }) => {
+  await page.goto("/app");
+  await page.getByLabel("School name").fill("Delivery Status School");
+  await page.getByRole("button", { name: "Create school workspace" }).click();
+  await expect(page.getByText("Email delivery is not configured on this deployment. Cancelling a booking records an offer but sends no email.")).toBeVisible();
+  const status = await page.request.get("/api/runtime");
+  expect(status.status()).toBe(200);
+  expect(await status.json()).toEqual({ emailDelivery: "not_configured" });
+});
+
+test("@claim:calendar-poll checks the feed without changing confirmed seats", async ({ page }) => {
+  await page.goto("/app");
+  await page.getByLabel("School name").fill("Non-mutating Calendar School");
+  await page.getByRole("button", { name: "Create school workspace" }).click();
+  await page.getByLabel("Class name").fill("Saturday level check");
+  await page.getByLabel("Starts at").fill("2030-06-10T10:00");
+  await page.getByLabel("Booking cutoff").fill("2030-06-09T10:00");
+  await page.getByLabel("Capacity").fill("3");
+  await page.getByRole("button", { name: "Create class" }).click();
+  const classCard = page.getByRole("article").filter({ hasText: "Saturday level check" });
+  await expect(classCard.getByRole("img", { name: "0 confirmed, 3 open" })).toBeVisible();
+  await classCard.getByRole("button", { name: "Publish parent link" }).click();
+  await page.getByLabel("Calendar label").fill("School bookings calendar");
+  await page.getByLabel("iCalendar feed URL").fill("https://fixture.invalid/school.ics");
+  await page.getByRole("button", { name: "Connect and check calendar" }).click();
+  await expect(page.getByText(/Calendar connected and checked/)).toBeVisible();
+  await expect(classCard).toContainText("Attention: calendar says 1, local ledger says 0.");
+  await expect(classCard.getByRole("img", { name: "0 confirmed, 3 open" })).toBeVisible();
 });
 
 test("@claim:no-third-party-tracking observed product flows stay same-origin", async ({ page, baseURL }) => {

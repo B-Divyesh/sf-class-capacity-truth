@@ -20,6 +20,9 @@ export default defineConfig({
     command: "bash scripts/start-e2e.sh",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000
+    // A verifier starts this from an empty Cargo cache. The API's first Rust
+    // build is intentionally part of the claim command and can exceed two
+    // minutes on a small worker even though warm starts take seconds.
+    timeout: Number(process.env.PLAYWRIGHT_SERVER_TIMEOUT_MS ?? 600_000)
   }
 });

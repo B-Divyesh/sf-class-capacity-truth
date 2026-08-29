@@ -143,21 +143,25 @@ pub enum RealError {
 }
 
 pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
-    let journal_mode = match env::var("SQLITE_JOURNAL_MODE")
+    let journal_mode_name = env::var("SQLITE_JOURNAL_MODE")
         .unwrap_or_else(|_| "wal".into())
-        .to_ascii_lowercase()
-        .as_str()
-    {
+        .to_ascii_lowercase();
+    let journal_mode = match journal_mode_name.as_str() {
         "delete" => sqlx::sqlite::SqliteJournalMode::Delete,
         _ => sqlx::sqlite::SqliteJournalMode::Wal,
     };
+    let max_connections = env::var("SQLITE_MAX_CONNECTIONS")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(if journal_mode_name == "delete" { 1 } else { 8 });
     let options = SqliteConnectOptions::from_str(database_url)?
         .create_if_missing(true)
         .foreign_keys(true)
         .journal_mode(journal_mode)
         .busy_timeout(Duration::from_secs(10));
     let pool = SqlitePoolOptions::new()
-        .max_connections(8)
+        .max_connections(max_connections)
         .connect_with(options)
         .await?;
     sqlx::migrate!("./migrations").run(&pool).await?;

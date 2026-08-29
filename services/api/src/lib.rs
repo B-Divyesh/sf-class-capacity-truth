@@ -42,6 +42,7 @@ pub struct AppState {
     pub auth: auth::AuthVerifier,
     pub public_base_url: Arc<String>,
     pub http: reqwest::Client,
+    pub email_delivery_configured: bool,
 }
 
 pub fn app(
@@ -101,6 +102,7 @@ pub fn app(
         .finish()
         .expect("positive school rate limit values");
     let school_api = Router::new()
+        .route("/runtime", get(routes::runtime_status))
         .route(
             "/workspaces",
             post(routes::create_workspace).get(routes::current_workspace),

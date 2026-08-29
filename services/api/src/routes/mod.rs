@@ -19,6 +19,12 @@ pub struct HealthResponse {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct RuntimeStatus {
+    email_delivery: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DemoResponse {
     school_name: &'static str,
     expires_at: i64,
@@ -112,6 +118,16 @@ pub async fn health(State(state): State<AppState>) -> Response {
         }),
     )
         .into_response()
+}
+
+pub async fn runtime_status(State(state): State<AppState>) -> Json<RuntimeStatus> {
+    Json(RuntimeStatus {
+        email_delivery: if state.email_delivery_configured {
+            "smtp"
+        } else {
+            "not_configured"
+        },
+    })
 }
 
 pub async fn not_found_page() -> Response {

@@ -25,6 +25,7 @@ async fn test_app(period_ms: u64, burst: u32) -> (Router, TempDir, sqlx::SqliteP
         auth: class_capacity_truth_api::auth::AuthVerifier::for_tests(),
         public_base_url: Arc::new("https://example.test".into()),
         http: reqwest::Client::new(),
+        email_delivery_configured: false,
     };
     (
         app(state, PathBuf::from("does-not-exist"), period_ms, burst),
@@ -533,4 +534,184 @@ async fn migration_has_a_working_down_path() {
         .unwrap();
         assert_eq!(count, 0, "{table} should be removed by the down migration");
     }
+}
+
+#[tokio::test]
+async fn claim_demo_expiry_and_input_disposal() {
+    // @claim:demo-expiry-input-disposal
+    let (_router, _directory, pool) = test_app(1, 100).await;
+    let tenant = "claim-demo-expiry";
+    let now = 1_900_000_000;
+    db::create_or_refresh_demo(&pool, tenant, now)
+        .await
+        .unwrap();
+    let class = db::list_sessions(&pool, tenant, now)
+        .await
+        .unwrap()
+        .remove(0);
+    db::book_seat(
+        &pool,
+        tenant,
+        &class.public_id,
+        "claim-demo-booking",
+        "Private Demo Name",
+        "private-demo@example.org",
+        now,
+    )
+    .await
+    .unwrap();
+
+    let stored =
+        sqlx::query("SELECT guardian_name, guardian_email FROM bookings WHERE demo_tenant_id = ?1")
+            .bind(tenant)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(
+        stored.get::<String, _>("guardian_name"),
+        "[demo input not retained]"
+    );
+    assert_eq!(
+        stored.get::<String, _>("guardian_email"),
+        "[demo input not retained]"
+    );
+
+    assert_eq!(db::cleanup_expired(&pool, now + 86_399).await.unwrap(), 0);
+    assert_eq!(db::cleanup_expired(&pool, now + 86_400).await.unwrap(), 1);
+    let remaining =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM bookings WHERE demo_tenant_id = ?1")
+            .bind(tenant)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(remaining, 0);
+}
+
+#[tokio::test]
+async fn claim_reconciliation_never_mutates_confirmed_seats() {
+    // @claim:reconciliation-does-not-change-seats
+    let (_router, _directory, pool) = test_app(1, 100).await;
+    let now = 1_900_000_000;
+    let (_workspace, key) =
+        db::create_workspace(&pool, "Reconciliation School", "owner-reconcile", now)
+            .await
+            .unwrap();
+    let class = db::create_real_class(
+        &pool,
+        &key,
+        db::NewRealClass {
+            name: "Tuesday class",
+            starts_at: now + 86_400,
+            cutoff: now + 43_200,
+            timezone: "Europe/London",
+            capacity: 8,
+        },
+        now,
+    )
+    .await
+    .unwrap();
+    assert_eq!(class.confirmed, 0);
+    let reconciled = db::reconcile_class(&pool, &key, &class.id, 7, now)
+        .await
+        .unwrap();
+    assert_eq!(reconciled.confirmed, 0);
+    assert_eq!(reconciled.open_seats, 8);
+    assert_eq!(reconciled.calendar_confirmed, Some(7));
+    assert_eq!(
+        reconciled.reconciliation_status.as_deref(),
+        Some("attention")
+    );
+}
+
+#[tokio::test]
+async fn claim_contact_encryption_and_retention() {
+    // @claim:contact-encryption-retention
+    let (_router, _directory, pool) = test_app(1, 100).await;
+    let now = 1_900_000_000;
+    let cipher = class_capacity_truth_api::crypto::ContactCipher::from_key(&[29_u8; 32]).unwrap();
+    let (_workspace, key) = db::create_workspace(&pool, "Privacy School", "owner-privacy", now)
+        .await
+        .unwrap();
+    let class = db::create_real_class(
+        &pool,
+        &key,
+        db::NewRealClass {
+            name: "Privacy class",
+            starts_at: now + 86_400,
+            cutoff: now + 43_200,
+            timezone: "Europe/London",
+            capacity: 2,
+        },
+        now,
+    )
+    .await
+    .unwrap();
+    let class = db::publish_real_class(&pool, &key, &class.id, now)
+        .await
+        .unwrap();
+    db::book_real_seat(
+        &pool,
+        &cipher,
+        &class.public_id,
+        "privacy-booking",
+        "Private Parent",
+        "private-parent@example.org",
+        now,
+    )
+    .await
+    .unwrap();
+    let row = sqlx::query("SELECT guardian_name, guardian_email FROM real_bookings LIMIT 1")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_ne!(row.get::<String, _>("guardian_name"), "Private Parent");
+    assert_ne!(
+        row.get::<String, _>("guardian_email"),
+        "private-parent@example.org"
+    );
+    assert_eq!(
+        db::cleanup_retained_contacts(&pool, now + 90 * 86_400 - 1)
+            .await
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        db::cleanup_retained_contacts(&pool, now + 90 * 86_400)
+            .await
+            .unwrap(),
+        1
+    );
+    let scrubbed = sqlx::query("SELECT guardian_name, guardian_email FROM real_bookings LIMIT 1")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(scrubbed.get::<String, _>("guardian_name"), "[deleted]");
+    assert_eq!(scrubbed.get::<String, _>("guardian_email"), "[deleted]");
+}
+
+#[tokio::test]
+async fn claim_staff_roles_enforce_owner_actions() {
+    // @claim:staff-role-access
+    let (_router, _directory, pool) = test_app(1, 100).await;
+    let now = 1_900_000_000;
+    let (workspace, key) = db::create_workspace(&pool, "Role School", "owner-oid", now)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO workspace_members (workspace_id, oid, role, created_at) VALUES (?1, 'viewer-oid', 'viewer', ?2)")
+        .bind(&workspace.id)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(
+        db::authorize_workspace(&pool, &key, "viewer-oid", &["viewer"])
+            .await
+            .is_ok()
+    );
+    assert_eq!(
+        db::authorize_workspace(&pool, &key, "viewer-oid", &["owner"])
+            .await
+            .unwrap_err(),
+        db::RealError::Forbidden
+    );
 }

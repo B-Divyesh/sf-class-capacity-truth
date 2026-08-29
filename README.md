@@ -2,7 +2,9 @@
 
 Class Capacity Truth is a capacity ledger for small language schools and
 tutoring centres. Staff connect an iCalendar feed, publish parent booking
-links, and send one expiring offer when a named booking is cancelled. The
+links, and record one expiring offer when a named booking is cancelled. A
+configured SMTP relay sends it; without one, the workspace says it was not
+sent. The
 school plan costs $99 each month through Sociobot checkout.
 
 Try the deployed demo at
@@ -19,8 +21,8 @@ Calendar feeds are encrypted and checked every five minutes. A disagreement
 is visible as **Attention** and never changes confirmed seats automatically.
 
 Parents can book while seats remain or consent to the waitlist. Staff select
-the exact booking to cancel. The server queues a 24-hour offer for the oldest
-waiting guardian and retries configured SMTP delivery. Owners can export or
+the exact booking to cancel. The server records a 24-hour offer for the oldest
+waiting guardian and retries delivery only when SMTP is configured. Owners can export or
 delete the workspace. Contact fields are encrypted and scrubbed after 90 days.
 
 ## Run locally
@@ -39,7 +41,7 @@ container. A cookie-signing key is generated with a CSPRNG and persisted in the
 data directory when none is supplied. A separate contact-encryption key is
 generated and persisted the same way. Optional SMTP variables are
 `SMTP_RELAY`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_FROM`. Without them,
-development mail is captured in the outbox rather than sent.
+the workspace explicitly says offers are recorded but not sent.
 
 ## Test and build
 
@@ -60,8 +62,8 @@ produces `dist/` and a release API binary.
 
 - React 19, Vite, strict TypeScript, and hand-authored CSS for the web app.
 - Rust, Axum, SQLx, and SQLite for both the isolated demo and the
-  single-instance school ledger. Production onboarding requires durable
-  storage as noted in `.factory/handoff.md`.
+  single-instance school ledger. Production mounts `/data` on durable Azure
+  Files storage, uses rollback journaling, and is fixed at one replica.
 - Entra JWT discovery/JWKS validation, owner/operator/viewer authorization,
   encrypted contact and calendar fields, retention cleanup, transaction-checked
   bookings, an email outbox, and forwarded-IP rate limits.

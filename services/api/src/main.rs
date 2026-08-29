@@ -50,6 +50,9 @@ async fn main() -> anyhow::Result<()> {
         } else {
             "generated-default"
         },
+        sqlite_journal_mode = env::var("SQLITE_JOURNAL_MODE").unwrap_or_else(|_| "wal".into()),
+        sqlite_max_connections =
+            env::var("SQLITE_MAX_CONNECTIONS").unwrap_or_else(|_| "automatic".into()),
         cookie_signing_key = key_source,
         contact_encryption_key = contact_key_source,
         smtp = if env::var_os("SMTP_RELAY").is_some() {
@@ -72,6 +75,7 @@ async fn main() -> anyhow::Result<()> {
         http: reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()?,
+        email_delivery_configured: env::var_os("SMTP_RELAY").is_some(),
     };
     let router = app(state.clone(), frontend_dist, 6_000, 10);
     tokio::spawn(cleanup_task(pool));

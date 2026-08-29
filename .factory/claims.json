@@ -43,10 +43,10 @@
   },
   {
     "id": "released-seat-delivery",
-    "claim": "A selected cancellation queues one expiring email offer for the next waiting guardian.",
-    "where": "Waitlist consent and staff cancellation result",
+    "claim": "The workspace reports when email delivery is not configured; recorded offers are not described as sent.",
+    "where": "School plan and staff workspace status",
     "test": "npm run test:e2e -- --grep @claim:released-seat-delivery",
-    "sandbox": "Join through the visible waitlist form, select the named booking, assert queued delivery, then accept the one-time offer."
+    "sandbox": "Fresh signed-out workspace and runtime-status API; assert the visible limitation and not_configured server state."
   },
   {
     "id": "school-plan-price",
@@ -66,14 +66,14 @@
     "id": "contact-encryption-retention",
     "claim": "School guardian contact fields are encrypted at rest and erased after 90 days.",
     "where": "Privacy page",
-    "test": "npm run test:api -- regression_real_school_flow_configures_books_reconciles_and_converts_released_waitlist_seat",
-    "sandbox": "Inspect persisted rows for absent plaintext, decrypt through the authorized path, advance 91 days, run retention, and assert contact fields are scrubbed."
+    "test": "npm run test:api -- claim_contact_encryption_and_retention",
+    "sandbox": "Inspect persisted rows for absent plaintext, advance the clock to the exact 90-day boundary, and assert contact fields are scrubbed."
   },
   {
     "id": "staff-role-access",
     "claim": "School staff use Sociobot Entra sign-in and server-side roles.",
     "where": "Workspace sign-in and terms",
-    "test": "npm run test:api -- regression_real_school_flow_configures_books_reconciles_and_converts_released_waitlist_seat",
+    "test": "npm run test:api -- claim_staff_roles_enforce_owner_actions",
     "sandbox": "Use the recorded identity, assert viewer access succeeds, and assert the same viewer is forbidden from an owner action."
   },
   {
@@ -82,5 +82,19 @@
     "where": "Workspace data controls and privacy page",
     "test": "npm run test:e2e -- --grep @claim:data-export-delete",
     "sandbox": "Create a signed-in workspace, download its JSON export, confirm deletion, and assert the workspace is gone."
+  },
+  {
+    "id": "demo-expiry-input-disposal",
+    "claim": "Demo name and email input is discarded, and each demo expires after 24 hours.",
+    "where": "README and privacy page",
+    "test": "npm run test:api -- claim_demo_expiry_and_input_disposal",
+    "sandbox": "Fresh temporary database; submit distinctive demo input, inspect stored placeholders, advance to the exact 24-hour boundary, and assert cascade deletion."
+  },
+  {
+    "id": "reconciliation-does-not-change-seats",
+    "claim": "A calendar discrepancy never changes confirmed seats automatically.",
+    "where": "README and school workspace",
+    "test": "npm run test:api -- claim_reconciliation_never_mutates_confirmed_seats",
+    "sandbox": "Fresh workspace and class; reconcile a different calendar count and assert the discrepancy is recorded while confirmed and open seats stay unchanged."
   }
 ]

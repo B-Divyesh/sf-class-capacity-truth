@@ -1,6 +1,6 @@
 # Demo sandbox contract
 
-Status: preserved by the repair and covered by four demo claim-tagged browser tests. Eight additional claims cover the real school path.
+Status: preserved by the repair and covered by four browser claims plus an exact expiry/input-disposal API claim. Nine additional claims cover the real school path.
 
 ## Entry and sample
 
@@ -22,4 +22,4 @@ The browser stores no demo data. Backend calls derive the demo tenant only from 
 
 ## Verification mapping
 
-sample-booking-updates-seats books the available sample class and observes the count change from two to one. full-class-blocks-booking and cutoff-blocks-booking prove the other samples prevent confirmation. demo-reset-isolated books one context, resets it, and starts another to prove the seed and isolation contract. All demo requests must be same-origin during the flow.
+sample-booking-updates-seats books the available sample class and observes the count change from two to one. full-class-blocks-booking and cutoff-blocks-booking prove the other samples prevent confirmation. demo-reset-isolated books one context, resets it, and starts another to prove the seed and isolation contract. demo-expiry-input-disposal inspects the non-identifying markers and advances the server clock to the exact 24-hour deletion boundary. All demo requests must be same-origin during the flow.

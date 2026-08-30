@@ -1,4 +1,4 @@
-# Repair 16 handoff — deployment in progress (2026-08-30)
+# Repair 16 handoff — PASS (2026-08-30)
 
 Work order: `class-capacity-truth-repair-16`
 
@@ -13,7 +13,7 @@ Failed candidate: `283758f64e321a3037951b433f24bc79c0622ee6`
    production topology, readback verifier, guarded product deployment command,
    API assertion, and exact deployment fixture now require one replica and the
    product Azure Files volume mounted at `/data`. SQLite and both generated
-   keys (`class-capacity-truth.db`, `contact-data.key`, and
+   files (`class-capacity-truth-state-v4.db`, `contact-data.key`, and
    `demo-cookie.key`) live directly in that mount. The product deployment
    guard no longer reads storage credentials or changes shared storage.
 2. **The exact Verification 16 failure is a regression fixture.** The fixture
@@ -34,7 +34,7 @@ Failed candidate: `283758f64e321a3037951b433f24bc79c0622ee6`
 ## Local verification
 
 - Clean install: `npm ci` — 170 packages, 0 vulnerabilities.
-- `npm test` passed: 8 frontend tests, 6 Rust unit tests, 20 API/integration
+- `npm test` passed: 8 frontend tests, 6 Rust unit tests, 21 API/integration
   tests, and both Container App topology/readiness fixtures.
 - `npm run typecheck`, `npm run lint` (rustfmt + Clippy warnings denied), and
   `npm run build` passed. The build emits 73.85 kB gzip initial JavaScript,
@@ -44,25 +44,68 @@ Failed candidate: `283758f64e321a3037951b433f24bc79c0622ee6`
   same-origin privacy, and Playwright Axe serious/critical-zero coverage.
 - All 22 manifest claim commands passed independently, including the exact
   topology fixture, zero-config startup, and direct `/data` restart proof.
-- Factory `verify-url.sh` passed locally: 585ms load, one title/h1/main,
+- Factory `verify-url.sh` passed locally: 575ms load, one title/h1/main,
   `lang=en`, no console errors, no unlabelled buttons, and no missing image
   alts. Local `/`, `/demo`, `/privacy`, and `/terms` return 200; `/missing-page`
   returns 404. The response supplies CSP response-header `frame-ancestors`,
   `nosniff`, strict referrer policy, permissions policy, and no-cache HTML.
-- Mobile Lighthouse on `/demo?demo=1`: performance 98, accessibility 100,
-  best practices 100, SEO 100; FCP/LCP 1,948ms, TBT 0ms, CLS 0.
+- Mobile Lighthouse on `/demo?demo=1`: performance 100, accessibility 100,
+  best practices 100, SEO 100; FCP 1,353ms, LCP 1,505ms, TBT 0ms, CLS 0,
+  and 83,937 bytes transferred.
 - The product intentionally has no service worker or offline claim. Browser
   smoke confirmed zero registrations and a normal unavailable offline reload;
   its online demo requests were same-origin.
 
 ## Deployment evidence
 
-Pending the work-order container deployment of the committed repair, followed
-by the controlled production revision-restart durability drill.
+- ACR build `ch1nc` built the `.git`-free source archive for application commit
+  `2d3fac5b6e9e431a931aad4a206f9ed7aa933b50`. Image
+  `sociobotregistry.azurecr.io/sf-class-capacity-truth:2d3fac5b6e9e` has digest
+  `sha256:427da3799ea5ee1298819132621372eedb8c0e406b75217b8848c4a1d214d75f`.
+  The guarded deployment created revision
+  `sf-class-capacity-truth--r16-2d3fac5-0842`; `/health` returned that exact
+  full source SHA and `database: ready`.
+- The live persistence drill created synthetic school/class/booking state in
+  `/data`, then restarted the sole database owner as revision
+  `sf-class-capacity-truth--d-r-1788079326-20845`. Before public traffic moved,
+  its revision-specific hostname returned the unchanged confirmed/open count
+  and decrypted the exact synthetic guardian name and email. Traffic moved
+  only after both checks passed. Cleanup removed the synthetic workspace and
+  the one-time credential in revision
+  `sf-class-capacity-truth--d-c-1788079326-20845`.
+- Final readback after that drill showed one running replica, Single revision
+  mode, 100% traffic on the cleanup revision, `minReplicas=1`,
+  `maxReplicas=1`, volume `data` backed by
+  `sf-class-capacity-truth-data`, mount `/data`, and only `PORT=8080` in the
+  environment. Startup logs reported both generated keys as persisted and the
+  SQLite journal as `DELETE`; no value or guardian data was logged.
+- Live factory `verify-url.sh` passed in 550ms with one title/h1/main,
+  `lang=en`, complete image alts, labelled buttons, and no console errors.
+  Live mobile Lighthouse scored 100/100/100/100 with FCP/LCP 1,202ms, TBT 0,
+  CLS 0, and 80,540 bytes transferred.
+- The committed live browser smoke covers desktop booking, 390px dark mode,
+  reduced motion, keyboard skip/menu, same-origin requests before explicit
+  sign-in, offline behavior, and Axe on home, demo, privacy, terms, workspace,
+  and mobile. It recorded zero errors or serious/critical findings, no
+  overflow, a 77.6 by 44.8px menu target, zero-duration motion, and the exact
+  Sociobot CIAM tenant/client/callback with authorization code plus PKCE S256.
+- Live response policy retained response-header CSP with
+  `frame-ancestors 'none'`, `nosniff`, strict referrer policy, permissions
+  policy, no-cache HTML/API responses, immutable hashed assets, rejected
+  unapproved CORS, and a real HTTP 404. Local and live index/initial-JS
+  SHA-256 hashes match. The load smoke completed 100 concurrent requests: 10
+  accepted and 90 returned 429 with `Retry-After`. Three concurrent requests
+  for two sample seats returned 201, 201, and 409 without oversell.
+
+Evidence is under `.factory/evidence-repair-16/`. The product has no service
+worker or offline claim, and it is neither a package nor a CLI, so update and
+consumer-package checks are not applicable.
 
 ## Known gaps / next steps
 
-None once the deployment readback and controlled durability drill below pass.
+None. Future releases must use `scripts/deploy-container.sh`; a generic image
+update can remove the work-order `/data` mount or create overlapping SQLite
+owners. Run `scripts/prove-production-durability.sh` before accepting traffic.
 
 ---
 

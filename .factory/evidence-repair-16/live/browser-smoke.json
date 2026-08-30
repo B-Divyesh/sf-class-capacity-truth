@@ -1,0 +1,52 @@
+{
+  "baseURL": "https://class-capacity-truth.sociobot.in",
+  "consoleErrors": [],
+  "pageErrors": [],
+  "axe": {
+    "home": 0,
+    "demo": 0,
+    "mobileDarkReduced": 0,
+    "/": 0,
+    "/demo?demo=1": 0,
+    "/privacy": 0,
+    "/terms": 0,
+    "/app": 0
+  },
+  "privacyOrigins": [
+    "https://class-capacity-truth.sociobot.in"
+  ],
+  "desktop": {
+    "title": "Class Capacity Truth — Show the right seat count",
+    "lang": "en",
+    "h1": 1,
+    "main": 1
+  },
+  "mobile": {
+    "noOverflow": true,
+    "animationDurations": [
+      "0s"
+    ],
+    "transitionDurations": [
+      "0s"
+    ],
+    "menu": {
+      "x": 304.4375,
+      "y": 16,
+      "width": 77.5625,
+      "height": 44.796875
+    }
+  },
+  "identity": {
+    "host": "sociobotcustomers.ciamlogin.com",
+    "tenantInPath": true,
+    "clientId": "25c704f4-465a-47af-80ab-2c489466b697",
+    "redirectUri": "https://class-capacity-truth.sociobot.in/auth/callback",
+    "responseType": "code",
+    "codeChallengeMethod": "S256"
+  },
+  "offline": {
+    "serviceWorkers": 0,
+    "reload": "unavailable-as-documented"
+  },
+  "failures": []
+}

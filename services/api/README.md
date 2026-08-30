@@ -16,7 +16,6 @@ persisted generated cookie key under `/data`. `DATA_DIR`, `DATABASE_URL`,
 `DURABLE_BACKUP_PATH`, `FRONTEND_DIST`, and `COOKIE_SIGNING_KEY` are optional
 overrides. In production it runs exactly one replica and the work order mounts
 the product's Azure Files share at `/data`. The SQLite database and generated
-keys stay there. Startup preserves the existing SQLite journal mode rather than
-resetting it, so a replacement revision can open the database while its
-predecessor finishes its short handoff; the cookie/contact keys therefore use
-the same persisted state before the new revision serves traffic.
+keys stay there. It uses SQLite's rollback (`DELETE`) journal with one
+connection, which is safe for Azure Files and lets a replacement revision open
+the same persisted state after its predecessor finishes the short handoff.

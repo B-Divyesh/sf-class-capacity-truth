@@ -171,8 +171,10 @@ pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
     // even reasserting) the journal mode requires an exclusive SQLite lock.
     // Opening the already-durable database without that write lets the new
     // one-replica revision become healthy before the old revision exits. New
-    // databases use SQLite's safe DELETE journal default; an explicit local
-    // override remains available for development.
+    // databases use SQLite's safe DELETE journal default. Existing WAL files
+    // are converted below as a one-time recovery step after their prior
+    // revision has stopped; an explicit local override remains available for
+    // development.
     let journal_mode = env::var("SQLITE_JOURNAL_MODE")
         .ok()
         .map(|value| value.to_ascii_lowercase());
@@ -201,6 +203,21 @@ pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
         .connect_with(options)
         .await?;
     sqlx::migrate!("./migrations").run(&pool).await?;
+    if journal_mode.is_none() {
+        let current_mode = sqlx::query_scalar::<_, String>("PRAGMA journal_mode")
+            .fetch_one(&pool)
+            .await?
+            .to_ascii_lowercase();
+        if current_mode == "wal" {
+            // Azure Files supports SQLite's rollback journal across a
+            // replacement process. WAL relies on shared-memory coordination
+            // that is unsuitable while Container Apps briefly runs an old and
+            // new revision against the same /data mount.
+            sqlx::query_scalar::<_, String>("PRAGMA journal_mode = DELETE")
+                .fetch_one(&pool)
+                .await?;
+        }
+    }
     Ok(pool)
 }
 

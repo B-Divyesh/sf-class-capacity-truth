@@ -1263,6 +1263,11 @@ async fn durable_database_opens_during_revision_overlap_without_resetting_journa
     let directory = tempfile::tempdir().unwrap();
     let url = format!("sqlite://{}", directory.path().join("shared.db").display());
     let initial = db::connect(&url).await.unwrap();
+    let journal_mode = sqlx::query_scalar::<_, String>("PRAGMA journal_mode")
+        .fetch_one(&initial)
+        .await
+        .unwrap();
+    assert_eq!(journal_mode.to_ascii_lowercase(), "delete");
     initial.close().await;
 
     let mut old_revision = SqliteConnection::connect(&url).await.unwrap();

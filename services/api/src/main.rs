@@ -34,7 +34,11 @@ async fn main() -> anyhow::Result<()> {
     let default_database_path = if durable_backup_path.is_some() {
         PathBuf::from("/tmp/class-capacity-truth.db")
     } else {
-        data_dir.join("class-capacity-truth.db")
+        // The failed pre-repair revision left a never-ready WAL bootstrap at
+        // this share's original filename. Keep that file intact for recovery
+        // rather than deleting or overwriting it; all serving durable state
+        // starts in this rollback-journal database on the mounted /data share.
+        data_dir.join("class-capacity-truth-state-v2.db")
     };
     if let Some(backup_path) = durable_backup_path.as_deref() {
         db::restore_durable_snapshot(backup_path, &default_database_path)?;

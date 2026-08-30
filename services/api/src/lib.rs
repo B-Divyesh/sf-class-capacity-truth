@@ -109,6 +109,10 @@ pub fn app(
         .use_headers()
         .finish()
         .expect("positive school rate limit values");
+    let school_governor = GovernorLayer::new(school_limiter);
+    let metrics_alias = Router::new()
+        .route("/metrics", get(routes::workspace_metrics))
+        .layer(school_governor.clone());
     let school_api = Router::new()
         .route("/runtime", get(routes::runtime_status))
         .route("/metrics", get(routes::workspace_metrics))
@@ -158,7 +162,7 @@ pub fn app(
         )
         .route("/offers/{token}", get(routes::view_offer))
         .route("/offers/{token}/accept", post(routes::accept_seat_offer))
-        .layer(GovernorLayer::new(school_limiter));
+        .layer(school_governor);
     let api = demo_api.merge(school_api);
 
     let index = frontend_dist.join("index.html");
@@ -166,7 +170,7 @@ pub fn app(
 
     Router::new()
         .route("/health", get(routes::health))
-        .route("/metrics", get(routes::workspace_metrics))
+        .merge(metrics_alias)
         .route_service("/", ServeFile::new(index.clone()))
         .route_service("/demo", ServeFile::new(index.clone()))
         .route_service("/privacy", ServeFile::new(index.clone()))

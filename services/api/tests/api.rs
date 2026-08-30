@@ -567,6 +567,63 @@ async fn regression_protected_operational_metrics_are_aggregated_and_contain_no_
 }
 
 #[tokio::test]
+async fn regression_top_level_metrics_uses_forwarded_ip_limiter() {
+    // Verification 15 received 60 unauthenticated responses from /metrics
+    // because the alias was mounted outside the governor. Keep the endpoint's
+    // authorization challenge, but enforce the same per-client allowance as
+    // /api/metrics before authentication work is repeated without bound.
+    let (router, _directory, _pool) = test_app(60_000, 10).await;
+    let mut unauthorized = 0;
+    let mut limited = 0;
+
+    for _ in 0..60 {
+        let response = router
+            .clone()
+            .oneshot(get("/metrics", "198.51.100.215", None))
+            .await
+            .unwrap();
+        match response.status() {
+            StatusCode::UNAUTHORIZED => {
+                unauthorized += 1;
+                assert_eq!(response.headers()[header::WWW_AUTHENTICATE], "Bearer");
+            }
+            StatusCode::TOO_MANY_REQUESTS => {
+                limited += 1;
+                assert!(response.headers().contains_key(header::RETRY_AFTER));
+                assert_eq!(response.headers()["x-ratelimit-remaining"], "0");
+            }
+            status => panic!("unexpected /metrics status: {status}"),
+        }
+    }
+
+    assert_eq!(unauthorized, 40);
+    assert_eq!(limited, 20);
+
+    let same_client_api_alias = router
+        .clone()
+        .oneshot(get("/api/metrics", "198.51.100.215", None))
+        .await
+        .unwrap();
+    assert_eq!(
+        same_client_api_alias.status(),
+        StatusCode::TOO_MANY_REQUESTS
+    );
+    assert!(same_client_api_alias
+        .headers()
+        .contains_key(header::RETRY_AFTER));
+
+    let independent_client = router
+        .oneshot(get("/metrics", "198.51.100.216", None))
+        .await
+        .unwrap();
+    assert_eq!(independent_client.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        independent_client.headers()[header::WWW_AUTHENTICATE],
+        "Bearer"
+    );
+}
+
+#[tokio::test]
 async fn capacity_cutoff_idempotency_reset_and_concurrent_race() {
     let (_router, _directory, pool) = test_app(1, 100).await;
     let tenant = Uuid::new_v4().to_string();

@@ -113,7 +113,13 @@ export function App() {
 
   return (
     <>
-      <a className="skip-link" href="#main">Skip to main content</a>
+      <a className="skip-link" href="#main" onClick={(event) => {
+        event.preventDefault();
+        const main = document.querySelector<HTMLElement>("main#main");
+        window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#main`);
+        main?.focus();
+        main?.scrollIntoView({ block: "start" });
+      }}>Skip to main content</a>
       <SiteHeader route={route} />
       <div className="route-announcer sr-only" aria-live="polite" aria-atomic="true">{route.title}</div>
       {route.kind === "home" && <HomePage />}

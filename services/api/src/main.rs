@@ -38,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
         // this share's original filename. Keep that file intact for recovery
         // rather than deleting or overwriting it; all serving durable state
         // starts in this rollback-journal database on the mounted /data share.
-        data_dir.join("class-capacity-truth-state-v3.db")
+        data_dir.join("class-capacity-truth-state-v4.db")
     };
     if let Some(backup_path) = durable_backup_path.as_deref() {
         db::restore_durable_snapshot(backup_path, &default_database_path)?;

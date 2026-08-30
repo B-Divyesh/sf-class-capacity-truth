@@ -1255,11 +1255,11 @@ async fn claim_durable_snapshot_survives_restart() {
 }
 
 #[tokio::test]
-async fn durable_database_uses_exclusive_locking_for_one_replica_restart() {
+async fn durable_database_reopens_after_one_replica_sequential_restart() {
     // Azure Files does not support SQLite's normal shared-lock handoff across
     // two processes. The deployment guard stops the old one-replica revision
-    // before creating its replacement; the database must retain its exclusive
-    // lock mode across that sequential restart.
+    // before creating its replacement; the same mounted database must reopen
+    // after that sequential restart.
     let directory = tempfile::tempdir().unwrap();
     let url = format!("sqlite://{}", directory.path().join("shared.db").display());
     let initial = db::connect(&url).await.unwrap();
@@ -1268,11 +1268,6 @@ async fn durable_database_uses_exclusive_locking_for_one_replica_restart() {
         .await
         .unwrap();
     assert_eq!(journal_mode.to_ascii_lowercase(), "delete");
-    let locking_mode = sqlx::query_scalar::<_, String>("PRAGMA locking_mode")
-        .fetch_one(&initial)
-        .await
-        .unwrap();
-    assert_eq!(locking_mode.to_ascii_lowercase(), "exclusive");
     initial.close().await;
 
     let replacing_revision = db::connect(&url)

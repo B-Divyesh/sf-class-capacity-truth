@@ -4,7 +4,7 @@ use anyhow::Context;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use sqlx::{
-    sqlite::{SqliteConnectOptions, SqliteLockingMode, SqlitePoolOptions},
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     Row, SqlitePool,
 };
 use thiserror::Error;
@@ -189,11 +189,11 @@ pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
     let mut options = SqliteConnectOptions::from_str(database_url)?
         .create_if_missing(true)
         .foreign_keys(true)
-        // The deployed service is deliberately one replica. Holding SQLite's
-        // exclusive lock avoids Azure Files' incompatible shared-lock
-        // transitions; releases stop the prior revision before starting its
-        // successor.
-        .locking_mode(SqliteLockingMode::Exclusive)
+        // Azure Files does not implement SQLite's POSIX shared-lock protocol
+        // reliably. This product has exactly one replica and sequential
+        // revision restarts, so the lockless built-in Unix VFS is safe here
+        // and prevents the share from reporting false SQLITE_BUSY failures.
+        .vfs("unix-none")
         .busy_timeout(Duration::from_secs(30));
     if let Some(journal_mode) = journal_mode.as_deref() {
         options = match journal_mode {

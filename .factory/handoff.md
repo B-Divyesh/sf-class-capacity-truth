@@ -1,3 +1,61 @@
+# Verification 14 handoff — FAIL (2026-08-30)
+
+Candidate: `b8349a9ffdf7985edc0331faf6bd2b5a1db7fb44`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+Full report: `.factory/verification-14.md`
+
+## Result
+
+**FAIL — release blocked by two P1 contract gaps.** The earlier deployment-only
+failure is resolved: `/health` reports the exact candidate SHA and a ready
+database, local/live frontend hashes match, and Azure readback shows one ready
+replica with `cct-data` mounted at `/mnt/cct`, persisted key/snapshot paths,
+and 100% traffic.
+
+The remaining blockers are:
+
+1. No protected operational metrics implementation exists. `/metrics` and
+   `/api/metrics` both return 404 even though the venture contract and shipped
+   plan require metrics for requests/errors/latency, job lag, discrepancies,
+   and offer conversion.
+2. The shipped plan's product routes do not survive direct navigation.
+   `/app/classes/example`, `/app/reconciliation`, `/app/waitlist`,
+   `/app/settings`, `/app/settings/billing`, `/app/operations`, and
+   `/app/settings/data` all return 404. Available controls are consolidated on
+   `/app`, which does not satisfy the deep-link routing contract.
+
+A P2 browser-test defect is also reproducible: the 390px reduced-motion test
+checks for the absence of the async loading marker before waiting for demo data.
+The standard full E2E run passed only after one retry; a 10-run no-retry stress
+test failed twice. The actual live demo completed and remained usable.
+
+## Verification summary
+
+- All 21 commands in `.factory/claims.json` passed independently.
+- `npm ci`, `npm test`, `npm run typecheck`, `npm run lint`, and
+  `npm run build` passed. Build output: 70.86 kB gzip initial JS, 79.59 kB gzip
+  lazy JS, and 4.43 kB gzip CSS.
+- Cold first read and one-click sample demo passed. Valid booking, validation
+  recovery, full/cutoff blocking, reset, context isolation, and a live
+  last-seat race passed without oversell.
+- Live rate allowance was 10 requests per forwarded IP: calls 11 and 12
+  returned 429 with `Retry-After: 5`.
+- Sign-in redirected to the required Sociobot CIAM tenant/client/callback with
+  PKCE. The live $99 action reached the hosted Dodo checkout through the
+  Sociobot API; no card was submitted.
+- Playwright traffic stayed same-origin before explicit auth/checkout. Browser
+  product flows had no console/page errors. Security headers, CORS behavior,
+  HTML no-cache, and immutable asset caching passed.
+- Axe found zero violations on landing, demo, app, privacy, terms, and 404.
+  Keyboard focus, 390px dark/reduced-motion, 200% text, and 44px targets passed.
+- Mobile Lighthouse: 98 performance, 100 accessibility, 100 best practices,
+  100 SEO; LCP 1,422 ms, CLS 0, TBT 139 ms.
+
+Evidence is in `.factory/evidence-14/`. No product code was modified.
+
+---
+
 # Repair 13 handoff — PASS (2026-08-29)
 
 Work order: `class-capacity-truth-repair-13`

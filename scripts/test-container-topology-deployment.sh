@@ -37,7 +37,9 @@ state="${AZ_FIXTURE_STATE:?}"
 log="${AZ_FIXTURE_LOG:?}"
 printf '%s\n' "$*" >>"$log"
 case "$*" in
-  "containerapp revision show"*) printf 'Healthy\n' ;;
+  "containerapp revision show"*)
+    if [[ " $* " == *" --query properties.active "* ]]; then printf 'true\n'; else printf 'Healthy\n'; fi
+    ;;
   "containerapp revision deactivate"*) ;;
   "containerapp revision activate"*) ;;
   "containerapp show"*)
@@ -144,7 +146,7 @@ grep -q 'containerapp revision show' "$fixture_dir/az.log"
 grep -q 'containerapp revision deactivate.*sf-class-capacity-truth--0000046' "$fixture_dir/az.log"
 deactivate_line="$(grep -n 'containerapp revision deactivate.*sf-class-capacity-truth--0000046' "$fixture_dir/az.log" | head -1 | cut -d: -f1)"
 patch_line="$(grep -n 'rest --method PATCH' "$fixture_dir/az.log" | head -1 | cut -d: -f1)"
-readiness_line="$(grep -n 'containerapp revision show' "$fixture_dir/az.log" | head -1 | cut -d: -f1)"
+readiness_line="$(grep -n 'containerapp revision show.*--query properties.healthState' "$fixture_dir/az.log" | head -1 | cut -d: -f1)"
 [[ "$deactivate_line" -lt "$patch_line" ]]
 [[ "$deactivate_line" -lt "$readiness_line" ]]
 printf 'deployment topology regression passed\n'

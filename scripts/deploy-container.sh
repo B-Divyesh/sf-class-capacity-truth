@@ -67,6 +67,11 @@ app_id="$(az containerapp show --resource-group "$resource_group" --name "$app_n
 # /data, not merely the newest template.
 previous_revision="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
   --query properties.latestReadyRevisionName -o tsv)"
+previous_active=false
+if [[ -n "$previous_revision" ]]; then
+  previous_active="$(az containerapp revision show --resource-group "$resource_group" --name "$app_name" \
+    --revision "$previous_revision" --query properties.active -o tsv 2>/dev/null || printf 'false')"
+fi
 previous_deactivated=false
 deployment_complete=false
 patch_file="$(mktemp)"
@@ -106,7 +111,7 @@ jq --arg image "$image" --arg revision_suffix "$revision_suffix" --arg storage_n
 # provide compatible POSIX byte-range locks. There must never be two processes
 # with this mount open. A short, explicit restart gap is safer than a rolling
 # overlap that could corrupt the school ledger.
-if [[ -n "$previous_revision" ]]; then
+if [[ -n "$previous_revision" && "$previous_active" == "true" ]]; then
   az containerapp revision deactivate --resource-group "$resource_group" --name "$app_name" \
     --revision "$previous_revision" --only-show-errors >/dev/null
   previous_deactivated=true

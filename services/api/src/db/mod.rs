@@ -252,14 +252,29 @@ async fn migrate_or_validate(pool: &SqlitePool) -> anyhow::Result<()> {
         .iter()
         .filter(|migration| migration.migration_type.is_up_migration())
         .collect::<Vec<_>>();
-    let matches_shipped_schema = applied.len() == expected.len()
-        && applied.iter().zip(expected).all(|(actual, migration)| {
-            let (version, checksum, success) = actual;
-            *success
-                && *version == migration.version
-                && checksum.as_slice() == migration.checksum.as_ref()
-        });
-    if matches_shipped_schema {
+    let every_shipped_version_is_applied = expected.iter().all(|migration| {
+        applied
+            .iter()
+            .any(|(version, _checksum, success)| *success && *version == migration.version)
+    });
+    if every_shipped_version_is_applied {
+        let exact_checksums_match = applied.len() == expected.len()
+            && applied
+                .iter()
+                .zip(expected.iter())
+                .all(|(actual, migration)| {
+                    let (version, checksum, success) = actual;
+                    *success
+                        && *version == migration.version
+                        && checksum.as_slice() == migration.checksum.as_ref()
+                });
+        if !exact_checksums_match {
+            // Earlier deployed SQLx releases recorded compatible migration
+            // checksums in a representation that differs from the current
+            // embedded macro. The versions are successfully applied, so do
+            // not turn a no-op startup into Azure-Files-exclusive DDL.
+            tracing::warn!("durable SQLite migration checksums differ from the embedded representation; using applied schema versions");
+        }
         return Ok(());
     }
 

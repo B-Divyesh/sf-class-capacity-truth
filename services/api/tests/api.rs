@@ -429,7 +429,7 @@ fn claim_deployment_topology_is_one_replica_with_azure_files() {
         "minReplicas: 1",
         "maxReplicas: 1",
         "storageType: AzureFile",
-        "storageName: class-capacity-truth-data",
+        "storageName: sf-class-capacity-truth-data",
         "mountPath: /data",
         "name: PORT",
         "value: \"8080\"",

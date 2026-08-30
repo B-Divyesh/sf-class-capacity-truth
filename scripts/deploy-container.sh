@@ -9,7 +9,7 @@ set -euo pipefail
 resource_group="${RESOURCE_GROUP:-sociobot}"
 app_name="${CONTAINER_APP_NAME:-sf-class-capacity-truth}"
 base_url="${BASE_URL:-https://class-capacity-truth.sociobot.in}"
-storage_name="${DATA_STORAGE_NAME:-class-capacity-truth-data}"
+storage_name="${DATA_STORAGE_NAME:-sf-class-capacity-truth-data}"
 image="${IMAGE:?Set IMAGE to the immutable ACR image tag to deploy}"
 # A source SHA is supplied by the release build when available. For the
 # factory's immutable SHA-tagged images, the tag itself is still enough to

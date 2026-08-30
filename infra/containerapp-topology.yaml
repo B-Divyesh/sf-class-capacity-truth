@@ -17,4 +17,4 @@ template:
   volumes:
     - name: data
       storageType: AzureFile
-      storageName: class-capacity-truth-data
+      storageName: sf-class-capacity-truth-data

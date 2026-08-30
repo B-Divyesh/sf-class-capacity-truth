@@ -133,7 +133,7 @@ jq -e '
   .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:deployment-regression" and
   .properties.template.revisionSuffix == "d-regression-20260829" and
   .properties.template.scale == {minReplicas: 1, maxReplicas: 1} and
-  (.properties.template.volumes | any(.name == "data" and .storageType == "AzureFile" and .storageName == "class-capacity-truth-data")) and
+  (.properties.template.volumes | any(.name == "data" and .storageType == "AzureFile" and .storageName == "sf-class-capacity-truth-data")) and
   (.properties.template.containers[0].volumeMounts | any(.volumeName == "data" and .mountPath == "/data")) and
   (.properties.template.containers[0].env == [{name:"PORT", value:"8080"}])
 ' "$fixture_dir/state.json" >/dev/null

@@ -3,7 +3,7 @@ set -euo pipefail
 
 resource_group="${RESOURCE_GROUP:-sociobot}"
 app_name="${CONTAINER_APP_NAME:-sf-class-capacity-truth}"
-storage_name="${DATA_STORAGE_NAME:-class-capacity-truth-data}"
+storage_name="${DATA_STORAGE_NAME:-sf-class-capacity-truth-data}"
 actual="$(az containerapp show -g "$resource_group" -n "$app_name" -o json)"
 jq -e --arg storage_name "$storage_name" '
   .properties.template.scale.minReplicas == 1 and

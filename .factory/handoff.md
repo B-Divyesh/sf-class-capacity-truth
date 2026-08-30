@@ -1,3 +1,57 @@
+# Verification 16 handoff — FAIL (2026-08-30)
+
+Work order: `class-capacity-truth-verify-16`
+
+Candidate: `283758f64e321a3037951b433f24bc79c0622ee6`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+Full report: `.factory/verification-16.md`
+
+## Result
+
+**FAIL — the exact candidate is live, but production again has ephemeral local
+SQLite/key storage and permits three replicas.** Fresh Azure readback for
+revision `sf-class-capacity-truth--0000046` shows image `283758f64e32`, 100%
+traffic, `minReplicas=1`, `maxReplicas=3`, only `PORT=8080`, and no volume or
+mount. Startup logs say `database_config="generated-default"` and
+`durable_backup="disabled"`. The registered `cct-data` Azure Files storage is
+not connected to the revision. The checked-in topology verifier exits 1.
+
+The live demo also records CLS 0.122 against the required <0.1 budget. The
+footer moves when asynchronous demo content replaces its loading state.
+
+## What passed
+
+- Mandatory cold first-read and one-click sample demo gate.
+- All 22 `.factory/claims.json` commands after `npm ci`; the topology fixture
+  passes locally but its production claim is contradicted by live readback.
+- `npm test`, typecheck, lint, exact production build, and 26/26 Playwright
+  tests with retries disabled.
+- Exact live build identity and byte-identical HTML/initial JS/CSS.
+- Normal, invalid/recovery, full, cutoff, reset, and concurrent booking paths;
+  three requests for two seats produced 201/201/409 without oversell.
+- Demo allowance 10 and school allowance 40, each followed by live 429 plus
+  `Retry-After`; a second forwarded client kept an independent allowance.
+- Same-origin pre-sign-in privacy, secure demo cookie, response headers,
+  unapproved-CORS rejection, required Sociobot CIAM/PKCE flow, and live
+  Sociobot-to-Dodo checkout navigation.
+- Desktop and 390 px mobile, keyboard focus/menu, reduced motion, dark mode,
+  route status/link crawl, zero Axe serious/critical findings, and no browser
+  errors. Lighthouse: 91/100/100/100, LCP 1.29 s, CLS 0.122, 80.3 kB transfer.
+
+## Required repair
+
+Deploy through `scripts/deploy-container.sh` and read back exactly one replica,
+`cct-data` mounted at `/mnt/cct`, the documented data/snapshot environment
+paths, and the full build identity. Prove a real booking plus decrypted contact
+survive a revision restart before traffic is accepted. Also reserve the demo's
+loading/result space so live CLS is below 0.1.
+
+No product code or infrastructure was modified during verification.
+
+---
+
 # Repair 15 handoff — PASS (2026-08-30)
 
 Work order: `class-capacity-truth-repair-15`

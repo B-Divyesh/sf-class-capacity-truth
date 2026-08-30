@@ -1,9 +1,11 @@
-# Repair 14 handoff — local verification complete (2026-08-30)
+# Repair 14 handoff — PASS (2026-08-30)
 
 Work order: `class-capacity-truth-repair-14`
 Base verifier report: `.factory/verification-14.md` at
 `ca228b938b4946146ac8e25df6c779991c78d2d1`
 Failed candidate: `b8349a9ffdf7985edc0331faf6bd2b5a1db7fb44`
+Live URL: <https://class-capacity-truth.sociobot.in>
+Deployed application source: `2991e638b7619669716ff93514d23a43fbb9720e`
 
 ## Repaired findings
 
@@ -25,6 +27,10 @@ Failed candidate: `b8349a9ffdf7985edc0331faf6bd2b5a1db7fb44`
 3. **The 390px test waits for real demo readiness.** It now waits for all three
    class articles before it asserts the loading marker is absent. The exact
    no-retry stress command passed all 10 repetitions.
+4. **The skip link now focuses the main landmark.** All routes make their
+   `main#main` programmatically focusable. The keyboard E2E test activates
+   “Skip to main content” and asserts focus is on `main`, preventing a future
+   regression where the link only changed the fragment.
 
 The product class remains `web-with-backend`; the researched brief, demo,
 Entra flow, hosted Sociobot billing path, SQLite/Azure Files topology, and all
@@ -33,8 +39,8 @@ previously passing capacity behavior are unchanged.
 ## Local evidence
 
 - Clean install: `npm ci` — 170 packages, 0 vulnerabilities.
-- Quality gates: `npm test`, `npm run typecheck`, `npm run lint`, and
-  `npm run build` all passed. The production build emits 73.53 kB gzip initial
+- Final quality gates: `npm test`, `npm run typecheck`, `npm run lint`, and
+  `npm run build` all passed. The production build emits 73.54 kB gzip initial
   JavaScript, 79.59 kB gzip lazy staff/auth JavaScript, and 4.62 kB gzip CSS.
 - Full no-retry browser suite: `CI= npm run test:e2e` — **26/26 passed**.
   This includes desktop/mobile, keyboard navigation, deep-link title/focus and
@@ -64,6 +70,44 @@ previously passing capacity behavior are unchanged.
   `@axe-core/playwright` integration ran successfully instead (all relevant
   routes, including operations, have zero serious/critical violations).
 
+## Final deployment and live evidence
+
+- ACR build `ch1cq` built
+  `sociobotregistry.azurecr.io/sf-class-capacity-truth:2991e638b7619669716ff93514d23a43fbb9720e`
+  from the final source. Image digest:
+  `sha256:c9e4dce24af545ba7e0264eac20e2938cf4ea431dc7362359866ad7fe9452774`.
+- The guarded deployment created
+  `sf-class-capacity-truth--r14-2991e63-20260830015944`. Azure readback shows
+  the immutable image above, one ready replica, `minReplicas=1`,
+  `maxReplicas=1`, and the `cct-data` Azure Files mount at `/mnt/cct`.
+  `/health` returned `status: ok`, `database: ready`, and the exact full
+  deployed SHA.
+- Live direct navigation returned HTTP 200 for `/app`, class detail,
+  reconciliation, waitlist, settings, billing, data, and operations. All
+  three metrics URLs returned 401 plus `WWW-Authenticate: Bearer` when
+  unauthenticated; the API integration claim proves an owner request receives
+  only fixed-label, aggregated Prometheus metrics with no PII.
+- Live desktop home/demo/operations and 390px demo browser checks had one h1,
+  no console errors, no horizontal overflow, and zero Axe serious/critical
+  violations. The keyboard smoke confirms the skip link focuses `main`.
+  `verify-url.sh` also passed: title, `lang=en`, main landmark, image alts,
+  and labelled buttons are present.
+- Live policy probes confirmed HTML is no-cache; hashed assets remain
+  immutable; CSP carries `frame-ancestors 'none'`; `nosniff`, referrer, and
+  permissions headers are set. CORS returned the production origin only (and
+  no `Access-Control-Allow-Origin` for `https://example.invalid`). A fresh
+  forwarded IP received an initial demo session plus nine 200 demo calls, then
+  429 responses with `Retry-After: 5`.
+- A live demo browser session made four same-origin requests and no
+  third-party requests before any explicit sign-in or checkout action.
+- The signed-out live staff flow redirects to the required Sociobot CIAM
+  tenant with client `25c704f4-465a-47af-80ab-2c489466b697`, callback
+  `https://class-capacity-truth.sociobot.in/auth/callback`, and PKCE `S256`.
+  No credentials were entered.
+- Final mobile Lighthouse: performance 100, accessibility 100, best practices
+  100, SEO 100; LCP 1,201.16 ms and CLS 0. Final live evidence is in
+  `.factory/qa-artifacts/repair-14-live/`.
+
 Offline/service-worker update checks remain not applicable: this product makes
 no offline claim and registers no service worker. It is not a library or CLI,
 so package-consumer testing is not applicable.
@@ -89,9 +133,8 @@ CI= npm run test:e2e -- --grep 'demo remains usable at 390px' --repeat-each=10 -
 
 ## Deployment
 
-Local repair verification is complete. The next handoff update records the
-immutable ACR build, guarded Container Apps deployment, live route/metrics
-probes, response policy, live identity redirect, and final revision readback.
+Deployment is complete and live on the final application source above. No
+operator action remains.
 
 ---
 

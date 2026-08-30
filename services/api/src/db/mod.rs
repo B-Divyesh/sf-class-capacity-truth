@@ -166,23 +166,36 @@ pub enum RealError {
 }
 
 pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
-    let journal_mode_name = env::var("SQLITE_JOURNAL_MODE")
-        .unwrap_or_else(|_| "wal".into())
-        .to_ascii_lowercase();
-    let journal_mode = match journal_mode_name.as_str() {
-        "delete" => sqlx::sqlite::SqliteJournalMode::Delete,
-        _ => sqlx::sqlite::SqliteJournalMode::Wal,
-    };
+    // Do not issue `PRAGMA journal_mode = …` by default. A Container Apps
+    // revision briefly overlaps the revision it replaces, and changing (or
+    // even reasserting) the journal mode requires an exclusive SQLite lock.
+    // Opening the already-durable database without that write lets the new
+    // one-replica revision become healthy before the old revision exits. New
+    // databases use SQLite's safe DELETE journal default; an explicit local
+    // override remains available for development.
+    let journal_mode = env::var("SQLITE_JOURNAL_MODE")
+        .ok()
+        .map(|value| value.to_ascii_lowercase());
     let max_connections = env::var("SQLITE_MAX_CONNECTIONS")
         .ok()
         .and_then(|value| value.parse::<u32>().ok())
         .filter(|value| *value > 0)
-        .unwrap_or(if journal_mode_name == "delete" { 1 } else { 8 });
-    let options = SqliteConnectOptions::from_str(database_url)?
+        // SQLite state is single-writer and production deliberately has one
+        // replica. One connection gives the Azure Files-mounted database a
+        // predictable lock owner while still allowing caller-level async
+        // concurrency.
+        .unwrap_or(1);
+    let mut options = SqliteConnectOptions::from_str(database_url)?
         .create_if_missing(true)
         .foreign_keys(true)
-        .journal_mode(journal_mode)
-        .busy_timeout(Duration::from_secs(10));
+        .busy_timeout(Duration::from_secs(30));
+    if let Some(journal_mode) = journal_mode.as_deref() {
+        options = match journal_mode {
+            "delete" => options.journal_mode(sqlx::sqlite::SqliteJournalMode::Delete),
+            "wal" => options.journal_mode(sqlx::sqlite::SqliteJournalMode::Wal),
+            _ => options,
+        };
+    }
     let pool = SqlitePoolOptions::new()
         .max_connections(max_connections)
         .connect_with(options)

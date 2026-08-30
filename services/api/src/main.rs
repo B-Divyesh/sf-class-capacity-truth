@@ -58,9 +58,8 @@ async fn main() -> anyhow::Result<()> {
         } else {
             "generated-default"
         },
-        sqlite_journal_mode = env::var("SQLITE_JOURNAL_MODE").unwrap_or_else(|_| "wal".into()),
-        sqlite_max_connections =
-            env::var("SQLITE_MAX_CONNECTIONS").unwrap_or_else(|_| "automatic".into()),
+        sqlite_journal_mode = env::var("SQLITE_JOURNAL_MODE").unwrap_or_else(|_| "preserve".into()),
+        sqlite_max_connections = env::var("SQLITE_MAX_CONNECTIONS").unwrap_or_else(|_| "1".into()),
         durable_backup = if durable_backup_path.is_some() {
             "supplied"
         } else {

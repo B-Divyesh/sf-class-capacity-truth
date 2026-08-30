@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use axum::{
     body::Body,
@@ -8,7 +8,7 @@ use axum::{
 use class_capacity_truth_api::{app, db, AppState};
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
-use sqlx::Row;
+use sqlx::{Connection, Row, SqliteConnection};
 use tempfile::TempDir;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -1252,4 +1252,34 @@ async fn claim_durable_snapshot_survives_restart() {
     assert_eq!(bookings.len(), 1);
     assert_eq!(bookings[0].guardian_name, "Restart Parent");
     assert_eq!(bookings[0].guardian_email, "restart.parent@example.org");
+}
+
+#[tokio::test]
+async fn durable_database_opens_during_revision_overlap_without_resetting_journal_mode() {
+    // A replacing Container Apps revision starts while the old revision is
+    // still serving from the same /data database. BEGIN IMMEDIATE permits
+    // readers but blocks a journal-mode PRAGMA, which is the exact startup
+    // failure observed on revision sf-class-capacity-truth--0000049.
+    let directory = tempfile::tempdir().unwrap();
+    let url = format!("sqlite://{}", directory.path().join("shared.db").display());
+    let initial = db::connect(&url).await.unwrap();
+    initial.close().await;
+
+    let mut old_revision = SqliteConnection::connect(&url).await.unwrap();
+    sqlx::query("BEGIN IMMEDIATE")
+        .execute(&mut old_revision)
+        .await
+        .unwrap();
+
+    let replacing_revision = tokio::time::timeout(Duration::from_secs(2), db::connect(&url))
+        .await
+        .expect("replacement startup must not wait for an exclusive journal-mode lock")
+        .expect("replacement startup must open the durable SQLite database");
+
+    sqlx::query("ROLLBACK")
+        .execute(&mut old_revision)
+        .await
+        .unwrap();
+    old_revision.close().await.unwrap();
+    replacing_revision.close().await;
 }

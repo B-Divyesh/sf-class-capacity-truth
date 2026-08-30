@@ -9,6 +9,7 @@ set -euo pipefail
 # command replaces the stale template, waits for the revision that receives
 # traffic, and verifies the repair's full runtime identity.
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+grep -Fq 'BUILD_SHA="$BUILD_SHA" cargo build --release' "$repo_root/Dockerfile"
 fixture_dir="$(mktemp -d)"
 cleanup() { rm -rf "$fixture_dir"; }
 trap cleanup EXIT

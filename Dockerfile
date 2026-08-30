@@ -18,7 +18,10 @@ COPY services/api/Cargo.toml services/api/Cargo.lock* ./services/api/
 COPY services/api/migrations ./services/api/migrations
 COPY services/api/src ./services/api/src
 COPY 404.html ./404.html
-RUN cargo build --release --manifest-path services/api/Cargo.toml
+# BUILD_SHA is part of the binary's public /health identity. Reference it in
+# this command so an ACR layer cache cannot reuse a Rust binary compiled for a
+# previous source revision.
+RUN test -n "$BUILD_SHA" && BUILD_SHA="$BUILD_SHA" cargo build --release --manifest-path services/api/Cargo.toml
 
 FROM alpine:3.22 AS runtime
 ARG BUILD_SHA=dev

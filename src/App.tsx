@@ -256,22 +256,34 @@ function DemoPage() {
       <main id="main" tabIndex={-1} className="page-width app-main">
         <p className="eyebrow">Bright Path Languages</p><h1 tabIndex={-1}>Check three sample classes</h1>
         <p className="lede">One class has seats. One is full. One has passed its booking cutoff.</p>
-        {demo.error && <StatePanel tone="error" title="The sample did not load" detail={demo.error} action={<button className="button secondary" onClick={demo.reload}>Try loading again</button>} />}
-        {!demo.data && !demo.error && <LoadingState />}
-        {demo.data && <div className="class-list" aria-label="Sample classes">{demo.data.classes.map((session) => <ClassCard key={session.publicId} session={session} />)}</div>}
+        <div className="demo-results" aria-busy={!demo.data && !demo.error}>
+          {demo.error && <StatePanel tone="error" title="The sample did not load" detail={demo.error} action={<button className="button secondary" onClick={demo.reload}>Try loading again</button>} />}
+          {!demo.data && !demo.error && <DemoLoadingState />}
+          {demo.data && <div className="class-list" aria-label="Sample classes">{demo.data.classes.map((session) => <ClassCard key={session.publicId} session={session} />)}</div>}
+        </div>
       </main>
     </>
   );
 }
 
-function ClassCard({ session }: { session: ClassSession }) {
+function DemoLoadingState() {
+  const now = Math.floor(Date.now() / 1000);
+  const placeholders: ClassSession[] = [
+    { publicId: "loading-open", name: "Level check: upper primary", startsAt: now + 2 * 86_400, bookingCutoff: now + 86_400, timezone: "Europe/London", capacity: 8, confirmed: 6, openSeats: 2, availability: "available" },
+    { publicId: "loading-full", name: "Friday conversation group", startsAt: now + 3 * 86_400, bookingCutoff: now + 2 * 86_400, timezone: "Europe/London", capacity: 6, confirmed: 6, openSeats: 0, availability: "full" },
+    { publicId: "loading-cutoff", name: "Saturday assessment", startsAt: now + 7 * 86_400, bookingCutoff: now - 3_600, timezone: "Europe/London", capacity: 10, confirmed: 4, openSeats: 6, availability: "cutoff" }
+  ];
+  return <div className="class-list demo-loading-list" aria-live="polite"><p className="sr-only">Loading sample classes</p>{placeholders.map((session) => <ClassCard key={session.publicId} session={session} loading />)}</div>;
+}
+
+function ClassCard({ session, loading = false }: { session: ClassSession; loading?: boolean }) {
   return (
-    <article className="class-card">
+    <article className="class-card" aria-hidden={loading || undefined}>
       <div className="class-card-heading"><div><h2>{session.name}</h2><p>{formatStart(session.startsAt)} · {session.timezone}</p></div><strong className={`status status-${session.availability}`}>{availabilityText(session)}</strong></div>
       <CapacityRail capacity={session.capacity} confirmed={session.confirmed} label={`${session.confirmed} confirmed, ${session.openSeats} open`} />
-      {session.availability === "available" && <AppLink className="button primary" href={`/book/${session.publicId}`}>Book this sample class</AppLink>}
-      {session.availability === "full" && <><p className="state-explanation">This class is full. Choose the upper primary class to try a booking.</p><AppLink className="text-action" href={`/book/${session.publicId}`}>View the full class</AppLink></>}
-      {session.availability === "cutoff" && <><p className="state-explanation">The booking cutoff has passed. Choose the upper primary class to try a booking.</p><AppLink className="text-action" href={`/book/${session.publicId}`}>View the closed class</AppLink></>}
+      {session.availability === "available" && (loading ? <span className="button primary">Book this sample class</span> : <AppLink className="button primary" href={`/book/${session.publicId}`}>Book this sample class</AppLink>)}
+      {session.availability === "full" && <><p className="state-explanation">This class is full. Choose the upper primary class to try a booking.</p>{loading ? <span className="text-action">View the full class</span> : <AppLink className="text-action" href={`/book/${session.publicId}`}>View the full class</AppLink>}</>}
+      {session.availability === "cutoff" && <><p className="state-explanation">The booking cutoff has passed. Choose the upper primary class to try a booking.</p>{loading ? <span className="text-action">View the closed class</span> : <AppLink className="text-action" href={`/book/${session.publicId}`}>View the closed class</AppLink>}</>}
     </article>
   );
 }

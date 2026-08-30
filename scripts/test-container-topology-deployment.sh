@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Regression for verification-15 P0. The fixture is the exact defective active
+# Regression for verification-16 P0. The fixture is the exact defective active
 # control-plane shape read from production by the independent verifier:
-# candidate cc5542bbec9b12fc8b5f61cd25e50824c563c6c9, revision 0000045, only
-# PORT, no Azure Files mount, and maxReplicas 3. It first proves that the
-# readback guard rejects that shape, then proves the checked-in deploy command
-# registers Azure Files, replaces the stale template, waits for the revision
-# that receives traffic, and verifies the repair's full runtime identity.
+# candidate 283758f64e321a3037951b433f24bc79c0622ee6, revision 0000046, only
+# PORT, no durable /data Azure Files mount, and maxReplicas 3. It first proves
+# that the readback guard rejects that shape, then proves the checked-in deploy
+# command replaces the stale template, waits for the revision that receives
+# traffic, and verifies the repair's full runtime identity.
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 fixture_dir="$(mktemp -d)"
 cleanup() { rm -rf "$fixture_dir"; }
@@ -18,11 +18,11 @@ cat >"$fixture_dir/state.json" <<'JSON'
 {
   "id": "/subscriptions/test/resourceGroups/sociobot/providers/Microsoft.App/containerApps/sf-class-capacity-truth",
   "properties": {
-      "latestRevisionName": "sf-class-capacity-truth--0000045",
-      "latestReadyRevisionName": "sf-class-capacity-truth--0000045",
+      "latestRevisionName": "sf-class-capacity-truth--0000046",
+      "latestReadyRevisionName": "sf-class-capacity-truth--0000046",
       "provisioningState": "Succeeded",
       "template": {
-      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:cc5542bbec9b","env":[{"name":"PORT","value":"8080"}]}],
+      "containers": [{"name":"app","image":"sociobotregistry.azurecr.io/sf-class-capacity-truth:283758f64e32","env":[{"name":"PORT","value":"8080"}]}],
       "scale": {"minReplicas":1,"maxReplicas":3}
     }
   }
@@ -36,9 +36,6 @@ state="${AZ_FIXTURE_STATE:?}"
 log="${AZ_FIXTURE_LOG:?}"
 printf '%s\n' "$*" >>"$log"
 case "$*" in
-  "storage account keys list"*) printf 'fixture-storage-key\n' ;;
-  "storage share create"*) : ;;
-  "containerapp env storage set"*) : ;;
   "containerapp revision show"*) printf 'Healthy\n' ;;
   "containerapp show"*)
     if [[ " $* " == *" --query id "* ]]; then
@@ -84,9 +81,9 @@ chmod +x "$fixture_dir/bin/curl"
 
 # First reproduce the failing revision without changing it.
 jq -e '
-  .properties.latestRevisionName == "sf-class-capacity-truth--0000045" and
-  .properties.latestReadyRevisionName == "sf-class-capacity-truth--0000045" and
-  .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:cc5542bbec9b" and
+  .properties.latestRevisionName == "sf-class-capacity-truth--0000046" and
+  .properties.latestReadyRevisionName == "sf-class-capacity-truth--0000046" and
+  .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:283758f64e32" and
   .properties.template.scale.maxReplicas == 3 and
   .properties.template.containers[0].env == [{name:"PORT", value:"8080"}] and
   (.properties.template.containers[0].volumeMounts | not) and
@@ -136,11 +133,9 @@ jq -e '
   .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:deployment-regression" and
   .properties.template.revisionSuffix == "d-regression-20260829" and
   .properties.template.scale == {minReplicas: 1, maxReplicas: 1} and
-  (.properties.template.volumes | any(.name == "cct-data" and .storageType == "AzureFile" and .storageName == "cct-data")) and
-  (.properties.template.containers[0].volumeMounts | any(.volumeName == "cct-data" and .mountPath == "/mnt/cct")) and
-  (.properties.template.containers[0].env | any(.name == "DATA_DIR" and .value == "/mnt/cct/keys")) and
-  (.properties.template.containers[0].env | any(.name == "DURABLE_BACKUP_PATH" and .value == "/mnt/cct/snapshots/class-capacity-truth.db"))
+  (.properties.template.volumes | any(.name == "data" and .storageType == "AzureFile" and .storageName == "class-capacity-truth-data")) and
+  (.properties.template.containers[0].volumeMounts | any(.volumeName == "data" and .mountPath == "/data")) and
+  (.properties.template.containers[0].env == [{name:"PORT", value:"8080"}])
 ' "$fixture_dir/state.json" >/dev/null
-grep -q 'containerapp env storage set' "$fixture_dir/az.log"
 grep -q 'containerapp revision show' "$fixture_dir/az.log"
 printf 'deployment topology regression passed\n'

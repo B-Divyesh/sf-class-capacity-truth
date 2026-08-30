@@ -429,14 +429,10 @@ fn claim_deployment_topology_is_one_replica_with_azure_files() {
         "minReplicas: 1",
         "maxReplicas: 1",
         "storageType: AzureFile",
-        "storageName: cct-data",
-        "mountPath: /mnt/cct",
+        "storageName: class-capacity-truth-data",
+        "mountPath: /data",
         "name: PORT",
         "value: \"8080\"",
-        "DATA_DIR",
-        "/mnt/cct/keys",
-        "DURABLE_BACKUP_PATH",
-        "/mnt/cct/snapshots/class-capacity-truth.db",
     ] {
         assert!(
             topology.contains(required),

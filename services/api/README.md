@@ -14,8 +14,7 @@ single-replica school ledger. It provides:
 The service starts with only `PORT`, defaulting to a SQLite database and a
 persisted generated cookie key under `/data`. `DATA_DIR`, `DATABASE_URL`,
 `DURABLE_BACKUP_PATH`, `FRONTEND_DIST`, and `COOKIE_SIGNING_KEY` are optional
-overrides. In production it runs exactly one replica, uses
-`DATA_DIR=/mnt/cct/keys`, and atomically checkpoints to
-`DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db` on the
-`cct-data` Azure Files mount. The process restores that checkpoint before it
-serves traffic.
+overrides. In production it runs exactly one replica and the work order mounts
+the product's Azure Files share at `/data`. The SQLite database and generated
+cookie/contact keys live directly in that mounted directory, so a new revision
+uses the same state before it serves traffic.

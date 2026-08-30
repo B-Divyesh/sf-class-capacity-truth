@@ -65,16 +65,16 @@ produces `dist/` and a release API binary.
 
 - React 19, Vite, strict TypeScript, and hand-authored CSS for the web app.
 - Rust, Axum, SQLx, and SQLite for both the isolated demo and the
-  single-instance school ledger. Production runs SQLite on local disk and
-  atomically checkpoints each successful change to durable Azure Files storage.
-  Startup restores that checkpoint. Production is fixed at one replica.
+  single-instance school ledger. Production mounts the work-order Azure Files
+  share at `/data`; SQLite and generated keys live there. Production is fixed
+  at one replica.
 - Entra JWT discovery/JWKS validation, owner/operator/viewer authorization,
   encrypted contact and calendar fields, retention cleanup, transaction-checked
   bookings, encrypted offer tokens, durable delivery receipts, an optional
   email outbox, and forwarded-IP rate limits.
 - One non-root container serves both the API and built web assets on `PORT`.
   The checked-in deployment contract fixes the app at one replica and mounts
-  Azure Files at `/mnt/cct`; limits therefore apply once per forwarded client IP.
+  Azure Files at `/data`; limits therefore apply once per forwarded client IP.
 
 ## Operations metrics
 
@@ -97,12 +97,12 @@ billing, or cloud infrastructure. See [.factory/plan.md](.factory/plan.md) for
 the milestone architecture and [.factory/design.md](.factory/design.md) for the
 modular classroom abacus visual system.
 
-Every production release must finish through `scripts/deploy-container.sh`
-with the immutable `IMAGE` and full `EXPECTED_BUILD_SHA`. A generic Container
-Apps update is not sufficient: it can replace the required one-replica scale,
-Azure Files mount, and durable key and snapshot paths. The guarded script
-registers the storage, applies the complete template, waits for live traffic,
-and rejects a topology or build-identity mismatch.
+Every production release uses the container work order with `deploy.data_dir`
+set to `/data`, then verifies the immutable image, one-replica limit, and the
+Azure Files `/data` mount with `scripts/verify-container-topology.sh`. The
+checked-in guarded script can apply the same product template when its image
+and full `EXPECTED_BUILD_SHA` are supplied. It does not read storage
+credentials or modify shared infrastructure.
 
 ## Privacy and licence
 

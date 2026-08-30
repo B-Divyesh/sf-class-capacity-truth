@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # End-to-end durable restart proof with the release binary. It deliberately
-# creates a real-school record (not a demo tenant), then starts a new process
-# from the mounted checkpoint and verifies both capacity and encrypted contact
+# creates a real-school record (not a demo tenant) in the same direct /data
+# layout used by the work-order Azure Files mount, then starts a new process
+# from that mounted directory and verifies both capacity and encrypted contact
 # recovery through the public/staff APIs.
 BUILD_SHA=durable-restart-test npm run build >/dev/null
 runtime_dir="$(mktemp -d)"
@@ -17,8 +18,7 @@ cleanup() {
 trap cleanup EXIT
 
 start_server() {
-  DATA_DIR="$runtime_dir/mounted/keys" \
-  DURABLE_BACKUP_PATH="$runtime_dir/mounted/snapshots/class-capacity-truth.db" \
+  DATA_DIR="$runtime_dir/mounted" \
   FRONTEND_DIST="$PWD/dist" PORT=18089 TEST_AUTH_TOKEN="$token" BUILD_SHA=durable-restart-test \
   ./services/api/target/release/class-capacity-truth-api >>"$log_file" 2>&1 &
   server_pid=$!
@@ -60,7 +60,7 @@ request "$base_url/api/classes/$public_id" | jq -e '.confirmed == 1 and .openSea
 request "$base_url/api/workspaces/classes/$class_id/bookings" \
   -H "Authorization: Bearer $token" -H "X-Workspace-Key: $workspace_key" \
   | jq -e 'length == 1 and .[0].guardianName == "Revision Parent" and .[0].guardianEmail == "revision.parent@example.org"' >/dev/null
-test -s "$runtime_dir/mounted/snapshots/class-capacity-truth.db"
-test -s "$runtime_dir/mounted/keys/contact-data.key"
-test -s "$runtime_dir/mounted/keys/demo-cookie.key"
-printf 'real-school booking survived release-process restart with persisted keys and snapshot\n'
+test -s "$runtime_dir/mounted/class-capacity-truth.db"
+test -s "$runtime_dir/mounted/contact-data.key"
+test -s "$runtime_dir/mounted/demo-cookie.key"
+printf 'real-school booking survived release-process restart from direct mounted /data state\n'

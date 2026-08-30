@@ -1,3 +1,71 @@
+# Repair 16 handoff — deployment in progress (2026-08-30)
+
+Work order: `class-capacity-truth-repair-16`
+
+Base verifier report: `.factory/verification-16.md` at
+`5219b0382ccd2d8528ff44a91f4e8d8c74703204`
+
+Failed candidate: `283758f64e321a3037951b433f24bc79c0622ee6`
+
+## Repaired findings
+
+1. **Durable one-replica state now follows the work-order contract.** The
+   production topology, readback verifier, guarded product deployment command,
+   API assertion, and exact deployment fixture now require one replica and the
+   product Azure Files volume mounted at `/data`. SQLite and both generated
+   keys (`class-capacity-truth.db`, `contact-data.key`, and
+   `demo-cookie.key`) live directly in that mount. The product deployment
+   guard no longer reads storage credentials or changes shared storage.
+2. **The exact Verification 16 failure is a regression fixture.** The fixture
+   starts as revision `sf-class-capacity-truth--0000046`, image
+   `283758f64e32`, only `PORT=8080`, no volume or mount, and `maxReplicas=3`.
+   It proves the readback verifier rejects that exact shape before a simulated
+   deployment restores the `/data` mount, exactly one replica, and build
+   identity.
+3. **A direct mounted-state restart is covered.** `npm run test:durable-restart`
+   creates a real workspace/class/booking in one mounted directory, starts a
+   new release process, verifies the changed seat count plus decrypted guardian
+   contact, and asserts the SQLite database and generated key files remain.
+4. **The mobile demo no longer shifts its footer while loading.** Three inert,
+   data-shaped sample rails reserve the loaded 390px result height while the
+   API request is pending. The new Playwright regression delays the response
+   and asserts the loaded result never grows beyond its loading region.
+
+## Local verification
+
+- Clean install: `npm ci` — 170 packages, 0 vulnerabilities.
+- `npm test` passed: 8 frontend tests, 6 Rust unit tests, 20 API/integration
+  tests, and both Container App topology/readiness fixtures.
+- `npm run typecheck`, `npm run lint` (rustfmt + Clippy warnings denied), and
+  `npm run build` passed. The build emits 73.85 kB gzip initial JavaScript,
+  79.59 kB lazy JavaScript, and 4.62 kB gzip CSS.
+- `CI=1 npm run test:e2e -- --retries=0` passed 27/27. It includes desktop,
+  390px mobile, keyboard, text zoom, dark/reduced-motion, route/focus,
+  same-origin privacy, and Playwright Axe serious/critical-zero coverage.
+- All 22 manifest claim commands passed independently, including the exact
+  topology fixture, zero-config startup, and direct `/data` restart proof.
+- Factory `verify-url.sh` passed locally: 585ms load, one title/h1/main,
+  `lang=en`, no console errors, no unlabelled buttons, and no missing image
+  alts. Local `/`, `/demo`, `/privacy`, and `/terms` return 200; `/missing-page`
+  returns 404. The response supplies CSP response-header `frame-ancestors`,
+  `nosniff`, strict referrer policy, permissions policy, and no-cache HTML.
+- Mobile Lighthouse on `/demo?demo=1`: performance 98, accessibility 100,
+  best practices 100, SEO 100; FCP/LCP 1,948ms, TBT 0ms, CLS 0.
+- The product intentionally has no service worker or offline claim. Browser
+  smoke confirmed zero registrations and a normal unavailable offline reload;
+  its online demo requests were same-origin.
+
+## Deployment evidence
+
+Pending the work-order container deployment of the committed repair, followed
+by the controlled production revision-restart durability drill.
+
+## Known gaps / next steps
+
+None once the deployment readback and controlled durability drill below pass.
+
+---
+
 # Verification 16 handoff — FAIL (2026-08-30)
 
 Work order: `class-capacity-truth-verify-16`

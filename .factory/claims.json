@@ -102,7 +102,7 @@
     "claim": "Committed capacity changes survive a container restart.",
     "where": "README architecture and deployment",
     "test": "npm run test:durable-restart",
-    "sandbox": "Fresh release process with a separate mounted-storage directory; create a real school, publish a class, book a seat, restart the process, and assert both the changed seat count and decrypted booking remain."
+    "sandbox": "Fresh release process with a separate direct mounted /data directory; create a real school, publish a class, book a seat, restart the process, and assert the changed seat count, decrypted booking, SQLite file, and generated keys remain."
   },
   {
     "id": "configured-smtp-delivery",
@@ -141,10 +141,10 @@
   },
   {
     "id": "durable-one-replica-topology",
-    "claim": "Production uses one replica with Azure Files for SQLite snapshots and generated keys.",
+    "claim": "Production uses one replica with Azure Files for SQLite data and generated keys.",
     "where": "README architecture and deployment",
     "test": "npm run test:deployment",
-    "sandbox": "Begin with verification-15's exact active candidate shape (revision 0000045, image cc5542bbec9b, one PORT variable, no mount, no volume, and maxReplicas 3); assert the readback verifier rejects it, then run the deploy command through the recorded Azure control-plane fixture and assert it registers cct-data, applies the Azure Files mount/paths, reads back exactly one replica, and verifies the full runtime build identity."
+    "sandbox": "Begin with verification-16's exact active candidate shape (revision 0000046, image 283758f64e32, one PORT variable, no /data mount, no volume, and maxReplicas 3); assert the readback verifier rejects it, then run the deploy command through the recorded Azure control-plane fixture and assert it applies the work-order Azure Files /data mount, reads back exactly one replica, and verifies the full runtime build identity."
   },
   {
     "id": "operational-metrics-no-pii",

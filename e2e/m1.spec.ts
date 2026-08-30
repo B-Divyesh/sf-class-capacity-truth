@@ -139,6 +139,25 @@ test("the demo remains usable at 390px and with reduced motion", async ({ page }
   expect(await page.locator(".loading-state > span").count()).toBe(0);
 });
 
+test("release regression: the 390px demo reserves its result space before sample classes load", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let releaseSession: (() => void) | undefined;
+  const sessionPaused = new Promise<void>((resolve) => { releaseSession = resolve; });
+  await page.route("**/api/demo/session", async (route) => {
+    await sessionPaused;
+    await route.continue();
+  });
+
+  await page.goto("/demo?demo=1", { waitUntil: "domcontentloaded" });
+  await expect(page.getByText("Loading sample classes")).toBeVisible();
+  const reservedHeight = await page.locator(".demo-results").evaluate((element) => element.getBoundingClientRect().height);
+
+  releaseSession?.();
+  await expect(page.getByRole("article")).toHaveCount(3);
+  const renderedHeight = await page.locator(".demo-results").evaluate((element) => element.getBoundingClientRect().height);
+  expect(reservedHeight).toBeGreaterThanOrEqual(renderedHeight);
+});
+
 test("release regression: shipped workspace routes load directly and restore focus on history navigation", async ({ page, context }) => {
   await page.goto("/app");
   await page.getByLabel("School name").fill("Deep Link School");
@@ -252,7 +271,10 @@ test("all routes reflow at 390px and 200 percent text size with 44px targets", a
     await page.goto(route);
     await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    if (route.startsWith("/demo")) await expect(page.getByRole("article")).toHaveCount(3);
+    if (route.startsWith("/demo")) {
+      await expect(page.locator(".demo-loading-list")).toHaveCount(0, { timeout: 10_000 });
+      await expect(page.getByRole("article")).toHaveCount(3);
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), route).toBe(true);
   }
   await page.evaluate(() => { document.documentElement.style.fontSize = "100%"; });

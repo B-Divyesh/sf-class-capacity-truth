@@ -7,6 +7,17 @@ export interface RealClass extends ClassSession { id: string; published: boolean
 export interface Workspace { id: string; schoolName: string; subscriptionStatus: "trial" | "active" | "grace" | "inactive"; trialEndsAt: number | null }
 export interface BookingSummary { id: string; guardianName: string; guardianEmail: string; createdAt: number }
 export interface RuntimeStatus { emailDelivery: "smtp" | "not_configured" }
+export interface OperationalMetrics {
+  requests: number;
+  serverErrors: number;
+  totalLatencyMilliseconds: number;
+  maxLatencyMilliseconds: number;
+  calendarJobLagSeconds: number;
+  unresolvedDiscrepancies: number;
+  offersCreated: number;
+  offersAccepted: number;
+  offerConversionRatio: number;
+}
 export type OfferDeliveryStatus = "ready_to_copy" | "email_queued" | "email_sent" | "email_failed" | "accepted" | "expired" | "legacy_recorded";
 export interface OfferReceipt { id: string; classId: string; className: string; recipientName: string; offerUrl: string; expiresAt: number; offerStatus: string; deliveryStatus: OfferDeliveryStatus; createdAt: number }
 export interface ReleaseResult { offerToken: string | null; offerUrl: string | null; expiresAt: number | null; deliveryStatus: "ready_to_copy" | "email_queued" | "not_needed" }
@@ -54,6 +65,38 @@ export async function listOfferReceipts() { return responseJson<OfferReceipt[]>(
 export async function exportWorkspace() { return responseJson<unknown>(await fetch("/api/workspaces/export", { headers: await workspaceHeaders() })); }
 export async function deleteWorkspace() { return responseJson<void>(await fetch("/api/workspaces/data", { method: "DELETE", headers: await workspaceHeaders() })); }
 export async function verifyBilling(license: string) { return responseJson<Workspace>(await fetch("/api/workspaces/billing/verify", { method: "POST", headers: await workspaceHeaders(true), body: JSON.stringify({ license }) })); }
+export async function loadOperationalMetrics(): Promise<OperationalMetrics> {
+  const response = await fetch("/api/workspaces/metrics", { headers: await workspaceHeaders() });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as ApiErrorBody;
+    throw new ApiError(body.message ?? "The operational metrics did not load. Try again.", response.status, body.code);
+  }
+  return parseOperationalMetrics(await response.text());
+}
+
+function metricValue(body: string, expression: RegExp) {
+  return Number(body.match(expression)?.[1] ?? 0);
+}
+
+export function parseOperationalMetrics(body: string): OperationalMetrics {
+  const routeValues = [...body.matchAll(/^cct_http_(requests_total|server_errors_total|request_duration_milliseconds_sum|request_duration_milliseconds_max)\{route="[^"]+"\} (\d+(?:\.\d+)?)$/gm)];
+  const totals = routeValues.reduce((summary, [, name, value]) => {
+    const amount = Number(value);
+    if (name === "requests_total") summary.requests += amount;
+    if (name === "server_errors_total") summary.serverErrors += amount;
+    if (name === "request_duration_milliseconds_sum") summary.totalLatencyMilliseconds += amount;
+    if (name === "request_duration_milliseconds_max") summary.maxLatencyMilliseconds = Math.max(summary.maxLatencyMilliseconds, amount);
+    return summary;
+  }, { requests: 0, serverErrors: 0, totalLatencyMilliseconds: 0, maxLatencyMilliseconds: 0 });
+  return {
+    ...totals,
+    calendarJobLagSeconds: metricValue(body, /^cct_calendar_job_lag_seconds (\d+(?:\.\d+)?)$/m),
+    unresolvedDiscrepancies: metricValue(body, /^cct_unresolved_capacity_discrepancies (\d+(?:\.\d+)?)$/m),
+    offersCreated: metricValue(body, /^cct_released_seat_offers_total\{status="created"\} (\d+(?:\.\d+)?)$/m),
+    offersAccepted: metricValue(body, /^cct_released_seat_offers_total\{status="accepted"\} (\d+(?:\.\d+)?)$/m),
+    offerConversionRatio: metricValue(body, /^cct_released_seat_offer_conversion_ratio (\d+(?:\.\d+)?)$/m)
+  };
+}
 
 export async function createCheckoutSession() {
   const result = await responseJson<{ checkout_url: string }>(await fetch("https://api.sociobot.in/api/v1/products/class-capacity-truth/checkout", {

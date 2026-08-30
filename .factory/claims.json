@@ -145,5 +145,12 @@
     "where": "README architecture and deployment",
     "test": "npm run test:deployment",
     "sandbox": "Begin with verification-13's exact active candidate shape (revision 0000044, image 791928864bd0, one PORT variable, no mount, no volume, and maxReplicas 3); assert the readback verifier rejects it, then run the deploy command through the recorded Azure control-plane fixture and assert it registers cct-data, applies the Azure Files mount/paths, reads back exactly one replica, and verifies the full runtime build identity."
+  },
+  {
+    "id": "operational-metrics-no-pii",
+    "claim": "Signed-in owners and operators can inspect aggregate service and capacity metrics without guardian data.",
+    "where": "School workspace operations page and README operations section",
+    "test": "npm run test:api -- regression_protected_operational_metrics_are_aggregated_and_contain_no_pii",
+    "sandbox": "Create a test-owner workspace with one discrepancy; assert unauthenticated metrics access is challenged, then assert the protected Prometheus response includes request/error/latency, calendar lag, discrepancy, and offer conversion values without school, class, identity, guardian, or email text."
   }
 ]

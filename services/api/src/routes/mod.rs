@@ -130,6 +130,24 @@ pub async fn runtime_status(State(state): State<AppState>) -> Json<RuntimeStatus
     })
 }
 
+pub async fn workspace_metrics(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    let key = match workspace_access(&state, &headers, &["owner", "operator"]).await {
+        Ok(key) => key,
+        Err(response) => return *response,
+    };
+    match db::workspace_operational_metrics(&state.pool, key, unix_now()).await {
+        Ok(workspace) => {
+            let mut response = state.metrics.prometheus(workspace).into_response();
+            response.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("text/plain; version=0.0.4; charset=utf-8"),
+            );
+            response
+        }
+        Err(error) => real_error(error),
+    }
+}
+
 pub async fn not_found_page() -> Response {
     (
         StatusCode::NOT_FOUND,
@@ -339,8 +357,8 @@ async fn workspace_access<'a>(
     headers: &'a HeaderMap,
     roles: &[&str],
 ) -> Result<&'a str, Box<Response>> {
-    let key = access_key(headers)?;
     let oid = staff_identity(state, headers).await?;
+    let key = access_key(headers)?;
     db::authorize_workspace(&state.pool, key, &oid, roles)
         .await
         .map_err(|error| Box::new(real_error(error)))?;

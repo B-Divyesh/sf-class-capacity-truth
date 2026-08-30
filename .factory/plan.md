@@ -65,6 +65,8 @@ The History API router updates title, focuses the destination h1, and announces 
 | /app/waitlist | Waitlist offers — Class Capacity Truth | M3 |
 | /app/settings | Settings — Class Capacity Truth | M2 |
 | /app/settings/billing | Billing — Class Capacity Truth | M2 |
+| /app/settings/data | School data — Class Capacity Truth | M4 |
+| /app/operations | Operations — Class Capacity Truth | M4 |
 | /privacy | Privacy — Class Capacity Truth | M1 |
 | /terms | Terms — Class Capacity Truth | M1 |
 | /404 | Page not found — Class Capacity Truth | M1 |
@@ -123,7 +125,7 @@ AI is deliberately absent from capacity and reconciliation. M5 may add optional 
 
 Every API endpoint except /health is rate limited using the first X-Forwarded-For hop with socket-IP fallback. Baseline is 20 requests/second, burst 40, per client; public demo creation/booking is 10/minute and 30/hour per IP/class; auth is 5 attempts/15 minutes; write/billing routes are 10/minute per actor. Limits return 429 plus Retry-After; tests prove it. Bookings also have an idempotency key and row lock. CORS is deployment allowlisted, cookie-backed demo requests have CSRF protection, inputs validate at the edge, queries are parameterized, and logs redact tokens, email, authorization, and bodies.
 
-Health returns non-secret build SHA and dependency state. Structured JSON logs have request ID, route, status, duration, and opaque organisation ID. Protected metrics measure requests/errors/latency, job lag, discrepancies, and offer conversion. Initial targets: 99.9% monthly API availability; 99% of calendar changes reconciled in 10 minutes; no unresolved public capacity discrepancy. A failing dependency shows a conservative unavailable state rather than guessing.
+Health returns non-secret build SHA and dependency state. Structured JSON logs have request ID, route, status, duration, and opaque organisation ID. Protected metrics measure requests/errors/latency, job lag, discrepancies, and offer conversion. Signed-in owners and operators inspect their aggregate, no-PII metrics at `/app/operations` or `GET /api/metrics` with an Entra bearer and workspace key; route labels are fixed and never include a school, class, guardian, or token. Initial targets: 99.9% monthly API availability; 99% of calendar changes reconciled in 10 minutes; no unresolved public capacity discrepancy. A failing dependency shows a conservative unavailable state rather than guessing.
 
 Production SQLite is checkpointed atomically after every successful mutation to the mounted Azure Files share. On startup, the process restores that checkpoint to its local database before serving traffic. The deployment contract fixes `minReplicas=1` and `maxReplicas=1`; changing either requires a storage architecture migration. The release drill creates a synthetic booked record, starts a new revision, verifies its public seat count and decrypted guardian contact, then deletes the synthetic workspace and removes the temporary drill credential. M4 gives owners export/delete and a backup/restore runbook.
 

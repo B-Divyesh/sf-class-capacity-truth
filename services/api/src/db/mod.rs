@@ -993,6 +993,42 @@ pub async fn list_offer_receipts(
         .collect()
 }
 
+pub async fn workspace_operational_metrics(
+    pool: &SqlitePool,
+    access_key: &str,
+    now: i64,
+) -> Result<crate::metrics::WorkspaceMetrics, RealError> {
+    let workspace = workspace_for_key(pool, access_key).await?;
+    let calendar_job_lag_seconds = sqlx::query_scalar::<_, i64>(
+        "SELECT COALESCE(MAX(?1 - next_poll_at), 0) FROM calendar_connections WHERE workspace_id = ?2 AND enabled = 1 AND next_poll_at IS NOT NULL AND next_poll_at <= ?1",
+    )
+    .bind(now)
+    .bind(&workspace.id)
+    .fetch_one(pool)
+    .await
+    .map_err(|_| RealError::Database)?;
+    let unresolved_discrepancies = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM real_classes c WHERE c.workspace_id = ?1 AND (SELECT status FROM reconciliation_runs r WHERE r.class_id = c.id ORDER BY r.created_at DESC LIMIT 1) = 'attention'",
+    )
+    .bind(&workspace.id)
+    .fetch_one(pool)
+    .await
+    .map_err(|_| RealError::Database)?;
+    let (offers_created, offers_accepted) = sqlx::query_as::<_, (i64, i64)>(
+        "SELECT COUNT(*), COALESCE(SUM(CASE WHEN o.status = 'accepted' THEN 1 ELSE 0 END), 0) FROM seat_offers o JOIN real_classes c ON c.id = o.class_id WHERE c.workspace_id = ?1",
+    )
+    .bind(&workspace.id)
+    .fetch_one(pool)
+    .await
+    .map_err(|_| RealError::Database)?;
+    Ok(crate::metrics::WorkspaceMetrics {
+        calendar_job_lag_seconds,
+        unresolved_discrepancies,
+        offers_created,
+        offers_accepted,
+    })
+}
+
 pub async fn list_confirmed_bookings(
     pool: &SqlitePool,
     cipher: &ContactCipher,

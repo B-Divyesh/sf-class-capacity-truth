@@ -28,6 +28,7 @@ async fn test_app(period_ms: u64, burst: u32) -> (Router, TempDir, sqlx::SqliteP
         email_delivery_configured: false,
         durable_backup_path: None,
         backup_lock: Arc::new(tokio::sync::Mutex::new(())),
+        metrics: class_capacity_truth_api::metrics::AppMetrics::default(),
     };
     (
         app(state, PathBuf::from("does-not-exist"), period_ms, burst),
@@ -474,6 +475,95 @@ async fn school_routes_require_entra_bearer_and_return_auth_challenge() {
         router.oneshot(request).await.unwrap().status(),
         StatusCode::CREATED
     );
+}
+
+#[tokio::test]
+async fn regression_protected_operational_metrics_are_aggregated_and_contain_no_pii() {
+    let (router, _directory, pool) = test_app(1, 100).await;
+    let denied = router
+        .clone()
+        .oneshot(get("/api/metrics", "198.51.100.46", None))
+        .await
+        .unwrap();
+    assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(denied.headers()[header::WWW_AUTHENTICATE], "Bearer");
+
+    let now = class_capacity_truth_api::routes::unix_now();
+    let (_workspace, key) = db::create_workspace(&pool, "Metrics School", "test-owner-oid", now)
+        .await
+        .unwrap();
+    let class = db::create_real_class(
+        &pool,
+        &key,
+        db::NewRealClass {
+            name: "Metrics class",
+            starts_at: now + 86_400,
+            cutoff: now + 43_200,
+            timezone: "Europe/London",
+            capacity: 8,
+        },
+        now,
+    )
+    .await
+    .unwrap();
+    db::reconcile_class(&pool, &key, &class.id, 3, now)
+        .await
+        .unwrap();
+
+    let metrics = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/metrics")
+                .header("x-forwarded-for", "198.51.100.46")
+                .header(header::AUTHORIZATION, "Bearer test-owner")
+                .header("x-workspace-key", &key)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(metrics.status(), StatusCode::OK);
+    assert_eq!(
+        metrics.headers()[header::CONTENT_TYPE],
+        "text/plain; version=0.0.4; charset=utf-8"
+    );
+    let body = String::from_utf8(
+        metrics
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes()
+            .to_vec(),
+    )
+    .unwrap();
+    for expected in [
+        "cct_http_requests_total",
+        "cct_http_server_errors_total",
+        "cct_http_request_duration_milliseconds_sum",
+        "cct_calendar_job_lag_seconds",
+        "cct_unresolved_capacity_discrepancies 1",
+        "cct_released_seat_offers_total{status=\"created\"} 0",
+        "cct_released_seat_offer_conversion_ratio 0.000000",
+    ] {
+        assert!(
+            body.contains(expected),
+            "missing metrics baseline: {expected}"
+        );
+    }
+    for forbidden in [
+        "Metrics School",
+        "Metrics class",
+        "test-owner",
+        "guardian",
+        "email",
+    ] {
+        assert!(
+            !body.contains(forbidden),
+            "metric response leaked {forbidden}"
+        );
+    }
 }
 
 #[tokio::test]

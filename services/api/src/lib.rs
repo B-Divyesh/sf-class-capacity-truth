@@ -3,9 +3,14 @@ pub mod cookies;
 pub mod crypto;
 pub mod db;
 pub mod jobs;
+pub mod metrics;
 pub mod routes;
 
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use axum::{
     body::Body,
@@ -45,6 +50,7 @@ pub struct AppState {
     pub email_delivery_configured: bool,
     pub durable_backup_path: Option<Arc<PathBuf>>,
     pub backup_lock: Arc<tokio::sync::Mutex<()>>,
+    pub metrics: metrics::AppMetrics,
 }
 
 pub fn app(
@@ -105,6 +111,8 @@ pub fn app(
         .expect("positive school rate limit values");
     let school_api = Router::new()
         .route("/runtime", get(routes::runtime_status))
+        .route("/metrics", get(routes::workspace_metrics))
+        .route("/workspaces/metrics", get(routes::workspace_metrics))
         .route(
             "/workspaces",
             post(routes::create_workspace).get(routes::current_workspace),
@@ -158,11 +166,19 @@ pub fn app(
 
     Router::new()
         .route("/health", get(routes::health))
+        .route("/metrics", get(routes::workspace_metrics))
         .route_service("/", ServeFile::new(index.clone()))
         .route_service("/demo", ServeFile::new(index.clone()))
         .route_service("/privacy", ServeFile::new(index.clone()))
         .route_service("/terms", ServeFile::new(index.clone()))
         .route_service("/app", ServeFile::new(index.clone()))
+        .route_service("/app/classes/{id}", ServeFile::new(index.clone()))
+        .route_service("/app/reconciliation", ServeFile::new(index.clone()))
+        .route_service("/app/waitlist", ServeFile::new(index.clone()))
+        .route_service("/app/settings", ServeFile::new(index.clone()))
+        .route_service("/app/settings/billing", ServeFile::new(index.clone()))
+        .route_service("/app/settings/data", ServeFile::new(index.clone()))
+        .route_service("/app/operations", ServeFile::new(index.clone()))
         .route_service("/auth/callback", ServeFile::new(index.clone()))
         .route_service("/book/{id}", ServeFile::new(index.clone()))
         .route_service("/offer/{token}", ServeFile::new(index))
@@ -177,8 +193,12 @@ pub fn app(
         .fallback(get(routes::not_found_page))
         .with_state(state.clone())
         .layer(middleware::from_fn_with_state(
-            state,
+            state.clone(),
             persist_successful_mutation,
+        ))
+        .layer(middleware::from_fn_with_state(
+            state,
+            record_metrics,
         ))
         .layer(middleware::from_fn(cache_headers))
         .layer(CompressionLayer::new())
@@ -204,6 +224,20 @@ pub fn app(
         .layer(CorsLayer::new().allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE]).allow_origin(tower_http::cors::AllowOrigin::predicate(|origin, _| {
             origin.as_bytes().ends_with(b".sociobot.in") || origin.as_bytes() == b"https://class-capacity-truth.sociobot.in"
         })))
+}
+
+async fn record_metrics(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    request: Request<Body>,
+    next: Next,
+) -> axum::response::Response {
+    let route = metrics::route_group(request.uri().path());
+    let started = Instant::now();
+    let response = next.run(request).await;
+    state
+        .metrics
+        .record(route, response.status(), started.elapsed());
+    response
 }
 
 async fn persist_successful_mutation(

@@ -132,8 +132,54 @@ test("the demo remains usable at 390px and with reduced motion", async ({ page }
   await page.goto("/demo?demo=1");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.getByRole("button", { name: "Reset demo" })).toBeVisible();
+  await expect(page.getByRole("article")).toHaveCount(3);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   expect(await page.locator(".loading-state > span").count()).toBe(0);
+});
+
+test("release regression: shipped workspace routes load directly and restore focus on history navigation", async ({ page, context }) => {
+  await page.goto("/app");
+  await page.getByLabel("School name").fill("Deep Link School");
+  await page.getByRole("button", { name: "Create school workspace" }).click();
+  await page.getByLabel("Class name").fill("Deep link class");
+  await page.getByLabel("Starts at").fill("2030-06-10T10:00");
+  await page.getByLabel("Booking cutoff").fill("2030-06-09T10:00");
+  await page.getByRole("button", { name: "Create class" }).click();
+  const classHref = await page.getByRole("link", { name: "Open class details" }).getAttribute("href");
+  expect(classHref).toMatch(/^\/app\/classes\//);
+
+  const routes = [
+    [classHref!, "Class capacity — Class Capacity Truth", "Check this class capacity"],
+    ["/app/reconciliation", "Calendar checks — Class Capacity Truth", "Check calendar differences"],
+    ["/app/waitlist", "Waitlist offers — Class Capacity Truth", "Manage released-seat offers"],
+    ["/app/settings", "Settings — Class Capacity Truth", "Manage school settings"],
+    ["/app/settings/billing", "Billing — Class Capacity Truth", "Manage school billing"],
+    ["/app/settings/data", "School data — Class Capacity Truth", "Export or delete school data"],
+    ["/app/operations", "Operations — Class Capacity Truth", "Review capacity operations"]
+  ] as const;
+  for (const [path, title, heading] of routes) {
+    const response = await page.goto(path);
+    expect(response?.status(), path).toBe(200);
+    await expect(page).toHaveTitle(title);
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    if (path === "/app/operations") {
+      await expect(page.getByRole("heading", { level: 2, name: "Operational metrics" })).toBeVisible();
+      const results = await new AxeBuilder({ page }).analyze();
+      expect(results.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
+    }
+  }
+
+  // The route sweep makes several authenticated bootstrap requests. Use a
+  // separate client for the history assertion so it verifies routing, not the
+  // deliberately strict per-IP API allowance.
+  await context.setExtraHTTPHeaders({ "x-forwarded-for": "198.51.100.241" });
+  await page.goto("/app");
+  const calendarChecks = page.getByRole("link", { name: "Calendar checks" });
+  await calendarChecks.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { level: 1, name: "Check calendar differences" })).toBeFocused();
+  await page.goBack();
+  await expect(page.getByRole("heading", { level: 1, name: "Manage class capacity" })).toBeFocused();
 });
 
 test("release regression: the 390px header uses a labelled keyboard menu", async ({ page }) => {

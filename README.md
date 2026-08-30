@@ -76,6 +76,22 @@ produces `dist/` and a release API binary.
   The checked-in deployment contract fixes the app at one replica and mounts
   Azure Files at `/mnt/cct`; limits therefore apply once per forwarded client IP.
 
+## Operations metrics
+
+Signed-in owners and operators can open `/app/operations`. The same aggregate,
+no-PII data is available to an authorised school member at `GET /api/metrics`
+(or `/api/workspaces/metrics`) with their Entra bearer token and workspace key.
+The response is Prometheus text and contains fixed-route request, server-error,
+and latency totals plus calendar job lag, unresolved discrepancies, and
+released-seat offer conversion. It never contains guardian, class, school, or
+token values.
+
+Treat any server error or unresolved public discrepancy as an investigation.
+Check calendar connections when lag exceeds ten minutes, and review monthly API
+availability against the 99.9% target. The service keeps these counters in
+memory, so a restart starts a fresh operational interval; durable booking and
+reconciliation records remain the source for the workspace gauges.
+
 The factory deploys the container. This repository does not change DNS,
 billing, or cloud infrastructure. See [.factory/plan.md](.factory/plan.md) for
 the milestone architecture and [.factory/design.md](.factory/design.md) for the

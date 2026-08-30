@@ -1,3 +1,100 @@
+# Repair 14 handoff — local verification complete (2026-08-30)
+
+Work order: `class-capacity-truth-repair-14`
+Base verifier report: `.factory/verification-14.md` at
+`ca228b938b4946146ac8e25df6c779991c78d2d1`
+Failed candidate: `b8349a9ffdf7985edc0331faf6bd2b5a1db7fb44`
+
+## Repaired findings
+
+1. **Protected operational metrics now exist.** `GET /metrics`, `GET
+   /api/metrics`, and `GET /api/workspaces/metrics` all require a valid
+   Sociobot Entra bearer plus an owner/operator workspace key. The Prometheus
+   response has fixed route labels only and exposes request/error/latency
+   totals, calendar job lag, unresolved discrepancies, and released-seat offer
+   conversion. It contains no school, class, guardian, email, token, or staff
+   identity values. `/app/operations` presents the same metrics and the alert
+   thresholds documented in the plan and README.
+2. **Every shipped workspace route now survives direct navigation and reload.**
+   The Axum service serves the application shell for
+   `/app/classes/:id`, `/app/reconciliation`, `/app/waitlist`,
+   `/app/settings`, `/app/settings/billing`, `/app/settings/data`, and
+   `/app/operations`. The History API router gives each a route-specific title,
+   focussed h1, live announcement, and a usable screen. The workspace now has
+   labelled section navigation; class cards link to their permanent detail URL.
+3. **The 390px test waits for real demo readiness.** It now waits for all three
+   class articles before it asserts the loading marker is absent. The exact
+   no-retry stress command passed all 10 repetitions.
+
+The product class remains `web-with-backend`; the researched brief, demo,
+Entra flow, hosted Sociobot billing path, SQLite/Azure Files topology, and all
+previously passing capacity behavior are unchanged.
+
+## Local evidence
+
+- Clean install: `npm ci` — 170 packages, 0 vulnerabilities.
+- Quality gates: `npm test`, `npm run typecheck`, `npm run lint`, and
+  `npm run build` all passed. The production build emits 73.53 kB gzip initial
+  JavaScript, 79.59 kB gzip lazy staff/auth JavaScript, and 4.62 kB gzip CSS.
+- Full no-retry browser suite: `CI= npm run test:e2e` — **26/26 passed**.
+  This includes desktop/mobile, keyboard navigation, deep-link title/focus and
+  history behavior, 200% text/reflow, dark/reduced-motion, same-origin privacy,
+  and Playwright Axe checks. The new operations screen also has an Axe
+  serious/critical-zero assertion.
+- Every one of the 22 `claims.json` commands was run independently after the
+  repair. The 21 pre-existing claims passed, and the new
+  `operational-metrics-no-pii` claim passed through
+  `regression_protected_operational_metrics_are_aggregated_and_contain_no_pii`.
+- Exact flake regression: `CI= npm run test:e2e -- --grep 'demo remains usable
+  at 390px' --repeat-each=10 --retries=0` — **10/10 passed**.
+- Local release binary: `/health` returned ready; `/opt/fleet/lib/verify-url.sh`
+  passed with no console errors, one title/h1/main, `lang=en`, and no unnamed
+  buttons or missing image alt. Evidence is in
+  `.factory/qa-artifacts/repair-14-local/verify-url/`.
+- Local direct probes returned 200 for all seven repaired `/app/...` paths;
+  unauthenticated `/metrics` and `/api/metrics` both returned 401. The 100-rps
+  smoke completed with 10 accepted requests and 90 correctly rate-limited
+  responses with `Retry-After`.
+- Local mobile Lighthouse: performance 100, accessibility 100, best practices
+  100, SEO 100; LCP 1,201.824 ms and CLS 0. Evidence:
+  `.factory/qa-artifacts/repair-14-local/lighthouse-mobile.json`.
+- `npx @axe-core/cli` was attempted twice against the local server, including
+  with the installed Playwright Chromium path. Its Selenium launcher could not
+  start a Chrome session in this container. The repository's Playwright
+  `@axe-core/playwright` integration ran successfully instead (all relevant
+  routes, including operations, have zero serious/critical violations).
+
+Offline/service-worker update checks remain not applicable: this product makes
+no offline claim and registers no service worker. It is not a library or CLI,
+so package-consumer testing is not applicable.
+
+## Run and verify
+
+```bash
+npm ci
+npm test
+npm run typecheck
+npm run lint
+npm run build
+CI= npm run test:e2e
+```
+
+For the specific repaired regressions:
+
+```bash
+npm run test:api -- regression_protected_operational_metrics_are_aggregated_and_contain_no_pii
+CI= npm run test:e2e -- --grep 'release regression: shipped workspace routes load directly' --retries=0
+CI= npm run test:e2e -- --grep 'demo remains usable at 390px' --repeat-each=10 --retries=0
+```
+
+## Deployment
+
+Local repair verification is complete. The next handoff update records the
+immutable ACR build, guarded Container Apps deployment, live route/metrics
+probes, response policy, live identity redirect, and final revision readback.
+
+---
+
 # Verification 14 handoff — FAIL (2026-08-30)
 
 Candidate: `b8349a9ffdf7985edc0331faf6bd2b5a1db7fb44`

@@ -12,4 +12,22 @@ describe("route titles", () => {
     expect(titleForPath("/privacy")).toBe("Privacy — Class Capacity Truth");
     expect(routeForPath("/missing").kind).toBe("notFound");
   });
+
+  it("recognises every shipped workspace deep link", () => {
+    const expected = [
+      ["/app/classes/example", "Class capacity — Class Capacity Truth", "classDetail"],
+      ["/app/reconciliation", "Calendar checks — Class Capacity Truth", "reconciliation"],
+      ["/app/waitlist", "Waitlist offers — Class Capacity Truth", "waitlist"],
+      ["/app/settings", "Settings — Class Capacity Truth", "settings"],
+      ["/app/settings/billing", "Billing — Class Capacity Truth", "billing"],
+      ["/app/settings/data", "School data — Class Capacity Truth", "data"],
+      ["/app/operations", "Operations — Class Capacity Truth", "operations"]
+    ] as const;
+    for (const [path, title, section] of expected) {
+      const route = routeForPath(path);
+      expect(route.kind).toBe("workspace");
+      expect(route.title).toBe(title);
+      expect(route.workspaceSection).toBe(section);
+    }
+  });
 });

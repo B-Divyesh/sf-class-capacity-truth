@@ -91,6 +91,7 @@ async fn main() -> anyhow::Result<()> {
         email_delivery_configured: env::var_os("SMTP_RELAY").is_some(),
         durable_backup_path: durable_backup_path.map(Arc::new),
         backup_lock: Arc::new(tokio::sync::Mutex::new(())),
+        metrics: class_capacity_truth_api::metrics::AppMetrics::default(),
     };
     let router = app(state.clone(), frontend_dist, 6_000, 10);
     tokio::spawn(cleanup_task(state.clone()));

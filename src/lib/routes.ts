@@ -1,4 +1,5 @@
 export type RouteKind = "home" | "demo" | "booking" | "workspace" | "authCallback" | "offer" | "privacy" | "terms" | "notFound";
+export type WorkspaceSection = "classes" | "classDetail" | "reconciliation" | "waitlist" | "settings" | "billing" | "data" | "operations";
 
 export interface RouteInfo {
   kind: RouteKind;
@@ -6,6 +7,8 @@ export interface RouteInfo {
   description: string;
   publicClassId?: string;
   offerToken?: string;
+  workspaceSection?: WorkspaceSection;
+  workspaceClassId?: string;
 }
 
 const routes: Record<Exclude<RouteKind, "booking">, Omit<RouteInfo, "kind">> = {
@@ -18,8 +21,8 @@ const routes: Record<Exclude<RouteKind, "booking">, Omit<RouteInfo, "kind">> = {
     description: "Book, block, and reset sample class seats in an isolated demo."
   },
   workspace: {
-    title: "School workspace — Class Capacity Truth",
-    description: "Create, publish, and reconcile trustworthy class capacity."
+    title: "Classes — Class Capacity Truth",
+    description: "Create, publish, and inspect trustworthy class capacity."
   },
   authCallback: {
     title: "Finish sign in — Class Capacity Truth",
@@ -46,7 +49,48 @@ const routes: Record<Exclude<RouteKind, "booking">, Omit<RouteInfo, "kind">> = {
 export function routeForPath(pathname: string): RouteInfo {
   if (pathname === "/") return { kind: "home", ...routes.home };
   if (pathname === "/demo") return { kind: "demo", ...routes.demo };
-  if (pathname === "/app") return { kind: "workspace", ...routes.workspace };
+  if (pathname === "/app") return { kind: "workspace", ...routes.workspace, workspaceSection: "classes" };
+  const workspaceClass = pathname.match(/^\/app\/classes\/([a-zA-Z0-9_-]+)$/);
+  if (workspaceClass) return {
+    kind: "workspace",
+    title: "Class capacity — Class Capacity Truth",
+    description: "Inspect one class capacity, bookings, and its public booking link.",
+    workspaceSection: "classDetail",
+    workspaceClassId: workspaceClass[1]
+  };
+  const workspaceRoutes: Record<string, Omit<RouteInfo, "kind">> = {
+    "/app/reconciliation": {
+      title: "Calendar checks — Class Capacity Truth",
+      description: "Connect a calendar and review capacity differences.",
+      workspaceSection: "reconciliation"
+    },
+    "/app/waitlist": {
+      title: "Waitlist offers — Class Capacity Truth",
+      description: "Review and share released-seat offers.",
+      workspaceSection: "waitlist"
+    },
+    "/app/settings": {
+      title: "Settings — Class Capacity Truth",
+      description: "Open school billing, data, and sign-in settings.",
+      workspaceSection: "settings"
+    },
+    "/app/settings/billing": {
+      title: "Billing — Class Capacity Truth",
+      description: "Verify a school plan purchase or open the $99 monthly checkout.",
+      workspaceSection: "billing"
+    },
+    "/app/settings/data": {
+      title: "School data — Class Capacity Truth",
+      description: "Export or delete a school workspace.",
+      workspaceSection: "data"
+    },
+    "/app/operations": {
+      title: "Operations — Class Capacity Truth",
+      description: "Review capacity discrepancies, calendar lag, and service health.",
+      workspaceSection: "operations"
+    }
+  };
+  if (workspaceRoutes[pathname]) return { kind: "workspace", ...workspaceRoutes[pathname] };
   if (pathname === "/auth/callback") return { kind: "authCallback", ...routes.authCallback };
   if (pathname === "/privacy") return { kind: "privacy", ...routes.privacy };
   if (pathname === "/terms") return { kind: "terms", ...routes.terms };

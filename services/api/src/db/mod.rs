@@ -172,9 +172,8 @@ pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
     // Opening the already-durable database without that write lets the new
     // one-replica revision become healthy before the old revision exits. New
     // databases use SQLite's safe DELETE journal default. Existing WAL files
-    // are converted below as a one-time recovery step after their prior
-    // revision has stopped; an explicit local override remains available for
-    // development.
+    // are converted by the post-readiness task after their prior revision has
+    // stopped; an explicit local override remains available for development.
     let journal_mode = env::var("SQLITE_JOURNAL_MODE")
         .ok()
         .map(|value| value.to_ascii_lowercase());
@@ -202,23 +201,73 @@ pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
         .max_connections(max_connections)
         .connect_with(options)
         .await?;
-    sqlx::migrate!("./migrations").run(&pool).await?;
-    if journal_mode.is_none() {
-        let current_mode = sqlx::query_scalar::<_, String>("PRAGMA journal_mode")
-            .fetch_one(&pool)
-            .await?
-            .to_ascii_lowercase();
-        if current_mode == "wal" {
-            // Azure Files supports SQLite's rollback journal across a
-            // replacement process. WAL relies on shared-memory coordination
-            // that is unsuitable while Container Apps briefly runs an old and
-            // new revision against the same /data mount.
-            sqlx::query_scalar::<_, String>("PRAGMA journal_mode = DELETE")
-                .fetch_one(&pool)
-                .await?;
-        }
-    }
+    migrate_or_validate(&pool).await?;
     Ok(pool)
+}
+
+/// Move a pre-existing WAL database to SQLite's Azure-Files-safe rollback
+/// journal once the prior revision has stopped. This intentionally runs after
+/// the listener is ready: journal-mode changes need an exclusive lock, while
+/// a healthy replacement revision causes Container Apps to retire the old
+/// fallback process.
+pub async fn normalize_durable_journal_mode(pool: &SqlitePool) -> anyhow::Result<bool> {
+    let current_mode = sqlx::query_scalar::<_, String>("PRAGMA journal_mode")
+        .fetch_one(pool)
+        .await?
+        .to_ascii_lowercase();
+    if current_mode != "wal" {
+        return Ok(false);
+    }
+    sqlx::query_scalar::<_, String>("PRAGMA journal_mode = DELETE")
+        .fetch_one(pool)
+        .await?;
+    Ok(true)
+}
+
+async fn migrate_or_validate(pool: &SqlitePool) -> anyhow::Result<()> {
+    let migrator = sqlx::migrate!("./migrations");
+    let has_migration_table = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '_sqlx_migrations'",
+    )
+    .fetch_one(pool)
+    .await?
+        > 0;
+
+    if !has_migration_table {
+        migrator.run(pool).await?;
+        return Ok(());
+    }
+
+    // `Migrator::run` always executes CREATE TABLE IF NOT EXISTS. Azure Files
+    // requires an exclusive lock for that no-op DDL, so a replacement revision
+    // cannot become ready while a current revision is serving. Once a database
+    // has all shipped migrations, validate its exact applied versions and
+    // checksums with read-only queries instead.
+    let applied = sqlx::query_as::<_, (i64, Vec<u8>, bool)>(
+        "SELECT version, checksum, success FROM _sqlx_migrations ORDER BY version",
+    )
+    .fetch_all(pool)
+    .await?;
+    let expected = migrator
+        .iter()
+        .filter(|migration| migration.migration_type.is_up_migration())
+        .collect::<Vec<_>>();
+    let matches_shipped_schema = applied.len() == expected.len()
+        && applied.iter().zip(expected).all(|(actual, migration)| {
+            let (version, checksum, success) = actual;
+            *success
+                && *version == migration.version
+                && checksum.as_slice() == migration.checksum.as_ref()
+        });
+    if matches_shipped_schema {
+        return Ok(());
+    }
+
+    // First boot and intentional schema upgrades still use SQLx's full,
+    // checksummed migration engine. A schema upgrade is a controlled release
+    // operation and must obtain SQLite's exclusive lock before serving.
+    migrator.run(pool).await?;
+    Ok(())
 }
 
 pub fn restore_durable_snapshot(backup_path: &Path, database_path: &Path) -> anyhow::Result<()> {

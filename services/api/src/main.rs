@@ -95,6 +95,9 @@ async fn main() -> anyhow::Result<()> {
     let router = app(state.clone(), frontend_dist, 6_000, 10);
     tokio::spawn(cleanup_task(state.clone()));
     tokio::spawn(integration_task(state));
+    if env::var_os("SQLITE_JOURNAL_MODE").is_none() {
+        tokio::spawn(normalize_durable_journal_task(pool.clone()));
+    }
     let address = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(address).await?;
     tracing::info!(%address, "server listening");
@@ -105,6 +108,33 @@ async fn main() -> anyhow::Result<()> {
     .with_graceful_shutdown(shutdown_signal())
     .await?;
     Ok(())
+}
+
+async fn normalize_durable_journal_task(pool: sqlx::SqlitePool) {
+    // Give the start-up probe a chance to mark this replacement ready before
+    // taking an exclusive journal-mode lock. Retrying is deliberate: the old
+    // revision may still be draining its final request against the same /data
+    // mount.
+    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+    for attempt in 1..=60 {
+        match db::normalize_durable_journal_mode(&pool).await {
+            Ok(true) => {
+                tracing::info!(attempt, "normalized durable SQLite journal to DELETE");
+                return;
+            }
+            Ok(false) => {
+                tracing::info!("durable SQLite journal already uses DELETE");
+                return;
+            }
+            Err(error) if attempt < 60 => {
+                tracing::warn!(attempt, error = %error, "waiting to normalize durable SQLite journal");
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            }
+            Err(error) => {
+                tracing::error!(error = %error, "could not normalize durable SQLite journal after revision handoff");
+            }
+        }
+    }
 }
 
 fn load_cookie_key(data_dir: &Path) -> anyhow::Result<(Vec<u8>, &'static str)> {

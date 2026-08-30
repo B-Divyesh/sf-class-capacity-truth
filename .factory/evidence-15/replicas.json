@@ -1,0 +1,77 @@
+[
+  {
+    "id": "/subscriptions/283af945-693b-4a6e-b952-df928d0a18a9/resourceGroups/sociobot/providers/Microsoft.App/containerApps/sf-class-capacity-truth/revisions/sf-class-capacity-truth--0000045/replicas/sf-class-capacity-truth--0000045-66446695d9-gjl8v",
+    "name": "sf-class-capacity-truth--0000045-66446695d9-gjl8v",
+    "properties": {
+      "containers": [
+        {
+          "containerId": "containerd://2a1ca7ae36964be791b87ac5a33cf85f",
+          "execEndpoint": "wss://eastus2.azurecontainerapps.dev/subscriptions/283af945-693b-4a6e-b952-df928d0a18a9/resourceGroups/sociobot/containerApps/sf-class-capacity-truth/revisions/sf-class-capacity-truth--0000045/replicas/sf-class-capacity-truth--0000045-66446695d9-gjl8v/containers/app/exec",
+          "logStreamEndpoint": "https://eastus2.azurecontainerapps.dev/subscriptions/283af945-693b-4a6e-b952-df928d0a18a9/resourceGroups/sociobot/containerApps/sf-class-capacity-truth/revisions/sf-class-capacity-truth--0000045/replicas/sf-class-capacity-truth--0000045-66446695d9-gjl8v/containers/app/logstream",
+          "name": "app",
+          "ready": true,
+          "restartCount": 0,
+          "runningState": "Running",
+          "runningStateDetails": "Container started at: 8/30/2026 3:00:15 AM.",
+          "started": true
+        }
+      ],
+      "createdTime": "2026-08-30T02:59:59Z",
+      "initContainers": [],
+      "runningState": "Running",
+      "runningStateDetails": ""
+    },
+    "resourceGroup": "sociobot",
+    "type": "Microsoft.App/containerapps/revisions/replicas"
+  },
+  {
+    "id": "/subscriptions/283af945-693b-4a6e-b952-df928d0a18a9/resourceGroups/sociobot/providers/Microsoft.App/containerApps/sf-class-capacity-truth/revisions/sf-class-capacity-truth--0000045/replicas/sf-class-capacity-truth--0000045-66446695d9-jk77n",
+    "name": "sf-class-capacity-truth--0000045-66446695d9-jk77n",
+    "properties": {
+      "containers": [
+        {
+          "containerId": "containerd://075ac6027569494682dd4c64e564bcd2",
+          "execEndpoint": "wss://eastus2.azurecontainerapps.dev/subscriptions/283af945-693b-4a6e-b952-df928d0a18a9/resourceGroups/sociobot/containerApps/sf-class-capacity-truth/revisions/sf-class-capacity-truth--0000045/replicas/sf-class-capacity-truth--0000045-66446695d9-jk77n/containers/app/exec",
+          "logStreamEndpoint": "https://eastus2.azurecontainerapps.dev/subscriptions/283af945-693b-4a6e-b952-df928d0a18a9/resourceGroups/sociobot/containerApps/sf-class-capacity-truth/revisions/sf-class-capacity-truth--0000045/replicas/sf-class-capacity-truth--0000045-66446695d9-jk77n/containers/app/logstream",
+          "name": "app",
+          "ready": true,
+          "restartCount": 0,
+          "runningState": "Running",
+          "runningStateDetails": "Container started at: 8/30/2026 2:13:12 AM.",
+          "started": true
+        }
+      ],
+      "createdTime": "2026-08-30T02:12:56Z",
+      "initContainers": [],
+      "runningState": "Running",
+      "runningStateDetails": ""
+    },
+    "resourceGroup": "sociobot",
+    "type": "Microsoft.App/containerapps/revisions/replicas"
+  },
+  {
+    "id": "/subscriptions/283af945-693b-4a6e-b952-df928d0a18a9/resourceGroups/sociobot/providers/Microsoft.App/containerApps/sf-class-capacity-truth/revisions/sf-class-capacity-truth--0000045/replicas/sf-class-capacity-truth--0000045-66446695d9-wjxl5",
+    "name": "sf-class-capacity-truth--0000045-66446695d9-wjxl5",
+    "properties": {
+      "containers": [
+        {
+          "containerId": "containerd://2b4546b04d80455d9a419ad9cfcac732",
+          "execEndpoint": "wss://eastus2.azurecontainerapps.dev/subscriptions/283af945-693b-4a6e-b952-df928d0a18a9/resourceGroups/sociobot/containerApps/sf-class-capacity-truth/revisions/sf-class-capacity-truth--0000045/replicas/sf-class-capacity-truth--0000045-66446695d9-wjxl5/containers/app/exec",
+          "logStreamEndpoint": "https://eastus2.azurecontainerapps.dev/subscriptions/283af945-693b-4a6e-b952-df928d0a18a9/resourceGroups/sociobot/containerApps/sf-class-capacity-truth/revisions/sf-class-capacity-truth--0000045/replicas/sf-class-capacity-truth--0000045-66446695d9-wjxl5/containers/app/logstream",
+          "name": "app",
+          "ready": true,
+          "restartCount": 0,
+          "runningState": "Running",
+          "runningStateDetails": "Container started at: 8/30/2026 2:58:59 AM.",
+          "started": true
+        }
+      ],
+      "createdTime": "2026-08-30T02:58:44Z",
+      "initContainers": [],
+      "runningState": "Running",
+      "runningStateDetails": ""
+    },
+    "resourceGroup": "sociobot",
+    "type": "Microsoft.App/containerapps/revisions/replicas"
+  }
+]

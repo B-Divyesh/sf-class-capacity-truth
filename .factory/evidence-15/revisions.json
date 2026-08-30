@@ -1,0 +1,49 @@
+[
+  {
+    "id": "/subscriptions/283af945-693b-4a6e-b952-df928d0a18a9/resourceGroups/sociobot/providers/Microsoft.App/containerApps/sf-class-capacity-truth/revisions/sf-class-capacity-truth--0000045",
+    "name": "sf-class-capacity-truth--0000045",
+    "properties": {
+      "active": true,
+      "createdTime": "2026-08-30T02:12:56+00:00",
+      "fqdn": "sf-class-capacity-truth--0000045.orangepond-1638693f.eastus2.azurecontainerapps.io",
+      "healthState": "Healthy",
+      "provisioningState": "Provisioned",
+      "replicas": 3,
+      "runningState": "RunningAtMaxScale",
+      "template": {
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "PORT",
+                "value": "8080"
+              }
+            ],
+            "image": "sociobotregistry.azurecr.io/sf-class-capacity-truth:cc5542bbec9b",
+            "name": "app",
+            "probes": [],
+            "resources": {
+              "cpu": 0.5,
+              "memory": "1Gi"
+            }
+          }
+        ],
+        "initContainers": null,
+        "revisionSuffix": null,
+        "scale": {
+          "cooldownPeriod": null,
+          "maxReplicas": 3,
+          "minReplicas": 1,
+          "pollingInterval": null,
+          "rules": null
+        },
+        "serviceBinds": null,
+        "terminationGracePeriodSeconds": null,
+        "volumes": null
+      },
+      "trafficWeight": 100
+    },
+    "resourceGroup": "sociobot",
+    "type": "Microsoft.App/containerapps/revisions"
+  }
+]

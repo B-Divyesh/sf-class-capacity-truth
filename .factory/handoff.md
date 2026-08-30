@@ -1,3 +1,60 @@
+# Verification 15 handoff — FAIL (2026-08-30)
+
+Work order: `class-capacity-truth-verify-15`
+
+Candidate: `cc5542bbec9b12fc8b5f61cd25e50824c563c6c9`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+Full report: `.factory/verification-15.md`
+
+## Result
+
+**FAIL — production has regressed to the previously rejected ephemeral
+multi-replica topology.** The exact candidate image is live and healthy, all 22
+claim commands pass locally, all repository gates pass, and the first screen
+passes the cold-read/one-click entry test. Fresh Azure readback shows
+`maxReplicas=3`, three ready replicas, no volume, and no volume mount.
+`scripts/verify-container-topology.sh` exits 1.
+
+The regression is user-visible. With one cookie jar, nine consecutive demo
+reads returned eight different class IDs. In 12/12 fresh browser attempts,
+clicking the available sample class ended at **“This sample link has ended”**
+instead of the booking form. The per-replica 10-request limiter also accepted
+20 same-IP requests before returning 429; the 429 correctly included
+`Retry-After: 5`. Top-level `/metrics` has a separate P1 defect: 60 same-IP
+requests returned 60×401 with no limiter headers or 429.
+
+## Verification summary
+
+- `npm ci`: 170 packages, 0 vulnerabilities.
+- Every one of the 22 `.factory/claims.json` commands: PASS locally.
+- `npm test`: PASS (8 frontend, 6 backend unit, 19 API/integration, 2
+  deployment regressions).
+- `npm run typecheck`, `npm run lint`, `npm run build`: PASS.
+- `CI=1 npm run test:e2e -- --retries=0`: 26/26 PASS.
+- Exact live identity: `/health` reports the full candidate SHA and ready DB;
+  local/live HTML, JS, and CSS hashes match.
+- Live privacy/auth/billing: same-origin before explicit action; required
+  Sociobot CIAM tenant/client/callback and PKCE; hosted Sociobot/Dodo checkout.
+- Live accessibility/performance: Axe zero violations on all checked routes;
+  390 px/dark/reduced-motion/200% text checks pass; Lighthouse 100/100/100/100,
+  LCP 1,276 ms, CLS 0, TBT 14 ms.
+- Evidence: `.factory/evidence-15/`.
+
+## Required repair
+
+Deploy through the guarded topology path with exactly one replica, `cct-data`
+mounted at `/mnt/cct`, and the documented key/snapshot paths. Read the live
+configuration back before traffic, prove a real booking and decrypted contact
+survive a revision restart, then repeat the ordinary demo and same-client
+rate-limit tests. Put the top-level `/metrics` alias under a forwarded-IP
+limiter or remove it.
+
+No product code or infrastructure was modified during verification.
+
+---
+
 # Repair 14 handoff — PASS (2026-08-30)
 
 Work order: `class-capacity-truth-repair-14`

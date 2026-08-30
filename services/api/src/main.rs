@@ -115,10 +115,9 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn normalize_durable_journal_task(pool: sqlx::SqlitePool) {
-    // Give the start-up probe a chance to mark this replacement ready before
-    // taking an exclusive journal-mode lock. Retrying is deliberate: the old
-    // revision may still be draining its final request against the same /data
-    // mount.
+    // Keep normalization outside the critical startup path. The deployment
+    // guard has already stopped the previous /data owner; retries cover a
+    // short final request drain without delaying health checks.
     tokio::time::sleep(std::time::Duration::from_secs(10)).await;
     for attempt in 1..=60 {
         match db::normalize_durable_journal_mode(&pool).await {

@@ -166,14 +166,10 @@ pub enum RealError {
 }
 
 pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
-    // Do not issue `PRAGMA journal_mode = …` by default. A Container Apps
-    // revision briefly overlaps the revision it replaces, and changing (or
-    // even reasserting) the journal mode requires an exclusive SQLite lock.
-    // Opening the already-durable database without that write lets the new
-    // one-replica revision become healthy before the old revision exits. New
-    // databases use SQLite's safe DELETE journal default. Existing WAL files
-    // are converted by the post-readiness task after their prior revision has
-    // stopped; an explicit local override remains available for development.
+    // Do not issue `PRAGMA journal_mode = …` by default. New databases use
+    // SQLite's safe DELETE journal default. Existing WAL files are converted
+    // by the post-readiness task after the guarded deployment has stopped the
+    // prior revision; an explicit local override remains available for tests.
     let journal_mode = env::var("SQLITE_JOURNAL_MODE")
         .ok()
         .map(|value| value.to_ascii_lowercase());
@@ -211,10 +207,7 @@ pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
 }
 
 /// Move a pre-existing WAL database to SQLite's Azure-Files-safe rollback
-/// journal once the prior revision has stopped. This intentionally runs after
-/// the listener is ready: journal-mode changes need an exclusive lock, while
-/// a healthy replacement revision causes Container Apps to retire the old
-/// fallback process.
+/// journal once the guarded deployment has stopped the prior revision.
 pub async fn normalize_durable_journal_mode(pool: &SqlitePool) -> anyhow::Result<bool> {
     let current_mode = sqlx::query_scalar::<_, String>("PRAGMA journal_mode")
         .fetch_one(pool)

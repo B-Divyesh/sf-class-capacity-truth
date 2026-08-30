@@ -62,10 +62,32 @@ apply_template_patch() {
 }
 
 app_id="$(az containerapp show --resource-group "$resource_group" --name "$app_name" --query id -o tsv)"
+# `latestRevisionName` can point at a failed replacement while Container Apps
+# still serves its last ready fallback. Stop the process that can actually own
+# /data, not merely the newest template.
 previous_revision="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
-  --query properties.latestRevisionName -o tsv)"
+  --query properties.latestReadyRevisionName -o tsv)"
+previous_deactivated=false
+deployment_complete=false
 patch_file="$(mktemp)"
-trap 'rm -f "$patch_file"' EXIT
+cleanup() {
+  local status=$?
+  rm -f "$patch_file"
+  if [[ $status -ne 0 && "$previous_deactivated" == true && -n "$previous_revision" ]]; then
+    # Leave a failed candidate unable to open the lockless SQLite file before
+    # restoring the known-ready fallback. Recovery stays scoped to this app.
+    latest_revision="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
+      --query properties.latestRevisionName -o tsv 2>/dev/null || true)"
+    if [[ -n "$latest_revision" && "$latest_revision" != "$previous_revision" ]]; then
+      az containerapp revision deactivate --resource-group "$resource_group" --name "$app_name" \
+        --revision "$latest_revision" --only-show-errors >/dev/null 2>&1 || true
+    fi
+    az containerapp revision activate --resource-group "$resource_group" --name "$app_name" \
+      --revision "$previous_revision" --only-show-errors >/dev/null 2>&1 || true
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
 jq --arg image "$image" --arg revision_suffix "$revision_suffix" --arg storage_name "$storage_name" '
   { properties: { template: (
     .properties.template |
@@ -79,6 +101,16 @@ jq --arg image "$image" --arg revision_suffix "$revision_suffix" --arg storage_n
     .scale = {minReplicas: 1, maxReplicas: 1}
   )} }
 ' < <(az containerapp show --resource-group "$resource_group" --name "$app_name" -o json) > "$patch_file"
+
+# The /data database uses SQLite's lockless VFS because Azure Files does not
+# provide compatible POSIX byte-range locks. There must never be two processes
+# with this mount open. A short, explicit restart gap is safer than a rolling
+# overlap that could corrupt the school ledger.
+if [[ -n "$previous_revision" ]]; then
+  az containerapp revision deactivate --resource-group "$resource_group" --name "$app_name" \
+    --revision "$previous_revision" --only-show-errors >/dev/null
+  previous_deactivated=true
+fi
 apply_template_patch
 
 # The PATCH is asynchronous in Container Apps. Never read a still-old template
@@ -109,16 +141,6 @@ jq -e --arg image "$image" '
   .properties.template.containers[0].image == $image
 ' <<<"$actual" >/dev/null
 
-# SQLite holds an exclusive lock for the single mounted /data owner. Container
-# Apps normally overlaps revisions while probing a replacement, which would
-# make the replacement wait forever on Azure Files. The durable release is an
-# explicit sequential restart: the prior revision is stopped only after the
-# new immutable template and mount have been read back.
-if [[ -n "$previous_revision" && "$previous_revision" != "$(jq -r '.properties.latestRevisionName' <<<"$actual")" ]]; then
-  az containerapp revision deactivate --resource-group "$resource_group" --name "$app_name" \
-    --revision "$previous_revision" --only-show-errors >/dev/null
-fi
-
 # A template readback alone is not a release result: Container Apps can expose
 # a new template before its revision becomes healthy and receives ingress
 # traffic. Wait for that handoff, then prove the running process identifies as
@@ -137,6 +159,8 @@ else
     .status == "ok" and .database == "ready" and (.build | startswith($tag))
   ' <<<"$health" >/dev/null
 fi
+
+deployment_complete=true
 
 jq '{
   revision: .properties.latestRevisionName,

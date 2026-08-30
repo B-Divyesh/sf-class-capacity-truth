@@ -18,6 +18,7 @@ token="$(openssl rand -hex 32)"
 token_created=false
 token_attached=false
 workspace_key=""
+current_revision=""
 
 patch_test_token() {
   local mode="$1"
@@ -109,12 +110,55 @@ cleanup() {
   if [[ "$token_created" == true ]]; then
     remove_test_secret >/dev/null 2>&1 || true
   fi
+  if [[ -n "$current_revision" ]]; then
+    az containerapp revision activate --resource-group "$resource_group" --name "$app_name" \
+      --revision "$current_revision" --only-show-errors >/dev/null 2>&1 || true
+    az containerapp ingress traffic set --resource-group "$resource_group" --name "$app_name" \
+      --revision-weight "$current_revision=100" --only-show-errors >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
 
-wait_for_revision() {
-  RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" BASE_URL="$base_url" \
-    "$(dirname "$0")/wait-for-containerapp-revision.sh" "$1"
+wait_for_pretraffic_revision() {
+  local previous="$1"
+  local revision health provisioning fqdn
+  for _ in $(seq 1 120); do
+    revision="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
+      --query properties.latestRevisionName -o tsv 2>/dev/null || true)"
+    if [[ -z "$revision" || "$revision" == "$previous" ]]; then
+      sleep 2
+      continue
+    fi
+    health="$(az containerapp revision show --resource-group "$resource_group" --name "$app_name" \
+      --revision "$revision" --query properties.healthState -o tsv 2>/dev/null || true)"
+    provisioning="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
+      --query properties.provisioningState -o tsv 2>/dev/null || true)"
+    fqdn="$(az containerapp revision show --resource-group "$resource_group" --name "$app_name" \
+      --revision "$revision" --query properties.fqdn -o tsv 2>/dev/null || true)"
+    if [[ "$health" == "Healthy" && "$provisioning" == "Succeeded" && -n "$fqdn" ]] \
+      && curl --silent --fail "https://$fqdn/health" \
+      | jq -e '.status == "ok" and .database == "ready"' >/dev/null; then
+      printf '%s\n' "$revision"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "new revision did not become healthy before the traffic switch" >&2
+  return 1
+}
+
+revision_base_url() {
+  local revision="$1"
+  local fqdn
+  fqdn="$(az containerapp revision show --resource-group "$resource_group" --name "$app_name" \
+    --revision "$revision" --query properties.fqdn -o tsv)"
+  test -n "$fqdn"
+  printf 'https://%s\n' "$fqdn"
+}
+
+switch_traffic() {
+  az containerapp ingress traffic set --resource-group "$resource_group" --name "$app_name" \
+    --revision-weight "$1=100" --only-show-errors >/dev/null
 }
 
 stop_revision_for_sqlite_restart() {
@@ -136,16 +180,27 @@ fi
 RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" \
   "$(dirname "$0")/verify-container-topology.sh"
 
+# Multiple-revision mode lets the restarted candidate answer on its own FQDN
+# while the public hostname remains assigned to the previous revision. The
+# prior /data owner is deactivated before its successor starts, so the
+# lockless Azure Files SQLite VFS is never opened by two processes.
+az containerapp revision set-mode --resource-group "$resource_group" --name "$app_name" \
+  --mode multiple --only-show-errors >/dev/null
+
 az containerapp secret set --resource-group "$resource_group" --name "$app_name" \
   --secrets "$secret_name=$token" --only-show-errors >/dev/null
 token_created=true
 before="$(az containerapp show --resource-group "$resource_group" --name "$app_name" \
-  --query properties.latestRevisionName -o tsv)"
+  --query properties.latestReadyRevisionName -o tsv)"
+current_revision="$before"
+switch_traffic "$before"
+stop_revision_for_sqlite_restart "$before"
 patch_test_token attach "d-a-$drill_id"
 token_attached=true
 wait_for_test_token_reference
-stop_revision_for_sqlite_restart "$before"
-auth_revision="$(wait_for_revision "$before")"
+auth_revision="$(wait_for_pretraffic_revision "$before")"
+current_revision="$auth_revision"
+switch_traffic "$auth_revision"
 
 workspace="$(curl --silent --show-error --fail-with-body -X POST "$base_url/api/workspaces" \
   -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
@@ -170,17 +225,22 @@ curl --silent --show-error --fail-with-body -X POST "$base_url/api/classes/$publ
 # A suffix change creates a new revision without changing data paths, mounts,
 # or the temporary exact credential used only to read the decrypted contact.
 before="$auth_revision"
+stop_revision_for_sqlite_restart "$before"
 az containerapp update --resource-group "$resource_group" --name "$app_name" \
   --revision-suffix "d-r-$drill_id" --only-show-errors >/dev/null
-stop_revision_for_sqlite_restart "$before"
-restart_revision="$(wait_for_revision "$before")"
+restart_revision="$(wait_for_pretraffic_revision "$before")"
+restart_url="$(revision_base_url "$restart_revision")"
 RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" \
   "$(dirname "$0")/verify-container-topology.sh"
-curl --silent --show-error --fail-with-body "$base_url/api/classes/$public_id" \
+# Both the public count and decrypted contact are read from the restarted
+# revision directly while the public hostname is still assigned elsewhere.
+curl --silent --show-error --fail-with-body "$restart_url/api/classes/$public_id" \
   | jq -e '.confirmed == 1 and .openSeats == 1' >/dev/null
-curl --silent --show-error --fail-with-body "$base_url/api/workspaces/classes/$class_id/bookings" \
+curl --silent --show-error --fail-with-body "$restart_url/api/workspaces/classes/$class_id/bookings" \
   -H "Authorization: Bearer $token" -H "X-Workspace-Key: $workspace_key" \
   | jq -e 'length == 1 and .[0].guardianName == "Synthetic Drill Guardian" and .[0].guardianEmail == "persistence-drill@example.invalid"' >/dev/null
+current_revision="$restart_revision"
+switch_traffic "$restart_revision"
 
 curl --silent --show-error --fail-with-body -X DELETE "$base_url/api/workspaces/data" \
   -H "Authorization: Bearer $token" -H "X-Workspace-Key: $workspace_key" >/dev/null
@@ -189,12 +249,16 @@ status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$base_url
 [[ "$status" == "404" ]]
 
 before="$restart_revision"
+stop_revision_for_sqlite_restart "$before"
 patch_test_token detach "d-c-$drill_id"
 token_attached=false
-stop_revision_for_sqlite_restart "$before"
-final_revision="$(wait_for_revision "$before")"
+final_revision="$(wait_for_pretraffic_revision "$before")"
+current_revision="$final_revision"
+switch_traffic "$final_revision"
 remove_test_secret
 token_created=false
+az containerapp revision set-mode --resource-group "$resource_group" --name "$app_name" \
+  --mode single --only-show-errors >/dev/null
 RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" \
   "$(dirname "$0")/verify-container-topology.sh"
 az containerapp show --resource-group "$resource_group" --name "$app_name" -o json \

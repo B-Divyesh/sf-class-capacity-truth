@@ -1,0 +1,11 @@
+{
+  "url": "https://checkout.dodopayments.com/session/[redacted]",
+  "hostname": "checkout.dodopayments.com",
+  "api": [
+    {
+      "url": "https://api.sociobot.in/api/v1/products/class-capacity-truth/checkout",
+      "status": 200,
+      "method": "POST"
+    }
+  ]
+}

@@ -97,6 +97,13 @@ billing, or cloud infrastructure. See [.factory/plan.md](.factory/plan.md) for
 the milestone architecture and [.factory/design.md](.factory/design.md) for the
 modular classroom abacus visual system.
 
+Every production release must finish through `scripts/deploy-container.sh`
+with the immutable `IMAGE` and full `EXPECTED_BUILD_SHA`. A generic Container
+Apps update is not sufficient: it can replace the required one-replica scale,
+Azure Files mount, and durable key and snapshot paths. The guarded script
+registers the storage, applies the complete template, waits for live traffic,
+and rejects a topology or build-identity mismatch.
+
 ## Privacy and licence
 
 The product loads no third-party fonts or scripts and sends no advertising or

@@ -1,3 +1,158 @@
+# Repair 15 handoff — PASS (2026-08-30)
+
+Work order: `class-capacity-truth-repair-15`
+
+Base verifier report: `.factory/verification-15.md` at
+`b5eba0370c53036c3ccfbc2ac4304e0faffb1768`
+
+Failed candidate: `cc5542bbec9b12fc8b5f61cd25e50824c563c6c9`
+
+Repaired application source: `0120c8e9a2c8564f61a18cab980ca951226e036a`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+## Repaired findings
+
+1. **Production is durable and single-replica again.** The checked-in guarded
+   deployment restored `minReplicas=1`, `maxReplicas=1`, the `cct-data` Azure
+   Files volume at `/mnt/cct`, `DATA_DIR=/mnt/cct/keys`, and
+   `DURABLE_BACKUP_PATH=/mnt/cct/snapshots/class-capacity-truth.db`. The exact
+   Verification 15 drift shape—revision `0000045`, image `cc5542bbec9b`, only
+   `PORT`, no volume or mount, and `maxReplicas=3`—is now the deployment
+   regression fixture. It must be rejected before the guarded path repairs it.
+2. **The documented per-client allowance is no longer multiplied.** Azure
+   readback shows one running replica. A live same-client demo probe produced
+   exactly 10 successful requests and two `429` responses; a second forwarded
+   client immediately received two successful requests. Twelve fresh browser
+   contexts each completed Home → Try it with sample data → Book this sample
+   class without the former “This sample link has ended” failure.
+3. **Top-level `/metrics` is rate limited.** It now shares the school governor
+   used by `/api/metrics` and `/api/workspaces/metrics`. The exact regression
+   sends 60 requests from one forwarded client and asserts 40 authorization
+   challenges followed by 20 `429` responses with `Retry-After` and zero
+   remaining allowance. It also proves the API alias shares the exhausted
+   bucket and a second client remains independent. The same 40/20 split passed
+   live.
+4. **Keyboard skip focus is deterministic.** The complete no-retry browser run
+   exposed an existing native fragment-focus race. The skip action now focuses
+   and scrolls `main#main` explicitly while retaining the real `#main` fallback.
+   Its exact no-retry stress run passed 10/10.
+
+The researched brief, artifact class (`web-with-backend`), capacity rules,
+demo isolation, Entra flow, Sociobot-hosted billing, visual system, and all
+previously passing behavior remain unchanged.
+
+## Local verification
+
+- Clean install: `npm ci` installed 170 packages with 0 vulnerabilities.
+- Final gates: `npm test`, `npm run typecheck`, `npm run lint`, and
+  `npm run build` passed. This includes 8 frontend tests, 6 Rust unit tests, 20
+  API/integration tests, and both deployment regressions. Rustfmt and Clippy
+  passed with warnings denied.
+- Every command in `.factory/claims.json` passed independently in manifest
+  order: 22/22 claims, including real-school flow, encryption/retention,
+  durable restart, zero-config startup, forwarded-IP limits, and the repaired
+  production-topology fixture.
+- `CI=1 npm run test:e2e -- --retries=0`: 26/26 passed. It covers desktop,
+  390px mobile, keyboard, 200% text, dark mode, reduced motion, route/history
+  focus, same-origin privacy, real 404s, and Axe. The skip-focus stress command
+  passed 10/10 with no retries.
+- Production assets: 73.61 kB gzip initial JavaScript, 79.59 kB gzip lazy staff
+  JavaScript, and 4.62 kB gzip CSS. `dist/` and the release API binary were
+  produced.
+- `scripts/load-smoke.sh` completed 100 concurrent same-client demo requests:
+  exactly 10 accepted and 90 rate limited with `Retry-After`.
+- Factory `verify-url.sh` passed locally with no console error, one title/h1/
+  main, `lang=en`, complete image alt text, and labelled buttons. Local mobile
+  Lighthouse scored 100 performance, 100 accessibility, 100 best practices,
+  and 100 SEO; FCP/LCP 1,224 ms, TBT 8.5 ms, CLS 0, transfer 82,342 bytes.
+- Docker/Podman are not installed in the worker. The required container build
+  was instead exercised by the successful multi-stage ACR build below.
+
+Local screenshots, verify output, and Lighthouse JSON are under
+`.factory/evidence-repair-15/local/`.
+
+## Deployment and durability evidence
+
+- ACR build `ch1ey` built
+  `sociobotregistry.azurecr.io/sf-class-capacity-truth:0120c8e9a2c8` from the
+  committed repair with full build SHA
+  `0120c8e9a2c8564f61a18cab980ca951226e036a`. Image digest:
+  `sha256:ab6fd7444321912319727d4441df5b6c85dd118c51629f8381e869b719b0749b`.
+- The guarded release created
+  `sf-class-capacity-truth--r15-0120c8e-034735`. The required persistence drill
+  then created auth revision `d-a-1788061698-22373`, booked a synthetic real
+  class, created restart revision `d-r-1788061698-22373`, and read the same
+  confirmed count and decrypted guardian contact after restart. It deleted the
+  synthetic workspace and removed its one-time credential in cleanup revision
+  `sf-class-capacity-truth--d-c-1788061698-22373`.
+- Final Azure readback shows that cleanup revision healthy and ready with 100%
+  traffic, the immutable repair image, exactly one running replica, `cct-data`
+  mounted at `/mnt/cct`, and only the documented `PORT`, `DATA_DIR`, and
+  `DURABLE_BACKUP_PATH` values. `/health` reports a ready database and the exact
+  full repair SHA. Local and live `index.html` hashes match byte for byte.
+- Startup logs identify a supplied durable backup and persisted generated
+  signing/encryption keys without printing their values. No temporary drill
+  secret or synthetic workspace remains.
+
+## Live product evidence
+
+- Twelve of twelve fresh browser contexts opened the ordinary sample booking
+  form. One completed a booking from two open seats to one. There were no
+  console or page errors. A live 390px dark/reduced-motion check had zero
+  horizontal overflow, zero-duration animation/transition, a keyboard-opened
+  labelled menu, and zero Axe violations.
+- Live Axe checks found zero violations on home, demo, privacy, terms,
+  signed-out workspace, operations, and the real 404. Each had one h1 and one
+  main. Factory `verify-url.sh` also passed at desktop and 390px.
+- Live mobile Lighthouse scored 100/100/100/100; FCP/LCP 1,201 ms, TBT 0,
+  CLS 0, and transfer 79,713 bytes.
+- Home/API responses are no-cache; hashed assets are immutable. CSP is a
+  response header with `frame-ancestors 'none'`; `nosniff`, referrer, and
+  permissions policies are present. Approved-origin preflight returns the
+  production origin; an unapproved origin receives none. Unknown paths return
+  HTTP 404. Every shipped route, sitemap, robot file, icon, and social card
+  returned its expected status.
+- A signed-out `/metrics` request returns 401, `WWW-Authenticate: Bearer`, and
+  limiter headers. The live 60-request regression produced 40×401 and 20×429.
+- Before explicit sign-in or checkout, home, demo, privacy, and workspace made
+  12 requests, all same-origin, with no errors. No service worker is
+  registered. The product makes no offline/update claim, so offline reload and
+  service-worker update testing are not applicable.
+- Live sign-in used the required Sociobot CIAM tenant, client
+  `25c704f4-465a-47af-80ab-2c489466b697`, callback `/auth/callback`, authorization
+  code response, and PKCE `S256`. Discovery supplied the GUID issuer and
+  Sociobot JWKS URI. No credentials were entered.
+- The live $99 action POSTed to the Sociobot billing API, received 200, and
+  navigated to `checkout.dodopayments.com`. No payment was submitted.
+
+Live screenshots and machine-readable browser, Axe, checkout, verify-url, and
+Lighthouse evidence are under `.factory/evidence-repair-15/live/`.
+
+## Applicability and next releases
+
+- This is not a library or CLI, so package/consumer installation is not
+  applicable.
+- No operator action remains for this repair. Future releases must finish
+  through `scripts/deploy-container.sh`; a generic Container Apps update alone
+  can erase the SQLite durability topology and must not receive traffic.
+
+## Reproduce
+
+```bash
+npm ci
+npm test
+npm run typecheck
+npm run lint
+npm run build
+CI=1 npm run test:e2e -- --retries=0
+npm run test:api -- regression_top_level_metrics_uses_forwarded_ip_limiter
+npm run test:deployment
+npm run test:durable-restart
+```
+
+---
+
 # Verification 15 handoff — FAIL (2026-08-30)
 
 Work order: `class-capacity-truth-verify-15`

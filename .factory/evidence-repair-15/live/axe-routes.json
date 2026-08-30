@@ -1,0 +1,65 @@
+[
+  {
+    "path": "/",
+    "status": 200,
+    "violations": 0,
+    "seriousCritical": 0,
+    "title": "Class Capacity Truth — Show the right seat count",
+    "h1": 1,
+    "main": 1
+  },
+  {
+    "path": "/demo?demo=1",
+    "status": 200,
+    "violations": 0,
+    "seriousCritical": 0,
+    "title": "Demo — Class Capacity Truth",
+    "h1": 1,
+    "main": 1
+  },
+  {
+    "path": "/privacy",
+    "status": 200,
+    "violations": 0,
+    "seriousCritical": 0,
+    "title": "Privacy — Class Capacity Truth",
+    "h1": 1,
+    "main": 1
+  },
+  {
+    "path": "/terms",
+    "status": 200,
+    "violations": 0,
+    "seriousCritical": 0,
+    "title": "Terms — Class Capacity Truth",
+    "h1": 1,
+    "main": 1
+  },
+  {
+    "path": "/app",
+    "status": 200,
+    "violations": 0,
+    "seriousCritical": 0,
+    "title": "Classes — Class Capacity Truth",
+    "h1": 1,
+    "main": 1
+  },
+  {
+    "path": "/app/operations",
+    "status": 200,
+    "violations": 0,
+    "seriousCritical": 0,
+    "title": "Operations — Class Capacity Truth",
+    "h1": 1,
+    "main": 1
+  },
+  {
+    "path": "/definitely-missing-repair-15",
+    "status": 404,
+    "violations": 0,
+    "seriousCritical": 0,
+    "title": "Page not found — Class Capacity Truth",
+    "h1": 1,
+    "main": 1
+  }
+]

@@ -1,0 +1,87 @@
+{
+  "attempts": [
+    {
+      "attempt": 1,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-825d0393d0c945b380b4cde7b7df7f30",
+      "bookingForm": true
+    },
+    {
+      "attempt": 2,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-d162d4be4f7b44468cd51592dfeb78c0",
+      "bookingForm": true
+    },
+    {
+      "attempt": 3,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-4e69b66b20ef4535bf8224fa0a91d346",
+      "bookingForm": true
+    },
+    {
+      "attempt": 4,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-bfd48dc2e8df4ebca628e56a34df689b",
+      "bookingForm": true
+    },
+    {
+      "attempt": 5,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-4ed6f5dc166f4687817a2396526a56a0",
+      "bookingForm": true
+    },
+    {
+      "attempt": 6,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-0b79196f803e4fae82edfe7e12af1d46",
+      "bookingForm": true
+    },
+    {
+      "attempt": 7,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-6235cb8760134443a744fc4de0166e45",
+      "bookingForm": true
+    },
+    {
+      "attempt": 8,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-4a536989cbc541ccbfe5bbbfb9464bbb",
+      "bookingForm": true
+    },
+    {
+      "attempt": 9,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-34bd49d89593410ba67f476669c37477",
+      "bookingForm": true
+    },
+    {
+      "attempt": 10,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-23dcef67def94208a1193254af548b39",
+      "bookingForm": true
+    },
+    {
+      "attempt": 11,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-9ef570dcad274678aab8e3be8af5fe5a",
+      "bookingForm": true
+    },
+    {
+      "attempt": 12,
+      "url": "https://class-capacity-truth.sociobot.in/book/demo-36bde97590e043999f19fbedba96f8f4",
+      "bookingForm": true
+    }
+  ],
+  "consoleErrors": [],
+  "pageErrors": [],
+  "outgoing": [
+    "https://class-capacity-truth.sociobot.in/api/demo/classes/demo-825d0393d0c945b380b4cde7b7df7f30/book"
+  ],
+  "mobile": {
+    "overflow": 0,
+    "motion": {
+      "animation": "0s",
+      "transition": "0s"
+    },
+    "axeViolations": 0,
+    "seriousCritical": 0
+  },
+  "identity": {
+    "hostname": "sociobotcustomers.ciamlogin.com",
+    "pathname": "/35c6fe40-0ec0-46b6-98c6-213ad4de6650/oauth2/v2.0/authorize",
+    "clientId": "25c704f4-465a-47af-80ab-2c489466b697",
+    "redirectUri": "https://class-capacity-truth.sociobot.in/auth/callback",
+    "scope": "openid profile email offline_access",
+    "responseType": "code",
+    "codeChallengeMethod": "S256"
+  }
+}

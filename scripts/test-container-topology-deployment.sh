@@ -38,6 +38,7 @@ log="${AZ_FIXTURE_LOG:?}"
 printf '%s\n' "$*" >>"$log"
 case "$*" in
   "containerapp revision show"*) printf 'Healthy\n' ;;
+  "containerapp revision deactivate"*) ;;
   "containerapp show"*)
     if [[ " $* " == *" --query id "* ]]; then
       jq -r '.id' "$state"
@@ -139,4 +140,8 @@ jq -e '
   (.properties.template.containers[0].env == [{name:"PORT", value:"8080"}])
 ' "$fixture_dir/state.json" >/dev/null
 grep -q 'containerapp revision show' "$fixture_dir/az.log"
+grep -q 'containerapp revision deactivate.*sf-class-capacity-truth--0000046' "$fixture_dir/az.log"
+deactivate_line="$(grep -n 'containerapp revision deactivate.*sf-class-capacity-truth--0000046' "$fixture_dir/az.log" | head -1 | cut -d: -f1)"
+readiness_line="$(grep -n 'containerapp revision show' "$fixture_dir/az.log" | head -1 | cut -d: -f1)"
+[[ "$deactivate_line" -lt "$readiness_line" ]]
 printf 'deployment topology regression passed\n'

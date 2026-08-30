@@ -4,7 +4,7 @@ use anyhow::Context;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use sqlx::{
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    sqlite::{SqliteConnectOptions, SqliteLockingMode, SqlitePoolOptions},
     Row, SqlitePool,
 };
 use thiserror::Error;
@@ -189,6 +189,11 @@ pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
     let mut options = SqliteConnectOptions::from_str(database_url)?
         .create_if_missing(true)
         .foreign_keys(true)
+        // The deployed service is deliberately one replica. Holding SQLite's
+        // exclusive lock avoids Azure Files' incompatible shared-lock
+        // transitions; releases stop the prior revision before starting its
+        // successor.
+        .locking_mode(SqliteLockingMode::Exclusive)
         .busy_timeout(Duration::from_secs(30));
     if let Some(journal_mode) = journal_mode.as_deref() {
         options = match journal_mode {

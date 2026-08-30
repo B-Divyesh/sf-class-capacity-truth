@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc};
 
 use axum::{
     body::Body,
@@ -8,7 +8,7 @@ use axum::{
 use class_capacity_truth_api::{app, db, AppState};
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
-use sqlx::{Connection, Row, SqliteConnection};
+use sqlx::Row;
 use tempfile::TempDir;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -1255,11 +1255,11 @@ async fn claim_durable_snapshot_survives_restart() {
 }
 
 #[tokio::test]
-async fn durable_database_opens_during_revision_overlap_without_resetting_journal_mode() {
-    // A replacing Container Apps revision starts while the old revision is
-    // still serving from the same /data database. BEGIN IMMEDIATE permits
-    // readers but blocks a journal-mode PRAGMA, which is the exact startup
-    // failure observed on revision sf-class-capacity-truth--0000049.
+async fn durable_database_uses_exclusive_locking_for_one_replica_restart() {
+    // Azure Files does not support SQLite's normal shared-lock handoff across
+    // two processes. The deployment guard stops the old one-replica revision
+    // before creating its replacement; the database must retain its exclusive
+    // lock mode across that sequential restart.
     let directory = tempfile::tempdir().unwrap();
     let url = format!("sqlite://{}", directory.path().join("shared.db").display());
     let initial = db::connect(&url).await.unwrap();
@@ -1268,23 +1268,15 @@ async fn durable_database_opens_during_revision_overlap_without_resetting_journa
         .await
         .unwrap();
     assert_eq!(journal_mode.to_ascii_lowercase(), "delete");
+    let locking_mode = sqlx::query_scalar::<_, String>("PRAGMA locking_mode")
+        .fetch_one(&initial)
+        .await
+        .unwrap();
+    assert_eq!(locking_mode.to_ascii_lowercase(), "exclusive");
     initial.close().await;
 
-    let mut old_revision = SqliteConnection::connect(&url).await.unwrap();
-    sqlx::query("BEGIN IMMEDIATE")
-        .execute(&mut old_revision)
+    let replacing_revision = db::connect(&url)
         .await
-        .unwrap();
-
-    let replacing_revision = tokio::time::timeout(Duration::from_secs(2), db::connect(&url))
-        .await
-        .expect("replacement startup must not wait for an exclusive journal-mode lock")
-        .expect("replacement startup must open the durable SQLite database");
-
-    sqlx::query("ROLLBACK")
-        .execute(&mut old_revision)
-        .await
-        .unwrap();
-    old_revision.close().await.unwrap();
+        .expect("replacement opens only after the old revision releases its exclusive lock");
     replacing_revision.close().await;
 }

@@ -109,6 +109,16 @@ jq -e --arg image "$image" '
   .properties.template.containers[0].image == $image
 ' <<<"$actual" >/dev/null
 
+# SQLite holds an exclusive lock for the single mounted /data owner. Container
+# Apps normally overlaps revisions while probing a replacement, which would
+# make the replacement wait forever on Azure Files. The durable release is an
+# explicit sequential restart: the prior revision is stopped only after the
+# new immutable template and mount have been read back.
+if [[ -n "$previous_revision" && "$previous_revision" != "$(jq -r '.properties.latestRevisionName' <<<"$actual")" ]]; then
+  az containerapp revision deactivate --resource-group "$resource_group" --name "$app_name" \
+    --revision "$previous_revision" --only-show-errors >/dev/null
+fi
+
 # A template readback alone is not a release result: Container Apps can expose
 # a new template before its revision becomes healthy and receives ingress
 # traffic. Wait for that handoff, then prove the running process identifies as

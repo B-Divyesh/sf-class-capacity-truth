@@ -117,6 +117,11 @@ wait_for_revision() {
     "$(dirname "$0")/wait-for-containerapp-revision.sh" "$1"
 }
 
+stop_revision_for_sqlite_restart() {
+  az containerapp revision deactivate --resource-group "$resource_group" --name "$app_name" \
+    --revision "$1" --only-show-errors >/dev/null
+}
+
 current="$(az containerapp show --resource-group "$resource_group" --name "$app_name" -o json)"
 if jq -e '.properties.template.containers[0].env | any(.name == "TEST_AUTH_TOKEN")' <<<"$current" >/dev/null; then
   echo "refusing to replace an existing TEST_AUTH_TOKEN" >&2
@@ -139,6 +144,7 @@ before="$(az containerapp show --resource-group "$resource_group" --name "$app_n
 patch_test_token attach "d-a-$drill_id"
 token_attached=true
 wait_for_test_token_reference
+stop_revision_for_sqlite_restart "$before"
 auth_revision="$(wait_for_revision "$before")"
 
 workspace="$(curl --silent --show-error --fail-with-body -X POST "$base_url/api/workspaces" \
@@ -166,6 +172,7 @@ curl --silent --show-error --fail-with-body -X POST "$base_url/api/classes/$publ
 before="$auth_revision"
 az containerapp update --resource-group "$resource_group" --name "$app_name" \
   --revision-suffix "d-r-$drill_id" --only-show-errors >/dev/null
+stop_revision_for_sqlite_restart "$before"
 restart_revision="$(wait_for_revision "$before")"
 RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" \
   "$(dirname "$0")/verify-container-topology.sh"
@@ -184,6 +191,7 @@ status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$base_url
 before="$restart_revision"
 patch_test_token detach "d-c-$drill_id"
 token_attached=false
+stop_revision_for_sqlite_restart "$before"
 final_revision="$(wait_for_revision "$before")"
 remove_test_secret
 token_created=false

@@ -60,7 +60,7 @@ request "$base_url/api/classes/$public_id" | jq -e '.confirmed == 1 and .openSea
 request "$base_url/api/workspaces/classes/$class_id/bookings" \
   -H "Authorization: Bearer $token" -H "X-Workspace-Key: $workspace_key" \
   | jq -e 'length == 1 and .[0].guardianName == "Revision Parent" and .[0].guardianEmail == "revision.parent@example.org"' >/dev/null
-test -s "$runtime_dir/mounted/class-capacity-truth-state-v2.db"
+test -s "$runtime_dir/mounted/class-capacity-truth-state-v3.db"
 test -s "$runtime_dir/mounted/contact-data.key"
 test -s "$runtime_dir/mounted/demo-cookie.key"
 printf 'real-school booking survived release-process restart from direct mounted /data state\n'

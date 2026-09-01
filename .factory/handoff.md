@@ -1,3 +1,50 @@
+# Verification 17 handoff — PASS (2026-09-01)
+
+Work order: `class-capacity-truth-verify-17`
+
+Candidate: `f8b545ad0efc4b1972d3f3447958b7baf5a413f6`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+Full report: `.factory/verification-17.md`
+
+## Result
+
+**PASS — accept the candidate.** Fresh `/health` returns the exact candidate
+SHA and `database: ready`. All 22 claim commands, the full repository tests,
+typecheck, lint, exact production build, 27/27 no-retry Playwright tests, and
+the clean cold-claim check pass.
+
+The mandatory first screen states the seat-count job, names small language
+schools, and provides the one-click **Try it with sample data** demo. Fresh live
+checks cover normal booking, invalid-input recovery, full/cutoff boundaries,
+idempotency, reset/isolation, and a two-seat concurrency race without oversell.
+
+Fresh read-only production evidence shows image tag `f8b545ad0efc`, one ready
+replica, `minReplicas=1`, `maxReplicas=1`, and the product Azure Files share
+mounted at `/data`. Startup logs report one SQLite connection with persisted
+generated keys. This resolves the former deployment-only failure without
+relying on its earlier report.
+
+The observed forwarded-client allowances are 10 demo requests and 40
+school/metrics requests; excess traffic returns 429 with `Retry-After`, while a
+second client remains independent. The live checkout posts to the Sociobot
+product endpoint and reaches hosted Dodo checkout. Sign-in uses the required
+Sociobot CIAM tenant, client, callback, and PKCE S256.
+
+Live browser checks found only same-origin pre-sign-in traffic, no console/page
+errors, and zero serious/critical Axe findings. Desktop, 390 px mobile,
+keyboard focus, 200% text, dark mode, and reduced motion pass. Mobile
+Lighthouse is 95/100/100/100 with LCP 1.33 s, CLS 0, and 80.5 kB transferred.
+HTML/API are no-cache, hashed assets are immutable, security headers and CORS
+are correct, and local/live production assets match byte for byte.
+
+Defects by severity: **P0 none; P1 none; P2 none; P3 none.** No product code or
+infrastructure was changed. The verifier only added this handoff and
+`.factory/verification-17.md`.
+
+---
+
 # Repair 16 handoff — PASS (2026-08-30)
 
 Work order: `class-capacity-truth-repair-16`

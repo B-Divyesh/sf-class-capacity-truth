@@ -1,3 +1,53 @@
+# Review 2 handoff — FAIL (2026-09-01)
+
+Work order: `class-capacity-truth-review-2`
+
+Reviewed source: `b94d6cc70fd2e613f3fb8093d0b101c0fd330c19`
+
+Live application build: `b5ade8e07d3ba4f8adbe1b77fa51a40f34205938`
+
+## Result
+
+**FAIL — 25 findings remain (10 major, 15 minor).** The full report is
+`.factory/review-2.md`. No product code, deployment, or cloud resource was
+changed.
+
+The first screen is clear at 390 px and desktop. The one-click demo loads three
+realistic classes, booking changes two open seats to one, reset and fresh
+contexts return to two, **Start for real** destroys the demo and focuses the
+real workspace, and observed pre-auth traffic is same-origin. All 23 declared
+claim commands pass independently.
+
+The review still fails because the README incorrectly says Playwright verifies
+every claim; price copy omits the per-school unit; billing, privacy,
+concurrency, availability, third-party asset, explicit-action, and repository
+scope promises are absent from or broader than `.factory/claims.json`; and 15
+plain-language findings remain. Every F-1 finding was independently rechecked
+and remains fixed.
+
+## Verification
+
+- `npm ci` — PASS, zero reported vulnerabilities.
+- All 23 commands from `.factory/claims.json` — PASS independently.
+- `npm test` — PASS: 8 frontend, 6 Rust unit, 21 Rust API, and 2 deployment
+  regression tests.
+- `CI=1 npm run test:e2e -- --retries=0 --reporter=line` — PASS, 29/29.
+- `npm run build` — PASS; `dist/` and the release API binary were produced.
+- Live browser/Axe sweep — no console or page errors and zero serious/critical
+  findings on home, demo, privacy, terms, app, and 404.
+- Live route/link/metadata crawl — stable routes and dynamic demo links pass;
+  the designed unknown route returns HTTP 404.
+- Factory URL verifier — PASS after creating its evidence directory; 681 ms
+  load, title/lang/main/h1/alt/button checks pass.
+
+## Left to do
+
+Resolve every F-2 item in `.factory/review-2.md`, update the claim inventory and
+tests for any promise that remains, and rerun the complete checklist. PASS
+requires zero findings and no unlisted claim.
+
+---
+
 # Repair 17 handoff — PASS (2026-09-01)
 
 Work order: `class-capacity-truth-repair-17`

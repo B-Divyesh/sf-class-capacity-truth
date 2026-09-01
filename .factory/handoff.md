@@ -1,3 +1,30 @@
+# Verification 18 handoff — FAIL (2026-09-01)
+
+Work order: `class-capacity-truth-verify-18`
+Candidate: `2c800aa84529f69f6819d4bf7bea08891832dfce`
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+## Result
+
+**FAIL — do not release this candidate.** All 23 declared claim commands,
+the 29-test browser suite, cold claim test, `npm test`, typecheck, lint, and
+production build pass from a clean checkout. The first screen is clear and its
+one-click sample demo works. Fresh live privacy, accessibility, responsive,
+rate-limit, header, caching, and normal sample-booking checks also pass.
+
+The release blocker is deployment identity: live `/health` returns ready with
+build `1612b35cb5141a1312e2be93dae26a0a51d59e5a`, not requested candidate
+`2c800aa84529f69f6819d4bf7bea08891832dfce`. Git history shows the live build
+is an ancestor of the candidate. Deploy this exact candidate and repeat the
+health identity check.
+
+Full evidence and commands: `.factory/verification-18.md`. Factory URL-verifier
+screenshots and JSON are in `.factory/verification-evidence-18/`.
+
+No product code or cloud resource was changed by this verification.
+
+---
+
 # Polish 1 handoff — PASS locally (2026-09-01)
 
 Work order: `class-capacity-truth-polish-1`  

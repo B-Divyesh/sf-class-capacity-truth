@@ -11,11 +11,21 @@ app_name="${CONTAINER_APP_NAME:-sf-class-capacity-truth}"
 base_url="${BASE_URL:-https://class-capacity-truth.sociobot.in}"
 storage_name="${DATA_STORAGE_NAME:-sf-class-capacity-truth-data}"
 image="${IMAGE:?Set IMAGE to the immutable ACR image tag to deploy}"
-# A source SHA is supplied by the release build when available. For the
-# factory's immutable SHA-tagged images, the tag itself is still enough to
-# prove that the traffic-serving process came from the requested source.
-expected_build_sha="${EXPECTED_BUILD_SHA:-}"
+# A release is not identifiable from an image tag alone: a stale revision can
+# keep serving an older binary while a tag-shaped image is present in the
+# template. Require the full source commit that was passed to Docker's
+# BUILD_SHA argument, then require /health to return that exact value after
+# ingress switches. This prevents the Verification 18 stale-build release.
+expected_build_sha="${EXPECTED_BUILD_SHA:?Set EXPECTED_BUILD_SHA to the exact 40-character source commit}"
+if [[ ! "$expected_build_sha" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "EXPECTED_BUILD_SHA must be a lowercase 40-character source commit" >&2
+  exit 64
+fi
 image_tag="${image##*:}"
+if [[ "$image_tag" != "${expected_build_sha:0:12}" ]]; then
+  echo "IMAGE tag must equal the first 12 characters of EXPECTED_BUILD_SHA" >&2
+  exit 64
+fi
 # A revision suffix must be unique across a Container App. Do not copy the
 # currently-ready suffix from the readback template: ARM will accept that
 # request asynchronously but Container Apps cannot create the next revision.
@@ -155,15 +165,9 @@ RESOURCE_GROUP="$resource_group" CONTAINER_APP_NAME="$app_name" \
   "$(dirname "$0")/wait-for-containerapp-revision.sh" "$previous_revision" >/dev/null
 
 health="$(curl --silent --show-error --fail "$base_url/health")"
-if [[ -n "$expected_build_sha" ]]; then
-  jq -e --arg build "$expected_build_sha" '
-    .status == "ok" and .database == "ready" and .build == $build
-  ' <<<"$health" >/dev/null
-else
-  jq -e --arg tag "$image_tag" '
-    .status == "ok" and .database == "ready" and (.build | startswith($tag))
-  ' <<<"$health" >/dev/null
-fi
+jq -e --arg build "$expected_build_sha" '
+  .status == "ok" and .database == "ready" and .build == $build
+' <<<"$health" >/dev/null
 
 deployment_complete=true
 

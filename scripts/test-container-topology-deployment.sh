@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Regression for verification-16 P0. The fixture is the exact defective active
-# control-plane shape read from production by the independent verifier:
+# Regressions for verifier findings 16 and 18. The first fixture is the exact
+# defective active control-plane shape read from production by verification 16:
 # candidate 283758f64e321a3037951b433f24bc79c0622ee6, revision 0000046, only
-# PORT, no durable /data Azure Files mount, and maxReplicas 3. It first proves
-# that the readback guard rejects that shape, then proves the checked-in deploy
-# command replaces the stale template, waits for the revision that receives
-# traffic, and verifies the repair's full runtime identity.
+# PORT, no durable /data Azure Files mount, and maxReplicas 3. Verification 18
+# then found an otherwise healthy live process still reporting
+# 1612b35cb5141a1312e2be93dae26a0a51d59e5a instead of requested candidate
+# 2c800aa84529f69f6819d4bf7bea08891832dfce. This test first rejects each exact
+# failure, then proves the checked-in command deploys a matching full identity.
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 grep -Fq 'BUILD_SHA="$BUILD_SHA" cargo build --release' "$repo_root/Dockerfile"
 fixture_dir="$(mktemp -d)"
@@ -106,37 +107,51 @@ if PATH="$fixture_dir/bin:$PATH" \
   exit 1
 fi
 
-# A durable template is still not a successful release if ingress serves a
-# different build. Exercise the full SHA guard independently before the
-# positive deployment below; this is intentionally a copy so the latter starts
-# from verification-15's exact unsafe production shape.
+# The deployment command must not accept an unbound image tag. Its public
+# contract requires the exact full candidate SHA that /health must report.
+if PATH="$fixture_dir/bin:$PATH" \
+  AZ_FIXTURE_STATE="$fixture_dir/state.json" \
+  AZ_FIXTURE_LOG="$fixture_dir/missing-identity-az.log" \
+  IMAGE="sociobotregistry.azurecr.io/sf-class-capacity-truth:2c800aa84529" \
+  BASE_URL="https://fixture.invalid" \
+  REVISION_SUFFIX="d-missing-identity-20260901" \
+  "$repo_root/scripts/deploy-container.sh" >/dev/null 2>&1; then
+  echo "the deployment accepted an image without its exact source identity" >&2
+  exit 1
+fi
+[[ ! -e "$fixture_dir/missing-identity-az.log" ]]
+
+# Verification 18's exact failure: a candidate-shaped image is requested but
+# the traffic-serving process still reports the earlier 1612b35 build. This
+# must fail even though health and the database are otherwise ready. Use a copy
+# so the positive deployment below still begins from the known-unsafe shape.
 cp "$fixture_dir/state.json" "$fixture_dir/identity-mismatch-state.json"
 if PATH="$fixture_dir/bin:$PATH" \
   AZ_FIXTURE_STATE="$fixture_dir/identity-mismatch-state.json" \
   AZ_FIXTURE_LOG="$fixture_dir/identity-mismatch-az.log" \
-  IMAGE="sociobotregistry.azurecr.io/sf-class-capacity-truth:identity-mismatch" \
-  EXPECTED_BUILD_SHA="expected-full-build-sha" \
+  IMAGE="sociobotregistry.azurecr.io/sf-class-capacity-truth:2c800aa84529" \
+  EXPECTED_BUILD_SHA="2c800aa84529f69f6819d4bf7bea08891832dfce" \
   BASE_URL="https://fixture.invalid" \
-  REVISION_SUFFIX="d-identity-mismatch-20260829" \
-  AZ_FIXTURE_BUILD_SHA="different-full-build-sha" \
+  REVISION_SUFFIX="d-identity-mismatch-20260901" \
+  AZ_FIXTURE_BUILD_SHA="1612b35cb5141a1312e2be93dae26a0a51d59e5a" \
   "$repo_root/scripts/deploy-container.sh" >/dev/null 2>&1; then
-  echo "the deployment accepted a traffic-serving process with the wrong build identity" >&2
+  echo "the deployment accepted Verification 18's stale traffic-serving build" >&2
   exit 1
 fi
 
 PATH="$fixture_dir/bin:$PATH" \
 AZ_FIXTURE_STATE="$fixture_dir/state.json" \
 AZ_FIXTURE_LOG="$fixture_dir/az.log" \
-IMAGE="sociobotregistry.azurecr.io/sf-class-capacity-truth:deployment-regression" \
-EXPECTED_BUILD_SHA="deployment-regression-full-sha" \
+IMAGE="sociobotregistry.azurecr.io/sf-class-capacity-truth:4a8c9ef01234" \
+EXPECTED_BUILD_SHA="4a8c9ef0123456789abcdef0123456789abcdef0" \
 BASE_URL="https://fixture.invalid" \
-REVISION_SUFFIX="d-regression-20260829" \
-AZ_FIXTURE_BUILD_SHA="deployment-regression-full-sha" \
+REVISION_SUFFIX="d-regression-20260901" \
+AZ_FIXTURE_BUILD_SHA="4a8c9ef0123456789abcdef0123456789abcdef0" \
 "$repo_root/scripts/deploy-container.sh" >/dev/null
 
 jq -e '
-  .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:deployment-regression" and
-  .properties.template.revisionSuffix == "d-regression-20260829" and
+  .properties.template.containers[0].image == "sociobotregistry.azurecr.io/sf-class-capacity-truth:4a8c9ef01234" and
+  .properties.template.revisionSuffix == "d-regression-20260901" and
   .properties.template.scale == {minReplicas: 1, maxReplicas: 1} and
   (.properties.template.volumes | any(.name == "data" and .storageType == "AzureFile" and .storageName == "sf-class-capacity-truth-data")) and
   (.properties.template.containers[0].volumeMounts | any(.volumeName == "data" and .mountPath == "/data")) and

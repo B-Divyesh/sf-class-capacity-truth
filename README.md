@@ -98,7 +98,23 @@ modular classroom abacus visual system.
 
 Every release sets `deploy.data_dir` to `/data` in the container work order.
 The topology script then checks the image, one-replica limit, and Azure Files
-mount.
+mount. Build and deploy the checked-out commit with its full identity; the
+deployment command refuses an unbound tag and fails unless live `/health`
+returns the same SHA.
+
+```bash
+release_sha="$(git rev-parse HEAD)"
+release_tag="${release_sha:0:12}"
+az acr build --registry sociobotregistry \
+  --image "sf-class-capacity-truth:${release_tag}" \
+  --file Dockerfile \
+  --build-arg "BUILD_SHA=${release_sha}" \
+  --build-arg "GIT_SHA=${release_sha}" \
+  --build-arg "SOURCE_COMMIT=${release_sha}" .
+IMAGE="sociobotregistry.azurecr.io/sf-class-capacity-truth:${release_tag}" \
+EXPECTED_BUILD_SHA="$release_sha" \
+bash scripts/deploy-container.sh
+```
 
 ## Privacy and licence
 

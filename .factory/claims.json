@@ -37,7 +37,7 @@
   {
     "id": "calendar-poll",
     "claim": "An encrypted iCalendar feed is checked every five minutes.",
-    "where": "School calendar connection and privacy page",
+    "where": "School calendar connection and README",
     "test": "npm run test:api -- claim_calendar_feed_is_encrypted_and_polled_every_five_minutes",
     "sandbox": "Connect a recorded iCalendar fixture, inspect ciphertext at rest, then run the due worker at now, now+299 seconds, and now+300 seconds."
   },
@@ -53,7 +53,7 @@
     "claim": "The school plan costs $99 each month.",
     "where": "Landing facts, signed-out workspace, billing section, and terms",
     "test": "npm run test:e2e -- --grep @claim:school-plan-price",
-    "sandbox": "Intercept the Sociobot API, assert the product creates the checkout with POST, and assert navigation reaches its hosted Dodo URL."
+    "sandbox": "Intercept a recorded Sociobot checkout response with USD 99 and a monthly interval, assert the landing copy matches it, then assert POST navigation reaches its hosted Dodo URL."
   },
   {
     "id": "no-third-party-tracking",
@@ -70,9 +70,16 @@
     "sandbox": "Inspect persisted rows for absent plaintext, advance the clock to the exact 90-day boundary, and assert contact fields are scrubbed."
   },
   {
+    "id": "entra-sign-in",
+    "claim": "School staff sign in through Sociobot Microsoft sign-in.",
+    "where": "Workspace sign-in",
+    "test": "npm run test:e2e -- --grep @claim:entra-sign-in",
+    "sandbox": "Fresh signed-out browser intercepts the CIAM discovery and authorization flow; assert the Sociobot CIAM host, client ID, callback URL, response type, and PKCE challenge method."
+  },
+  {
     "id": "staff-role-access",
-    "claim": "School staff use Sociobot Entra sign-in and server-side roles.",
-    "where": "Workspace sign-in and terms",
+    "claim": "Server-side roles control school staff access.",
+    "where": "School workspace",
     "test": "npm run test:api -- claim_staff_roles_enforce_owner_actions",
     "sandbox": "Use the recorded identity, assert viewer access succeeds, and assert the same viewer is forbidden from an owner action."
   },

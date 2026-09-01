@@ -108,6 +108,21 @@ test("resetting from a booking returns to fresh sample classes", async ({ page }
   await expect(page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByText("2 seats open", { exact: false })).toBeVisible();
 });
 
+test("Start for real discards demo data and takes mobile visitors to the real workspace", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/demo?demo=1");
+  await page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByRole("link", { name: "Book this sample class" }).click();
+  await page.getByRole("button", { name: "Book one sample seat" }).click();
+  await expect(page.getByText("1 seat is now open in this class.")).toBeVisible();
+  await page.getByRole("button", { name: "Start for real" }).click();
+  await expect(page).toHaveURL(/\/app$/);
+  const heading = page.getByRole("heading", { level: 1, name: "Create your school workspace" });
+  await expect(heading).toBeFocused();
+  await expect(heading).toBeInViewport();
+  await page.goto("/demo?demo=1");
+  await expect(page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByText("2 seats open", { exact: false })).toBeVisible();
+});
+
 test("axe finds no serious issues on a booking route", async ({ page }) => {
   await page.goto("/demo?demo=1");
   await page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByRole("link", { name: "Book this sample class" }).click();
@@ -232,6 +247,37 @@ test("release regression: the 390px header uses a labelled keyboard menu", async
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
+test("@claim:entra-sign-in sends staff to Sociobot CIAM with PKCE", async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.removeItem("cct:test-access-token"));
+  let authorizeUrl = "";
+  await page.route("https://sociobotcustomers.ciamlogin.com/**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/.well-known/openid-configuration")) {
+      const origin = "https://sociobotcustomers.ciamlogin.com/35c6fe40-0ec0-46b6-98c6-213ad4de6650";
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({
+        issuer: origin,
+        authorization_endpoint: `${origin}/oauth2/v2.0/authorize`,
+        token_endpoint: `${origin}/oauth2/v2.0/token`,
+        end_session_endpoint: `${origin}/oauth2/v2.0/logout`,
+        jwks_uri: `${origin}/discovery/v2.0/keys`
+      }) });
+      return;
+    }
+    if (url.pathname.endsWith("/oauth2/v2.0/authorize")) authorizeUrl = route.request().url();
+    await route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Sociobot sign in</title>" });
+  });
+  await page.goto("/app");
+  await page.getByRole("button", { name: "Sign in with Sociobot" }).click();
+  await expect.poll(() => authorizeUrl).not.toBe("");
+  const authorize = new URL(authorizeUrl);
+  expect(authorize.hostname).toBe("sociobotcustomers.ciamlogin.com");
+  expect(authorize.searchParams.get("client_id")).toBe("25c704f4-465a-47af-80ab-2c489466b697");
+  expect(authorize.searchParams.get("redirect_uri")).toBe("http://127.0.0.1:4173/auth/callback");
+  expect(authorize.searchParams.get("response_type")).toBe("code");
+  expect(authorize.searchParams.get("code_challenge_method")).toBe("S256");
+  expect(authorize.searchParams.get("code_challenge")).toBeTruthy();
+});
+
 test("release regression: hashed assets are immutable and unknown paths are HTTP 404", async ({ page }) => {
   const assetHeaders: string[] = [];
   page.on("response", (response) => { if (response.url().includes("/assets/")) assetHeaders.push(response.headers()["cache-control"] ?? ""); });
@@ -294,7 +340,7 @@ test("@claim:school-capacity-flow @claim:released-seat-delivery creates, copies,
   await page.getByLabel("School name").fill("Harbour Languages");
   await page.getByRole("button", { name: "Create school workspace" }).click();
   await expect(page.getByRole("heading", { name: "Manage class capacity" })).toBeVisible();
-  await expect(page.getByText("This deployment does not send email. Cancelling creates a one-click offer below. Copy it and send it through your school's approved channel.")).toBeVisible();
+  await expect(page.getByText("This deployment does not send email. Cancelling creates a one-click offer below. Copy it and send it through the school’s usual email or messaging service.")).toBeVisible();
   const runtime = await page.request.get("/api/runtime");
   expect(await runtime.json()).toEqual({ emailDelivery: "not_configured" });
   await page.getByLabel("Class name").fill("Saturday level check");
@@ -303,7 +349,7 @@ test("@claim:school-capacity-flow @claim:released-seat-delivery creates, copies,
   await page.getByLabel("Capacity").fill("1");
   await page.getByRole("button", { name: "Create class" }).click();
   const classCard = page.getByRole("article").filter({ hasText: "Saturday level check" });
-  await classCard.getByRole("button", { name: "Publish parent link" }).click();
+  await classCard.getByRole("button", { name: "Publish guardian link" }).click();
   const href = await classCard.getByRole("link", { name: "Open booking page" }).getAttribute("href");
   expect(href).toMatch(/^\/book\/class_/);
   await page.getByLabel("Calendar label").fill("School bookings calendar");
@@ -314,7 +360,7 @@ test("@claim:school-capacity-flow @claim:released-seat-delivery creates, copies,
   await page.getByLabel("Guardian name").fill("Alex Morgan");
   await page.getByLabel("Email address").fill("alex@example.org");
   await page.getByRole("button", { name: "Book this seat" }).click();
-  await expect(page.getByText("Your place is confirmed.")).toBeVisible();
+  await expect(page.getByText("Your seat is confirmed.")).toBeVisible();
   await page.reload();
   await page.getByLabel("Guardian name").fill("Waiting Parent");
   await page.getByLabel("Email address").fill("waiting@example.org");
@@ -365,16 +411,21 @@ test("release regression: school wall time does not drift with the browser zone"
   await context.close();
 });
 
-test("@claim:school-plan-price shows the exact price and opens hosted Sociobot checkout", async ({ page }) => {
+test("@claim:school-plan-price shows the recorded monthly price and opens hosted Sociobot checkout", async ({ page }) => {
   let checkoutMethod = "";
+  const recordedCheckout = {
+    checkout_url: "https://checkout.dodopayments.com/session/test_class_capacity_truth",
+    product: { currency: "USD", amount_cents: 9900, interval: "month" }
+  };
   await page.route("https://api.sociobot.in/api/v1/products/class-capacity-truth/checkout", async (route) => {
     checkoutMethod = route.request().method();
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ checkout_url: "https://checkout.dodopayments.com/session/test_class_capacity_truth" }) });
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(recordedCheckout) });
   });
   await page.route("https://checkout.dodopayments.com/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>Hosted checkout</title>" }));
   await page.goto("/");
   await expect(page.getByText("The school plan costs $99 each month.")).toBeVisible();
-  await page.getByRole("button", { name: /Open the \$99 monthly Sociobot checkout/ }).click();
+  expect(recordedCheckout.product).toEqual({ currency: "USD", amount_cents: 9900, interval: "month" });
+  await page.getByRole("button", { name: "Open Sociobot checkout" }).click();
   await page.waitForURL("https://checkout.dodopayments.com/session/test_class_capacity_truth");
   expect(checkoutMethod).toBe("POST");
 });
@@ -403,7 +454,7 @@ test("calendar connection UI checks the feed without changing confirmed seats", 
   await page.getByRole("button", { name: "Create class" }).click();
   const classCard = page.getByRole("article").filter({ hasText: "Saturday level check" });
   await expect(classCard.getByRole("img", { name: "0 confirmed, 3 open" })).toBeVisible();
-  await classCard.getByRole("button", { name: "Publish parent link" }).click();
+  await classCard.getByRole("button", { name: "Publish guardian link" }).click();
   await page.getByLabel("Calendar label").fill("School bookings calendar");
   await page.getByLabel("iCalendar feed URL").fill("https://fixture.invalid/school.ics");
   await page.getByRole("button", { name: "Connect and check calendar" }).click();

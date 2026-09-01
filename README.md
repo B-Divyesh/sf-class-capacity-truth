@@ -1,30 +1,31 @@
-# Class Capacity Truth
+# Keep class seat counts accurate
 
-Class Capacity Truth is a capacity ledger for small language schools and
-tutoring centres. Staff connect an iCalendar feed, publish parent booking
-links, and create one expiring offer when a named booking is cancelled. Staff
-can copy its one-click URL into an approved school channel. A configured SMTP
-relay queues an encrypted offer for delivery instead. The school plan costs $99 each month through
-Sociobot checkout.
+Class Capacity Truth helps small language schools and tutoring centres keep
+class seat counts accurate. Staff connect a calendar feed (iCalendar), publish
+guardian booking links, and create one timed offer after cancelling a booking.
+Staff can copy the offer link into the school’s usual email or messaging
+service. If email delivery is configured, the service queues an encrypted offer
+email. The school plan costs $99 each month through Sociobot checkout.
 
 Try the deployed demo at
 [class-capacity-truth.sociobot.in/demo?demo=1](https://class-capacity-truth.sociobot.in/demo?demo=1).
-The sample is fictional. Each browser gets a signed, temporary workspace that
+Each browser gets a signed, temporary workspace that
 expires after 24 hours. Name and email input is validated but not retained.
 
 ## Real school workflow
 
-Open `/app` and sign in with the shared Sociobot Microsoft Entra tenant.
-Owners, operators, and viewers are authorized on the server by stable Entra
-identity. A workspace can be recovered on another device after sign-in.
+Open `/app` and sign in with your school’s Sociobot Microsoft account. The
+server assigns owner, operator, or viewer permissions from each staff member’s
+Microsoft sign-in. A workspace can be recovered on another device after sign-in.
 Calendar feeds are encrypted and checked every five minutes. A disagreement
 is visible as **Attention** and never changes confirmed seats automatically.
 
-Parents can book while seats remain or consent to the waitlist. Staff select
+Guardians can book while seats remain or consent to the waitlist. Staff select
 the exact booking to cancel. The server creates a 24-hour offer for the oldest
-waiting guardian. Its durable receipt includes the offer URL and delivery
-state. Without SMTP, staff use **Copy offer** and send the URL through their
-approved channel. Owners can export or delete the workspace. Contact fields
+waiting guardian. The saved receipt shows the offer link and whether email was
+sent. Without email delivery, staff use **Copy offer** and send the URL through
+the school’s usual email or messaging service. Owners can export or delete the
+workspace. Contact fields
 are encrypted and scrubbed after 90 days.
 
 ## Run locally
@@ -39,8 +40,8 @@ DATA_DIR="$PWD/.data" FRONTEND_DIST="$PWD/dist" cargo run --manifest-path servic
 
 Open `http://localhost:8080/demo?demo=1`. The service starts with only `PORT`
 (and defaults to `8080`); `DATA_DIR` defaults to `/data` in the
-container. A cookie-signing key is generated with a CSPRNG and persisted in the
-data directory when none is supplied. A separate contact-encryption key is
+container. When no cookie-signing key is supplied, the service creates a secure
+random key and stores it in the data directory. A separate contact-encryption key is
 generated and persisted the same way. Optional SMTP variables are
 `SMTP_RELAY`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_FROM`. Without them,
 the workspace creates a durable, copyable offer and states that no email was
@@ -68,41 +69,36 @@ produces `dist/` and a release API binary.
   single-instance school ledger. Production mounts the work-order Azure Files
   share at `/data`; SQLite and generated keys live there. Production is fixed
   at one replica.
-- Entra JWT discovery/JWKS validation, owner/operator/viewer authorization,
-  encrypted contact and calendar fields, retention cleanup, transaction-checked
-  bookings, encrypted offer tokens, durable delivery receipts, an optional
-  email outbox, and forwarded-IP rate limits.
-- One non-root container serves both the API and built web assets on `PORT`.
-  The checked-in deployment contract fixes the app at one replica and mounts
-  Azure Files at `/data`; limits therefore apply once per forwarded client IP.
+- The API validates Microsoft sign-in tokens and enforces staff roles. It
+  encrypts contact and calendar fields. Transactions protect bookings. The
+  server also stores offer receipts, can queue email, and limits requests by
+  client IP.
+- One container serves both the API and built web assets on `PORT`. The
+  deployment contract fixes the app at one replica and mounts Azure Files at
+  `/data`. Rate limits apply once per forwarded client IP.
 
 ## Operations metrics
 
-Signed-in owners and operators can open `/app/operations`. The same aggregate,
-no-PII data is available to an authorised school member at `GET /api/metrics`
-(or `/api/workspaces/metrics`) with their Entra bearer token and workspace key.
-The response is Prometheus text and contains fixed-route request, server-error,
-and latency totals plus calendar job lag, unresolved discrepancies, and
-released-seat offer conversion. It never contains guardian, class, school, or
-token values.
+Signed-in owners and operators can open `/app/operations`. Authorised school
+staff can fetch the same totals from `GET /api/metrics` or
+`GET /api/workspaces/metrics`. Requests need their Microsoft sign-in token and
+workspace key. The Prometheus response lists request counts, server errors, and
+response times. It also lists calendar delay, unresolved differences, and
+accepted seat offers. It never contains guardian, class, school, or token
+values.
 
 Treat any server error or unresolved public discrepancy as an investigation.
 Check calendar connections when lag exceeds ten minutes, and review monthly API
-availability against the 99.9% target. The service keeps these counters in
-memory, so a restart starts a fresh operational interval; durable booking and
-reconciliation records remain the source for the workspace gauges.
+availability against the 99.9% target.
 
 The factory deploys the container. This repository does not change DNS,
 billing, or cloud infrastructure. See [.factory/plan.md](.factory/plan.md) for
 the milestone architecture and [.factory/design.md](.factory/design.md) for the
 modular classroom abacus visual system.
 
-Every production release uses the container work order with `deploy.data_dir`
-set to `/data`, then verifies the immutable image, one-replica limit, and the
-Azure Files `/data` mount with `scripts/verify-container-topology.sh`. The
-checked-in guarded script can apply the same product template when its image
-and full `EXPECTED_BUILD_SHA` are supplied. It does not read storage
-credentials or modify shared infrastructure.
+Every release sets `deploy.data_dir` to `/data` in the container work order.
+The topology script then checks the image, one-replica limit, and Azure Files
+mount.
 
 ## Privacy and licence
 

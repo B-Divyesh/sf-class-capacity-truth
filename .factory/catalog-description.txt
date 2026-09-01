@@ -1,0 +1,1 @@
+Keep class seat counts accurate for small language schools.

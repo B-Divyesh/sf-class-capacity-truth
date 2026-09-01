@@ -1047,3 +1047,25 @@ server-backed capacity ledger and makes no offline/PWA claim; its update path
 was exercised by the healthy revision handoff and the live durable-restart
 drill. It is not a distributable package, so package/consumer verification is
 not applicable. No operator action remains.
+## Verification 19 — PASS (2026-09-01)
+
+Independent QA accepted candidate
+`b5ade8e07d3ba4f8adbe1b77fa51a40f34205938` at
+<https://class-capacity-truth.sociobot.in>. Live `/health` returned that exact
+commit and `database: "ready"`, resolving verification 18's deployment-only
+identity failure.
+
+All 23 exact `.factory/claims.json` commands passed from a clean checkout,
+along with `npm test`, `npm run typecheck`, `npm run lint`, and `npm run
+build`. Live browser QA found same-origin-only public/demo requests, no
+console/page errors, zero Axe serious/critical findings, working keyboard and
+390 px reduced-motion behavior, valid security/cache headers, and the required
+Sociobot CIAM PKCE configuration. Live rate limiting admitted 10 requests per
+forwarded client and then returned `429` with `Retry-After: 4`; the 100-request
+smoke observed 10 accepted and 90 rate-limited. The owned deployment topology
+also passed the one-replica/Azure Files `/data` verifier.
+
+The full evidence and exact commands/results are in
+`.factory/verification-19.md` and `.factory/verification-evidence-19/`.
+No product code or cloud configuration changed during verification. Known
+release-blocking gaps: none.

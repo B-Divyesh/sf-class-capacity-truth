@@ -1,3 +1,95 @@
+# Repair 17 handoff — PASS (2026-09-01)
+
+Work order: `class-capacity-truth-repair-17`
+Verifier report: commit `6608a343748a35ef7ddfda50059453e6adae8e0d`,
+`.factory/verification-18.md`
+Failed candidate: `2c800aa84529f69f6819d4bf7bea08891832dfce`
+Repair commit and deployed candidate:
+`382e397b8458ff6ff48e816c6e9df2f3633f37f7`
+
+## Result
+
+**PASS — the exact repair candidate is live.** The public health endpoint now
+returns `{"status":"ok","build":"382e397b8458ff6ff48e816c6e9df2f3633f37f7","database":"ready"}`.
+It is served by revision `sf-class-capacity-truth--r17-382e397` from image
+`sociobotregistry.azurecr.io/sf-class-capacity-truth:382e397b8458`, with one
+replica and the work-order Azure Files share
+`sf-class-capacity-truth-data` mounted at `/data`.
+
+## Reproduced failure and repair
+
+Before changing source or cloud state, `GET /health` reproduced Verification
+18 exactly: it returned healthy/ready with build
+`1612b35cb5141a1312e2be93dae26a0a51d59e5a`, rather than requested candidate
+`2c800aa84529f69f6819d4bf7bea08891832dfce`. The product-only topology
+readback was already correct: one replica, only `PORT=8080`, and the product
+Azure Files `/data` mount.
+
+The release command previously allowed `EXPECTED_BUILD_SHA` to be omitted and
+then accepted a tag-prefix health check. `scripts/deploy-container.sh` now:
+
+- requires a lowercase, full 40-character `EXPECTED_BUILD_SHA`;
+- requires the immutable image tag to equal that SHA's first 12 characters;
+- requires traffic-serving `/health` to return the full SHA exactly.
+
+`README.md` documents the complete ACR build and guarded deployment command.
+The deployment fixture now rejects an image with no full identity before
+making an Azure call, reproduces the literal Verification 18 requested
+`2c800aa…`/served `1612b35…` mismatch, and proves a positive deployment only
+when the full identity matches.
+
+## Verification
+
+- Clean install: `npm ci` — 170 packages, 0 vulnerabilities.
+- `npm test` — PASS: 8 frontend tests, 6 Rust unit tests, 21 API integration
+  tests, and both deployment/readiness fixtures.
+- `npm run typecheck`, `npm run lint`, and `npm run build` — PASS. Production
+  output: 73.80 kB gzip initial JavaScript, 79.59 kB gzip lazy JavaScript,
+  and 4.62 kB gzip CSS.
+- `CI=1 npm run test:e2e -- --retries=0 --reporter=line` — PASS, 29/29.
+  It covers desktop and 390 px mobile, keyboard, 200% text, reduced motion,
+  all claims, privacy, CIAM PKCE, route focus, and Axe serious/critical-zero
+  checks on every public route.
+- `npm run test:durable-restart`, `bash scripts/test-zero-config.sh`, and
+  `npm run test:cold-claim` — PASS.
+- ACR run `ch1r6` built the `.git`-free 242.461 KiB source archive. Image
+  digest: `sha256:6a953eec3500d0c0776c1170029a73826aead189ece5b386ac3995bf620045da`.
+- The guarded release command completed successfully, read back the exact
+  product template, and checked full live build identity. It did not touch
+  any resource outside `sf-class-capacity-truth*`.
+- Live factory URL verification passed in 569 ms: title, `lang=en`, one h1,
+  main landmark, image alt text, labelled buttons, and no console errors.
+  Evidence: `.factory/evidence-repair-17/verify-url/verify.json`.
+- `scripts/verify-live-browser.mjs` passed against production. It found no
+  console/page errors, no serious/critical Axe violations, same-origin
+  pre-sign-in traffic only, no undocumented service worker, correct CIAM
+  tenant/client/callback/PKCE, and a 44.8 px mobile menu with no 390 px
+  overflow. Evidence: `.factory/evidence-repair-17/live/browser-smoke.json`
+  plus the associated desktop/mobile screenshots.
+- Live headers confirm no-cache HTML/API, immutable hashed assets, response
+  header CSP with `frame-ancestors 'none'`, `nosniff`, strict referrer policy,
+  and permissions policy. An unknown route returns HTTP 404.
+- Live forwarded-IP rate check: requests 1–10 to `/api/demo/session` returned
+  200; request 11 returned 429 with `Retry-After: 4`.
+
+## Tooling note
+
+The standalone `@axe-core/cli` was invoked, but this worker's global
+ChromeDriver supports Chrome 152 while the supplied Playwright Chromium is
+145, so the CLI cannot create a matching WebDriver session. The preinstalled
+Playwright Axe integration is the applicable alternative and passed locally
+and live as recorded above. The Lighthouse launcher has the same fleet Chrome
+discovery incompatibility; no fresh Lighthouse score is claimed. This repair
+does not change frontend assets or runtime UI; Verification 17's preceding
+live mobile Lighthouse result was 95/100/100/100.
+
+## Known gaps
+
+None for the product or release. The two standalone browser CLI limitations
+above are worker-tool compatibility constraints, not product findings.
+
+---
+
 # Verification 18 handoff — FAIL (2026-09-01)
 
 Work order: `class-capacity-truth-verify-18`

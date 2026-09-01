@@ -1,3 +1,53 @@
+# Polish 1 handoff — PASS locally (2026-09-01)
+
+Work order: `class-capacity-truth-polish-1`  
+Repair commit: `f1b5523b527df482d9bd93ad719466e05f56ffc0` (amended below with this handoff)
+
+## Result
+
+All 34 adversarial review findings are addressed. The demo exit now discards its
+isolated session and opens `/app` with focus on the real-start heading. The
+first-screen promise now matches the implemented capacity workflow. Claims are
+complete: price uses a recorded monthly USD 99 checkout fixture; CIAM/PKCE and
+server roles are separate claims. Routing, static 404 metadata/shell, sitemap,
+mobile menu wording, plain language, terminology, legal links, and footer
+provenance copy were corrected without changing the classroom-abacus visual
+system.
+
+The complete finding-to-change map is `.factory/polish-1.md`. The one-line
+catalog text is `.factory/catalog-description.txt`.
+
+## Local verification
+
+- Clean dependency install: `npm ci` (170 packages; npm reported 0 vulnerabilities).
+- `npm test` passed: 8 TypeScript tests, 6 Rust unit tests, 21 API/integration
+  tests, and both topology/readiness fixtures.
+- `npm run test:api` passed all 21 API tests.
+- `npm run test:e2e -- --retries=0 --reporter=line` passed **29/29** browser
+  tests, including every browser claim, axe serious/critical-zero checks,
+  same-origin privacy recording, 390px reflow, 200% text, dark/reduced motion,
+  keyboard navigation, route focus, demo reset/isolation, and standalone 404.
+- `npm run test:durable-restart`, `bash scripts/test-zero-config.sh`, and
+  `npm run test:deployment` passed.
+- `npm run typecheck`, `npm run lint`, and `npm run build` passed. The built
+  initial JS is 73.80 kB gzip, lazy JS is 79.59 kB gzip, and CSS is 4.62 kB gzip.
+- The product uses the existing Playwright Axe integration; no serious or
+  critical accessibility violations were found on the tested routes.
+
+## Deployment and live re-check
+
+Pending the product-scoped container build/deploy in this work order. After it
+finishes, the next handoff update records the immutable image, revision,
+`/health` build identity, and cold live checks for `/`, `/demo?demo=1`, `/app`,
+`/privacy`, `/terms`, and a true 404.
+
+## Known gaps
+
+None in the source tree. Deployment/live evidence is pending at the time this
+entry was written.
+
+---
+
 # Review 1 handoff — FAIL (2026-09-01)
 
 Work order: `class-capacity-truth-review-1`

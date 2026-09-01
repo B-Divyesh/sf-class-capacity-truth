@@ -1,7 +1,7 @@
 # Polish round 1 — review mapping
 
-Reviewed repair commit: pending local commit. Every identifier below maps to a
-completed change and an executable check.
+Reviewed repair commit: `f1b5523b527df482d9bd93ad719466e05f56ffc0`. Every
+identifier below maps to a completed change and an executable check.
 
 | Finding | Change made | Evidence |
 | --- | --- | --- |

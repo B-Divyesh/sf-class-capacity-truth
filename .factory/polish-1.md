@@ -55,3 +55,11 @@ Live evidence is in `.factory/evidence-polish-1/live/`: `home-desktop.png`,
 `/demo?demo=1`, `/app`, `/privacy`, `/terms`, and
 `/definitely-missing-review-1` (HTTP 404). The mobile **Start for real** check
 reached `/app`, showed the real-start heading, and focused it after rendering.
+
+| Live surface | URL | Screenshot / result |
+| --- | --- | --- |
+| First screen | `https://class-capacity-truth.sociobot.in/` | `home-desktop.png` |
+| Demo booking | `https://class-capacity-truth.sociobot.in/demo?demo=1` | `booking-success-desktop.png` |
+| Mobile demo | `https://class-capacity-truth.sociobot.in/demo?demo=1` | `demo-mobile-dark-reduced.png` |
+| Legal and real start | `/privacy`, `/terms`, `/app` | zero Axe serious/critical in `browser-smoke.json` |
+| Real 404 | `/definitely-missing-review-1` | HTTP 404 with shell/metadata checked live |

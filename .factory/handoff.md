@@ -1,3 +1,52 @@
+# Review 1 handoff — FAIL (2026-09-01)
+
+Work order: `class-capacity-truth-review-1`
+
+The adversarial first-read report is `.factory/review-1.md`. No product code
+was modified.
+
+## Result
+
+**FAIL — 34 findings.** One is blocking: the demo’s **Start for real** control
+sets `/#school-plan` before the home target exists, leaving a 390 px visitor in
+the preview with focus on the off-screen h1. Three major findings cover the
+unsupported room-list wording and incomplete price/sign-in claim assertions.
+The remaining findings cover copy clarity, terminology, claim inventory, 404
+metadata/shell consistency, and sitemap coverage.
+
+The cold first screen itself is clear, the one-click sample works, booking and
+reset work, separate contexts remain isolated, and observed demo traffic is
+same-origin. All 22 declared claim commands passed independently. The full
+quality run also passed: `npm test`, typecheck, lint, build, and 27/27
+Playwright tests with retries disabled. A read-only check of only
+`sf-class-capacity-truth` confirmed one running replica and the Azure Files
+`/data` mount. A fresh live Lighthouse attempt crashed its browser tab, so no
+new score is claimed.
+
+## Reproduce
+
+```bash
+npm ci
+npm test
+npm run typecheck
+npm run lint
+npm run build
+CI=1 npm run test:e2e -- --retries=0
+bash scripts/verify-container-topology.sh
+```
+
+For the blocking live defect, open `/demo?demo=1` at 390 px, activate **Start
+for real**, and inspect the viewport and active element. The URL becomes
+`/#school-plan`, while the visible section is the product preview and focus is
+on the home h1.
+
+## Left to do
+
+Resolve every item in `.factory/review-1.md`; PASS requires zero findings and
+no untested claim. Re-run the full checklist from a fresh state after repair.
+
+---
+
 # Verification 17 handoff — PASS (2026-09-01)
 
 Work order: `class-capacity-truth-verify-17`

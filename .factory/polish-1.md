@@ -1,7 +1,8 @@
 # Polish round 1 — review mapping
 
-Reviewed repair commit: `f1b5523b527df482d9bd93ad719466e05f56ffc0`. Every
-identifier below maps to a completed change and an executable check.
+Reviewed repair commit: `f1b5523b527df482d9bd93ad719466e05f56ffc0`; handoff
+commit: `1612b35cb5141a1312e2be93dae26a0a51d59e5a`. Every identifier below maps
+to a completed change and an executable check.
 
 | Finding | Change made | Evidence |
 | --- | --- | --- |
@@ -48,5 +49,9 @@ Local evidence: `npm test`, `npm run test:e2e -- --retries=0 --reporter=line`,
 critical checks, privacy request recording, mobile reflow, reduced motion, route
 focus, demo isolation, 404, all declared browser claims, and the new CIAM claim.
 
-Live URLs and screenshots are added after container deployment: `/`, `/demo?demo=1`,
-`/app`, `/privacy`, `/terms`, and an unknown 404 URL.
+Live evidence is in `.factory/evidence-polish-1/live/`: `home-desktop.png`,
+`booking-success-desktop.png`, `demo-mobile-dark-reduced.png`, and
+`browser-smoke.json`. Cold checks passed at `https://class-capacity-truth.sociobot.in/`,
+`/demo?demo=1`, `/app`, `/privacy`, `/terms`, and
+`/definitely-missing-review-1` (HTTP 404). The mobile **Start for real** check
+reached `/app`, showed the real-start heading, and focused it after rendering.

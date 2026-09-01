@@ -1,7 +1,8 @@
 # Polish 1 handoff — PASS locally (2026-09-01)
 
 Work order: `class-capacity-truth-polish-1`  
-Repair commit: `f1b5523b527df482d9bd93ad719466e05f56ffc0` (amended below with this handoff)
+Repair commit: `f1b5523b527df482d9bd93ad719466e05f56ffc0`
+Documentation handoff commit: `1612b35cb5141a1312e2be93dae26a0a51d59e5a`
 
 ## Result
 
@@ -36,15 +37,28 @@ catalog text is `.factory/catalog-description.txt`.
 
 ## Deployment and live re-check
 
-Pending the product-scoped container build/deploy in this work order. After it
-finishes, the next handoff update records the immutable image, revision,
-`/health` build identity, and cold live checks for `/`, `/demo?demo=1`, `/app`,
-`/privacy`, `/terms`, and a true 404.
+- ACR run `ch1pw` built image
+  `sociobotregistry.azurecr.io/sf-class-capacity-truth:1612b35cb514` with digest
+  `sha256:9b30d9e506cc72bead52cc057680843d1e5bb80297717a6b2c17405ee80a8780`.
+- Product-scoped deployment created ready revision
+  `sf-class-capacity-truth--polish1-1612b35`. Readback confirms that exact image,
+  `minReplicas=1`, `maxReplicas=1`, Azure Files storage
+  `sf-class-capacity-truth-data` mounted at `/data`, and only `PORT=8080`.
+- Cold `/health` returned `status: ok`, `database: ready`, and build
+  `1612b35cb5141a1312e2be93dae26a0a51d59e5a`.
+- `scripts/verify-live-browser.mjs` passed live. It wrote
+  `.factory/evidence-polish-1/live/browser-smoke.json` and screenshots. The
+  report records no console/page errors, no serious/critical Axe issues, only
+  same-origin pre-sign-in requests, one h1/main and `lang=en`, 390px no-overflow,
+  reduced-motion 0s motion, and expected CIAM authorization-code PKCE S256.
+- A cold 390px **Start for real** check reached `/app`; after render, the
+  visible “Sign in to manage class capacity” heading had focus. Cold unknown
+  route `/definitely-missing-review-1` returned HTTP 404 with header, footer,
+  Privacy/Terms links, title, description, canonical, and social metadata.
 
 ## Known gaps
 
-None in the source tree. Deployment/live evidence is pending at the time this
-entry was written.
+None.
 
 ---
 

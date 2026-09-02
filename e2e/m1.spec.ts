@@ -466,7 +466,7 @@ test("calendar connection UI checks the feed without changing confirmed seats", 
   await expect(classCard.getByRole("img", { name: "0 confirmed, 3 open" })).toBeVisible();
 });
 
-test("@claim:no-third-party-tracking public pages stay same-origin until staff select sign-in or checkout", async ({ page, baseURL }) => {
+test("@claim:no-third-party-tracking public pages stay same-origin until staff select sign-in or checkout", async ({ page, browser, baseURL }) => {
   const requests: string[] = [];
   page.on("request", (request) => requests.push(request.url()));
   for (const route of ["/", "/demo?demo=1", "/privacy", "/app"]) {
@@ -502,15 +502,16 @@ test("@claim:no-third-party-tracking public pages stay same-origin until staff s
   await expect.poll(() => requests.some((url) => new URL(url).origin !== origin)).toBe(true);
 
   let checkoutSelected = false;
-  await page.route("https://api.sociobot.in/api/v1/products/class-capacity-truth/checkout", async (route) => {
+  const checkoutContext = await browser.newContext();
+  const checkoutPage = await checkoutContext.newPage();
+  await checkoutPage.route("https://api.sociobot.in/api/v1/products/class-capacity-truth/checkout", async (route) => {
     expect(checkoutSelected).toBe(true);
     await route.fulfill({ contentType: "application/json", body: JSON.stringify({ checkout_url: "https://checkout.dodopayments.com/session/privacy-check" }) });
   });
-  await page.route("https://checkout.dodopayments.com/**", async (route) => {
+  await checkoutPage.route("https://checkout.dodopayments.com/**", async (route) => {
     expect(checkoutSelected).toBe(true);
     await route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Hosted checkout</title>" });
   });
-  const checkoutPage = await page.context().newPage();
   const checkoutRequests: string[] = [];
   checkoutPage.on("request", (request) => checkoutRequests.push(request.url()));
   await checkoutPage.goto("/");
@@ -519,7 +520,7 @@ test("@claim:no-third-party-tracking public pages stay same-origin until staff s
   checkoutSelected = true;
   await checkoutPage.getByRole("button", { name: "Open Sociobot checkout" }).click();
   await checkoutPage.waitForURL("https://checkout.dodopayments.com/session/privacy-check");
-  await checkoutPage.close();
+  await checkoutContext.close();
 });
 
 for (const route of ["/", "/demo?demo=1", "/privacy", "/terms", "/missing-page"]) {

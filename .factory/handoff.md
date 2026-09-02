@@ -1,3 +1,29 @@
+# Verification 20 handoff — FAIL (2026-09-02)
+
+Work order: `class-capacity-truth-verify-20`
+Candidate: `739d42da50fff5452ce4704a21b212fc597ebfb6`
+URL: <https://class-capacity-truth.sociobot.in>
+
+**FAIL — do not release this candidate.** Fresh `GET /health` returned the
+healthy runtime build `af3cf4d5231482116f926e141ec29441775a76b6`, which is
+not the candidate. The full independent report is
+`.factory/verification-20.md`.
+
+How verified: clean `npm ci`; all 24 exact declared claim commands; `npm test`;
+full Playwright (`test-results/.last-run.json` is `passed`); `npm run lint`;
+`npm run build`; cold browser/demo/privacy/header/rate-limit checks; route Axe;
+and mobile Lighthouse (100 performance / 100 accessibility, LCP 1.2 s).
+The local product behavior passed these checks, including demo booking/recovery,
+full/cutoff boundaries, request privacy, and 429 + `Retry-After` after 10
+requests from one forwarded IP.
+
+Known gap / next step: deploy exactly
+`739d42da50fff5452ce4704a21b212fc597ebfb6` to the owned production service,
+then repeat the full build-identity health check. No code or cloud resource was
+modified by this verifier.
+
+---
+
 # Polish 2 retry handoff — PASS (2026-09-02)
 
 Work order: `class-capacity-truth-polish-2-retry1`

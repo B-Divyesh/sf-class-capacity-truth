@@ -165,17 +165,17 @@ function HomePage() {
     <main id="main" tabIndex={-1}>
       <section className="hero page-width" aria-labelledby="home-title">
         <div className="hero-copy paper-panel">
-          <p className="eyebrow">For small language schools</p>
+          <p className="eyebrow">For language schools and tutoring centres</p>
           <h1 id="home-title" tabIndex={-1}>Show the right number of class seats</h1>
-          <p className="lede">For small schools that need booking counts to match the class capacity they set.</p>
+          <p className="lede">Match booking counts to the class capacity your staff set.</p>
           <div className="action-row">
             <AppLink className="button primary" href="/demo?demo=1">Try it with sample data</AppLink>
-            <span>Three sample classes open next.</span>
+            <span>See three sample classes next.</span>
           </div>
           <ul className="plain-facts" aria-label="What the sample proves">
             <li>The demo stays separate and resets.</li>
             <li>No advertising trackers or analytics scripts.</li>
-            <li>The school plan costs $99 each month.</li>
+            <li>The plan costs $99 per school each month.</li>
           </ul>
         </div>
         <div className="hero-object" aria-label="Eight seats: six confirmed and two open">
@@ -213,7 +213,7 @@ function HomePage() {
         </div>
         <div id="school-plan" className="plan-note">
           <p className="eyebrow">School workspace</p><h2>Set a real class capacity</h2>
-          <p>Create a persistent class, publish its booking link, compare calendar bookings, and record released-seat offers.</p>
+          <p>Create a class, publish its booking link, compare calendar bookings, and record released-seat offers.</p>
           <AppLink className="button secondary" href="/app">Open school workspace</AppLink>
           <CheckoutButton className="text-action checkout-action" label="Open Sociobot checkout" />
         </div>
@@ -378,7 +378,7 @@ function WorkspacePage({ section, classId }: { section: WorkspaceSection; classI
   async function removeData() { if (!window.confirm(`Delete ${workspace?.schoolName ?? "this workspace"} and all its data?`)) return; await deleteWorkspace(); clearWorkspaceKey(); setWorkspace(null); setClasses([]); }
   async function billing(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); try { setWorkspace(await verifyBilling(String(new FormData(event.currentTarget).get("license")))); setError("The school plan is active."); } catch (cause) { setError((cause as Error).message); } finally { setBusy(false); } }
   if (isSignedIn === null) return <main id="main" tabIndex={-1} className="page-width app-main"><h1 tabIndex={-1}>{workspaceHeading(section, "loading")}</h1><LoadingState /></main>;
-  if (!isSignedIn) return <main id="main" tabIndex={-1} className="page-width app-main"><p className="eyebrow">School workspace</p><h1 tabIndex={-1}>{section === "classes" ? "Sign in to manage class capacity" : workspaceHeading(section, "signedOut")}</h1><p className="lede">Owners, operators, and viewers use Sociobot’s Microsoft sign-in. Guardian booking pages stay public.</p><button className="button primary" onClick={() => void signIn()}>Sign in with Sociobot</button><section className="plan-note"><h2>School plan</h2><p><strong>$99 per school each month.</strong> It includes calendar checks and one-click released-seat offers.</p><p>{emailDelivery === "smtp" ? "This deployment can send offer email." : "This deployment creates a copyable offer for staff to send through the school’s usual email or messaging service."}</p><CheckoutButton label="Start the $99 monthly plan" /></section></main>;
+  if (!isSignedIn) return <main id="main" tabIndex={-1} className="page-width app-main"><p className="eyebrow">School workspace</p><h1 tabIndex={-1}>{section === "classes" ? "Sign in to manage class capacity" : workspaceHeading(section, "signedOut")}</h1><p className="lede">Owners, operators, and viewers use Sociobot’s Microsoft sign-in. Guardian booking pages stay public.</p><button className="button primary" onClick={() => void signIn()}>Sign in with Sociobot</button><section className="plan-note"><h2>School plan</h2><p><strong>$99 per school each month.</strong> It includes calendar checks and one-click released-seat offers.</p><p>{emailDelivery === "smtp" ? "This deployment can send offer email." : "This deployment creates a copyable offer for staff to send through the school’s usual email or messaging service."}</p><CheckoutButton label="Start the $99-per-school monthly plan" /></section></main>;
   if (!workspace) return <main id="main" tabIndex={-1} className="page-width app-main"><p className="eyebrow">School workspace</p><h1 tabIndex={-1}>{section === "classes" ? "Create your school workspace" : workspaceHeading(section, "empty")}</h1><p className="lede">Set a class capacity and cutoff, then publish a guardian booking link.</p><form className="booking-form workspace-form" onSubmit={start}><label>School name<input name="schoolName" required minLength={2} maxLength={100} placeholder="Bright Path Languages" /></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="button primary" disabled={busy}>{busy ? "Creating workspace…" : "Create school workspace"}</button><p className="field-help">Your Microsoft sign-in identifies this workspace. The browser key only selects it.</p></form><button className="button quiet" onClick={() => void signOut()}>Sign out</button></main>;
   if (section !== "classes") return <WorkspaceSectionPage section={section} classId={classId} workspace={workspace} classes={classes} bookings={bookings} offerReceipts={offerReceipts} copiedReceipt={copiedReceipt} operationalMetrics={operationalMetrics} error={error} busy={busy} emailDelivery={emailDelivery} onCalendar={calendar} onPublish={publish} onShowBookings={showBookings} onRelease={release} onCopy={copyOffer} onBilling={billing} onDownload={downloadData} onDelete={removeData} />;
   return <main id="main" tabIndex={-1} className="page-width app-main"><p className="eyebrow">{workspace.schoolName}</p><h1 tabIndex={-1}>Manage class capacity</h1><WorkspaceNavigation active="classes" /><p className="lede">Publish only a count you can reconcile. A mismatch is shown as attention, never changed automatically.</p>{emailDelivery === "not_configured" && <p className="state-explanation" role="status">This deployment does not send email. Cancelling creates a one-click offer below. Copy it and send it through the school’s usual email or messaging service.</p>}{error && <p className="form-error" role="alert">{error}</p>}
@@ -464,7 +464,7 @@ function WorkspaceSectionPage({ section, classId, workspace, classes, bookings, 
 function OperationalMetricsPanel({ metrics }: { metrics: OperationalMetrics | null }) {
   if (!metrics) return <LoadingState />;
   const averageLatency = metrics.requests === 0 ? 0 : Math.round(metrics.totalLatencyMilliseconds / metrics.requests);
-  return <section className="operations-panel" aria-labelledby="operational-metrics-title"><h2 id="operational-metrics-title">Operational metrics</h2><p>These aggregate counts contain no guardian names, email addresses, class names, or booking links.</p><dl className="metric-grid"><div><dt>Requests</dt><dd>{metrics.requests}</dd></div><div><dt>Server errors</dt><dd>{metrics.serverErrors}</dd></div><div><dt>Average response</dt><dd>{averageLatency} ms</dd></div><div><dt>Slowest response</dt><dd>{metrics.maxLatencyMilliseconds} ms</dd></div><div><dt>Calendar check lag</dt><dd>{metrics.calendarJobLagSeconds} s</dd></div><div><dt>Unresolved differences</dt><dd>{metrics.unresolvedDiscrepancies}</dd></div><div><dt>Offers accepted</dt><dd>{metrics.offersAccepted} of {metrics.offersCreated}</dd></div><div><dt>Offer conversion</dt><dd>{Math.round(metrics.offerConversionRatio * 100)}%</dd></div></dl><h3>Escalation thresholds</h3><ul><li>Investigate any server error and any unresolved public capacity difference.</li><li>Check a calendar connection when lag exceeds 10 minutes.</li><li>Review monthly availability against the 99.9% API target.</li></ul></section>;
+  return <section className="operations-panel" aria-labelledby="operational-metrics-title"><h2 id="operational-metrics-title">Operational metrics</h2><p>These aggregate counts contain no guardian names, email addresses, class names, or booking links.</p><dl className="metric-grid"><div><dt>Requests</dt><dd>{metrics.requests}</dd></div><div><dt>Server errors</dt><dd>{metrics.serverErrors}</dd></div><div><dt>Average response</dt><dd>{averageLatency} ms</dd></div><div><dt>Slowest response</dt><dd>{metrics.maxLatencyMilliseconds} ms</dd></div><div><dt>Calendar check lag</dt><dd>{metrics.calendarJobLagSeconds} s</dd></div><div><dt>Unresolved differences</dt><dd>{metrics.unresolvedDiscrepancies}</dd></div><div><dt>Offers accepted</dt><dd>{metrics.offersAccepted} of {metrics.offersCreated}</dd></div><div><dt>Offer conversion</dt><dd>{Math.round(metrics.offerConversionRatio * 100)}%</dd></div></dl><h3>Escalation thresholds</h3><ul><li>Investigate any server error and any unresolved public capacity difference.</li><li>Check a calendar connection when lag exceeds 10 minutes.</li><li>Review API availability each month.</li></ul></section>;
 }
 
 function deliveryText(status: OfferDeliveryStatus) {
@@ -525,8 +525,8 @@ function PrivacyPage() {
     <main id="main" tabIndex={-1} className="page-width legal-page"><p className="eyebrow">Last updated 28 August 2026</p><h1 tabIndex={-1}>Privacy for bookings and the demo</h1><p className="lede">The public demo is temporary. School bookings use encrypted contact fields and staff access controls.</p>
       <h2>What the demo stores</h2><p>It stores the chosen sample class and a random browser identifier. The name and email you enter are checked, then discarded.</p>
       <h2>How long it stays</h2><p>A demo expires after 24 hours. Reset demo removes its bookings and starts the sample again. Start for real removes that browser’s demo.</p>
-      <h2>School booking data</h2><p>The school is the data controller. Sociobot processes guardian names and email addresses to manage seats and create requested offers.</p><p>Contact fields are encrypted at rest. They are erased 90 days after collection. Audit records may remain without the contact fields.</p>
-      <h2>Who receives it</h2><p>This service handles bookings. A configured email relay receives offer contact data only when the school enables email delivery.</p><p>There are no advertising trackers or analytics scripts.</p>
+      <h2>School booking data</h2><p>The service uses guardian names and email addresses to manage seats and create requested offers.</p><p>Contact fields are encrypted at rest. They are erased 90 days after collection. Audit records may remain without the contact fields.</p>
+      <h2>Who receives it</h2><p>When email delivery is configured, the service queues an encrypted offer email.</p><p>Public and demo pages load no third-party fonts, scripts, advertising trackers, or analytics.</p>
       <h2>Your choices</h2><p>Workspace owners can export or delete school data. Guardians may ask their school or <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a> for access or deletion.</p>
       <h2>Regional rights</h2><p>Depending on your region, you may ask to access, correct, export, restrict, object to, or delete personal data.</p>
     </main>
@@ -538,8 +538,8 @@ function TermsPage() {
     <main id="main" tabIndex={-1} className="page-width legal-page"><p className="eyebrow">Last updated 28 August 2026</p><h1 tabIndex={-1}>Terms for Class Capacity Truth</h1><p className="lede">These terms cover the public demo and school workspace.</p>
       <h2>Use the demo for evaluation</h2><p>Use sample details only in the demo. The school workspace is for a school’s own class configuration and booking links.</p>
       <h2>Availability</h2><p>The sample may change or be removed. It is provided without a service commitment.</p>
-      <h2>School workspace</h2><p>Schools set capacity, cutoff, booking links, calendar checks, and waitlist offers. Staff access uses Sociobot Microsoft Entra sign-in.</p>
-      <h2>School plan</h2><p>The school plan costs $99 each month. Sociobot is the merchant of record and handles checkout, cancellation, and refunds.</p>
+      <h2>School workspace</h2><p>Schools set capacity, cutoff, booking links, calendar checks, and waitlist offers. Staff access uses Sociobot Microsoft sign-in.</p>
+      <h2>School plan</h2><p>The plan costs $99 per school each month. Checkout opens on Sociobot.</p>
       <h2>Contact</h2><p>Questions may be sent to <a href="mailto:support@sociobot.in">support@sociobot.in</a>.</p>
     </main>
   );
@@ -550,7 +550,7 @@ function NotFoundPage() {
 }
 
 function SiteFooter() {
-  return <footer className="site-footer"><div><strong>Class Capacity Truth</strong><span>Seat counts for small schools.</span></div><nav aria-label="Footer navigation"><AppLink href="/privacy">Privacy</AppLink><AppLink href="/terms">Terms</AppLink><a href="https://sociobot.in">Built by Param Factory <span className="sr-only">(external site)</span></a></nav><p>Version 0.1.0 · Abacus visual system.</p></footer>;
+  return <footer className="site-footer"><div><strong>Class Capacity Truth</strong><span>Seat counts for small schools.</span></div><nav aria-label="Footer navigation"><AppLink href="/privacy">Privacy</AppLink><AppLink href="/terms">Terms</AppLink><a href="https://sociobot.in">Built by Param Factory <span className="sr-only">(external site)</span></a></nav><p>Version 0.1.0.</p></footer>;
 }
 
 function availabilityText(session: ClassSession) {

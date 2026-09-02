@@ -620,7 +620,8 @@ async fn regression_top_level_metrics_uses_forwarded_ip_limiter() {
 }
 
 #[tokio::test]
-async fn capacity_cutoff_idempotency_reset_and_concurrent_race() {
+async fn concurrent_booking_requests_do_not_oversell_a_class() {
+    // @claim:concurrent-booking-does-not-oversell
     let (_router, _directory, pool) = test_app(1, 100).await;
     let tenant = Uuid::new_v4().to_string();
     let now = 1_900_000_000;

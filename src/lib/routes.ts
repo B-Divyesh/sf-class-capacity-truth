@@ -38,7 +38,7 @@ const routes: Record<Exclude<RouteKind, "booking">, Omit<RouteInfo, "kind">> = {
   },
   terms: {
     title: "Terms — Class Capacity Truth",
-    description: "Terms for the Class Capacity Truth demo and $99 school plan."
+    description: "Terms for the demo and the $99-per-school monthly plan."
   },
   notFound: {
     title: "Page not found — Class Capacity Truth",
@@ -76,7 +76,7 @@ export function routeForPath(pathname: string): RouteInfo {
     },
     "/app/settings/billing": {
       title: "Billing — Class Capacity Truth",
-      description: "Verify a school plan purchase or open the $99 monthly checkout.",
+      description: "Verify a school plan purchase or open the $99-per-school monthly checkout.",
       workspaceSection: "billing"
     },
     "/app/settings/data": {

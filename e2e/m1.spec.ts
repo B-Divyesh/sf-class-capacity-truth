@@ -55,6 +55,7 @@ test("@claim:cutoff-blocks-booking blocks a class after its cutoff", async ({ pa
 test("@claim:demo-reset-isolated keeps browser demos separate and resets changes", async ({ browser, baseURL }) => {
   const firstContext = await browser.newContext({ extraHTTPHeaders: { "x-forwarded-for": "203.0.113.31" } });
   const secondContext = await browser.newContext({ extraHTTPHeaders: { "x-forwarded-for": "203.0.113.32" } });
+  await firstContext.addInitScript(() => sessionStorage.setItem("cct:test-access-token", "test-owner-demo-exit"));
   const first = await firstContext.newPage();
   const second = await secondContext.newPage();
   const outgoing: string[] = [];
@@ -70,6 +71,17 @@ test("@claim:demo-reset-isolated keeps browser demos separate and resets changes
 
   await second.goto("/demo?demo=1");
   await expect(second.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByText("2 seats open", { exact: false })).toBeVisible();
+  await first.setViewportSize({ width: 390, height: 844 });
+  await first.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByRole("link", { name: "Book this sample class" }).click();
+  await first.getByRole("button", { name: "Book one sample seat" }).click();
+  await expect(first.getByText("1 seat is now open in this class.")).toBeVisible();
+  await first.getByRole("button", { name: "Start for real" }).click();
+  await expect(first).toHaveURL(/\/app$/);
+  const realHeading = first.getByRole("heading", { level: 1, name: "Create your school workspace" });
+  await expect(realHeading).toBeFocused();
+  await expect(realHeading).toBeInViewport();
+  await first.goto("/demo?demo=1");
+  await expect(first.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByText("2 seats open", { exact: false })).toBeVisible();
   const origin = new URL(baseURL!).origin;
   expect(outgoing.every((url) => new URL(url).origin === origin)).toBe(true);
   await firstContext.close();
@@ -105,21 +117,6 @@ test("resetting from a booking returns to fresh sample classes", async ({ page }
   await page.getByRole("button", { name: "Book one sample seat" }).click();
   await page.getByRole("button", { name: "Reset demo" }).click();
   await expect(page).toHaveURL(/\/demo\?demo=1$/);
-  await expect(page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByText("2 seats open", { exact: false })).toBeVisible();
-});
-
-test("Start for real discards demo data and takes mobile visitors to the real workspace", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/demo?demo=1");
-  await page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByRole("link", { name: "Book this sample class" }).click();
-  await page.getByRole("button", { name: "Book one sample seat" }).click();
-  await expect(page.getByText("1 seat is now open in this class.")).toBeVisible();
-  await page.getByRole("button", { name: "Start for real" }).click();
-  await expect(page).toHaveURL(/\/app$/);
-  const heading = page.getByRole("heading", { level: 1, name: "Create your school workspace" });
-  await expect(heading).toBeFocused();
-  await expect(heading).toBeInViewport();
-  await page.goto("/demo?demo=1");
   await expect(page.getByRole("article").filter({ hasText: "Level check: upper primary" }).getByText("2 seats open", { exact: false })).toBeVisible();
 });
 
@@ -411,7 +408,7 @@ test("release regression: school wall time does not drift with the browser zone"
   await context.close();
 });
 
-test("@claim:school-plan-price shows the recorded monthly price and opens hosted Sociobot checkout", async ({ page }) => {
+test("@claim:school-plan-price shows the recorded per-school monthly price and opens hosted Sociobot checkout", async ({ page }) => {
   let checkoutMethod = "";
   const recordedCheckout = {
     checkout_url: "https://checkout.dodopayments.com/session/test_class_capacity_truth",
@@ -423,8 +420,14 @@ test("@claim:school-plan-price shows the recorded monthly price and opens hosted
   });
   await page.route("https://checkout.dodopayments.com/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>Hosted checkout</title>" }));
   await page.goto("/");
-  await expect(page.getByText("The school plan costs $99 each month.")).toBeVisible();
+  await expect(page.getByText("The plan costs $99 per school each month.")).toBeVisible();
   expect(recordedCheckout.product).toEqual({ currency: "USD", amount_cents: 9900, interval: "month" });
+  await page.goto("/terms");
+  await expect(page.getByText("The plan costs $99 per school each month. Checkout opens on Sociobot.")).toBeVisible();
+  await page.addInitScript(() => sessionStorage.removeItem("cct:test-access-token"));
+  await page.goto("/app");
+  await expect(page.getByText("$99 per school each month.", { exact: true })).toBeVisible();
+  await page.goto("/");
   await page.getByRole("button", { name: "Open Sociobot checkout" }).click();
   await page.waitForURL("https://checkout.dodopayments.com/session/test_class_capacity_truth");
   expect(checkoutMethod).toBe("POST");
@@ -463,7 +466,7 @@ test("calendar connection UI checks the feed without changing confirmed seats", 
   await expect(classCard.getByRole("img", { name: "0 confirmed, 3 open" })).toBeVisible();
 });
 
-test("@claim:no-third-party-tracking observed product flows stay same-origin", async ({ page, baseURL }) => {
+test("@claim:no-third-party-tracking public pages stay same-origin until staff select sign-in or checkout", async ({ page, baseURL }) => {
   const requests: string[] = [];
   page.on("request", (request) => requests.push(request.url()));
   for (const route of ["/", "/demo?demo=1", "/privacy", "/app"]) {
@@ -472,6 +475,51 @@ test("@claim:no-third-party-tracking observed product flows stay same-origin", a
   }
   const origin = new URL(baseURL!).origin;
   expect(requests.every((url) => new URL(url).origin === origin)).toBe(true);
+
+  await page.addInitScript(() => sessionStorage.removeItem("cct:test-access-token"));
+  let signInSelected = false;
+  await page.route("https://sociobotcustomers.ciamlogin.com/**", async (route) => {
+    expect(signInSelected).toBe(true);
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/.well-known/openid-configuration")) {
+      const originUrl = "https://sociobotcustomers.ciamlogin.com/35c6fe40-0ec0-46b6-98c6-213ad4de6650";
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({
+        issuer: originUrl,
+        authorization_endpoint: `${originUrl}/oauth2/v2.0/authorize`,
+        token_endpoint: `${originUrl}/oauth2/v2.0/token`,
+        end_session_endpoint: `${originUrl}/oauth2/v2.0/logout`,
+        jwks_uri: `${originUrl}/discovery/v2.0/keys`
+      }) });
+      return;
+    }
+    await route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Sociobot sign in</title>" });
+  });
+  await page.goto("/app");
+  const beforeSignIn = [...requests];
+  expect(beforeSignIn.every((url) => new URL(url).origin === origin)).toBe(true);
+  signInSelected = true;
+  await page.getByRole("button", { name: "Sign in with Sociobot" }).click();
+  await expect.poll(() => requests.some((url) => new URL(url).origin !== origin)).toBe(true);
+
+  let checkoutSelected = false;
+  await page.route("https://api.sociobot.in/api/v1/products/class-capacity-truth/checkout", async (route) => {
+    expect(checkoutSelected).toBe(true);
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ checkout_url: "https://checkout.dodopayments.com/session/privacy-check" }) });
+  });
+  await page.route("https://checkout.dodopayments.com/**", async (route) => {
+    expect(checkoutSelected).toBe(true);
+    await route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Hosted checkout</title>" });
+  });
+  const checkoutPage = await page.context().newPage();
+  const checkoutRequests: string[] = [];
+  checkoutPage.on("request", (request) => checkoutRequests.push(request.url()));
+  await checkoutPage.goto("/");
+  const beforeCheckout = [...checkoutRequests];
+  expect(beforeCheckout.every((url) => new URL(url).origin === origin)).toBe(true);
+  checkoutSelected = true;
+  await checkoutPage.getByRole("button", { name: "Open Sociobot checkout" }).click();
+  await checkoutPage.waitForURL("https://checkout.dodopayments.com/session/privacy-check");
+  await checkoutPage.close();
 });
 
 for (const route of ["/", "/demo?demo=1", "/privacy", "/terms", "/missing-page"]) {

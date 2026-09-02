@@ -22,10 +22,10 @@
   },
   {
     "id": "demo-reset-isolated",
-    "claim": "Demo changes stay in sample data and reset.",
+    "claim": "Demo changes stay in sample data, reset, and are destroyed by Start for real.",
     "where": "Demo banner and landing fact",
     "test": "npm run test:e2e -- --grep @claim:demo-reset-isolated",
-    "sandbox": "Two contexts; book and reset in one, then assert both return seed availability."
+    "sandbox": "Two contexts; book and reset in one, then assert both return seed availability. Book again, select Start for real, and assert the demo is discarded before a fresh demo opens."
   },
   {
     "id": "school-capacity-flow",
@@ -42,25 +42,32 @@
     "sandbox": "Connect a recorded iCalendar fixture, inspect ciphertext at rest, then run the due worker at now, now+299 seconds, and now+300 seconds."
   },
   {
+    "id": "concurrent-booking-does-not-oversell",
+    "claim": "Concurrent booking requests cannot oversell a class.",
+    "where": "README architecture and deployment",
+    "test": "npm run test:api -- concurrent_booking_requests_do_not_oversell_a_class",
+    "sandbox": "Seed a demo class with one open seat, submit two independent booking requests at once, and assert exactly one succeeds while the other receives the full-class result."
+  },
+  {
     "id": "released-seat-delivery",
-    "claim": "Without SMTP, staff get a durable one-click released-seat offer, a Copy offer action, and a delivery receipt that says no email was sent.",
+    "claim": "Without email delivery, staff can copy a saved released-seat offer and see that no email was sent.",
     "where": "Staff workspace offer receipts",
     "test": "npm run test:e2e -- --grep @claim:released-seat-delivery",
     "sandbox": "Fresh signed-in workspace with no SMTP; cancel a booking for a waitlisted guardian, copy the offer, reload, and assert the same usable URL and no-email receipt remain."
   },
   {
     "id": "school-plan-price",
-    "claim": "The school plan costs $99 each month.",
+    "claim": "The plan costs $99 per school each month and opens hosted Sociobot checkout.",
     "where": "Landing facts, signed-out workspace, billing section, and terms",
     "test": "npm run test:e2e -- --grep @claim:school-plan-price",
-    "sandbox": "Intercept a recorded Sociobot checkout response with USD 99 and a monthly interval, assert the landing copy matches it, then assert POST navigation reaches its hosted Dodo URL."
+    "sandbox": "Intercept a recorded Sociobot checkout response with USD 99, 9900 cents, and a monthly interval; assert every published price includes per school, then assert POST navigation reaches its hosted Dodo URL."
   },
   {
     "id": "no-third-party-tracking",
-    "claim": "There are no advertising trackers or analytics scripts.",
-    "where": "Landing facts and privacy page",
+    "claim": "Public and demo pages load no third-party fonts, scripts, advertising trackers, or analytics. Microsoft sign-in and Sociobot checkout open only after staff select them.",
+    "where": "Landing facts, privacy page, and README privacy section",
     "test": "npm run test:e2e -- --grep @claim:no-third-party-tracking",
-    "sandbox": "Record all requests through landing, demo, privacy, and signed-in workspace flows; assert every request is same-origin."
+    "sandbox": "Record all requests through landing, demo, privacy, and signed-out workspace flows; assert every request is same-origin before a named sign-in or checkout action. Then assert each external navigation begins only after its matching button is selected."
   },
   {
     "id": "contact-encryption-retention",
@@ -113,10 +120,10 @@
   },
   {
     "id": "configured-smtp-delivery",
-    "claim": "A configured SMTP relay queues an encrypted released-seat offer for delivery.",
-    "where": "README real school workflow",
+    "claim": "When email delivery is configured, the service queues an encrypted offer email.",
+    "where": "Privacy page and README real school workflow",
     "test": "npm run test:api -- claim_configured_smtp_queues_an_encrypted_offer",
-    "sandbox": "Create a capacity-one class with a waiting guardian under SMTP configuration; release the seat and assert an encrypted pending outbox record contains the offer URL."
+    "sandbox": "Create a capacity-one class with a waiting guardian under email configuration; release the seat and assert an encrypted pending outbox record contains the offer URL."
   },
   {
     "id": "workspace-recovery",
@@ -158,6 +165,6 @@
     "claim": "Signed-in owners and operators can inspect aggregate service and capacity metrics without guardian data.",
     "where": "School workspace operations page and README operations section",
     "test": "npm run test:api -- regression_protected_operational_metrics_are_aggregated_and_contain_no_pii",
-    "sandbox": "Create a test-owner workspace with one discrepancy; assert unauthenticated metrics access is challenged, then assert the protected Prometheus response includes request/error/latency, calendar lag, discrepancy, and offer conversion values without school, class, identity, guardian, or email text."
+    "sandbox": "Create a test-owner workspace with one discrepancy; assert unauthenticated metrics access is challenged, then assert the protected metrics response includes request/error/latency, calendar lag, discrepancy, and offer conversion values without school, class, identity, guardian, or email text."
   }
 ]

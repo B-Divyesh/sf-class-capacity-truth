@@ -5,12 +5,12 @@ class seat counts accurate. Staff connect a calendar feed (iCalendar), publish
 guardian booking links, and create one timed offer after cancelling a booking.
 Staff can copy the offer link into the school’s usual email or messaging
 service. If email delivery is configured, the service queues an encrypted offer
-email. The school plan costs $99 each month through Sociobot checkout.
+email. The plan costs $99 per school each month through Sociobot checkout.
 
 Try the deployed demo at
 [class-capacity-truth.sociobot.in/demo?demo=1](https://class-capacity-truth.sociobot.in/demo?demo=1).
-Each browser gets a signed, temporary workspace that
-expires after 24 hours. Name and email input is validated but not retained.
+Each browser gets its own temporary workspace for 24 hours. The demo checks
+each name and email, then discards both.
 
 ## Real school workflow
 
@@ -42,9 +42,9 @@ Open `http://localhost:8080/demo?demo=1`. The service starts with only `PORT`
 (and defaults to `8080`); `DATA_DIR` defaults to `/data` in the
 container. When no cookie-signing key is supplied, the service creates a secure
 random key and stores it in the data directory. A separate contact-encryption key is
-generated and persisted the same way. Optional SMTP variables are
-`SMTP_RELAY`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_FROM`. Without them,
-the workspace creates a durable, copyable offer and states that no email was
+generated and persisted the same way. These optional settings configure email
+delivery: `SMTP_RELAY`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_FROM`.
+Without them, staff can copy the saved offer URL and see that no email was
 sent.
 
 ## Test and build
@@ -58,19 +58,20 @@ docker build --build-arg BUILD_SHA=local -t class-capacity-truth .
 ```
 
 `npm test` runs the TypeScript unit suite and Rust tests. The Playwright suite
-starts the compiled Axum service with a clean temporary database and verifies
-every claim in [.factory/claims.json](.factory/claims.json). `npm run build`
-produces `dist/` and a release API binary.
+starts the compiled API service with a clean temporary database and checks
+browser flows. Run every command in [.factory/claims.json](.factory/claims.json)
+to verify all claims. `npm run build` produces `dist/` and a release API binary.
 
 ## Architecture and deployment
 
 - React 19, Vite, strict TypeScript, and hand-authored CSS for the web app.
-- Rust, Axum, SQLx, and SQLite for both the isolated demo and the
-  single-instance school ledger. Production mounts the work-order Azure Files
+- Rust, Axum, SQLx, and SQLite store the isolated demo and school workspaces.
+  Production mounts the work-order Azure Files
   share at `/data`; SQLite and generated keys live there. Production is fixed
   at one replica.
 - The API validates Microsoft sign-in tokens and enforces staff roles. It
-  encrypts contact and calendar fields. Transactions protect bookings. The
+  encrypts contact and calendar fields. Concurrent booking requests cannot
+  oversell a class. The
   server also stores offer receipts, can queue email, and limits requests by
   client IP.
 - One container serves both the API and built web assets on `PORT`. The
@@ -82,25 +83,24 @@ produces `dist/` and a release API binary.
 Signed-in owners and operators can open `/app/operations`. Authorised school
 staff can fetch the same totals from `GET /api/metrics` or
 `GET /api/workspaces/metrics`. Requests need their Microsoft sign-in token and
-workspace key. The Prometheus response lists request counts, server errors, and
+workspace key. The metrics response lists request counts, server errors, and
 response times. It also lists calendar delay, unresolved differences, and
 accepted seat offers. It never contains guardian, class, school, or token
 values.
 
 Treat any server error or unresolved public discrepancy as an investigation.
-Check calendar connections when lag exceeds ten minutes, and review monthly API
-availability against the 99.9% target.
+Check calendar connections when lag exceeds ten minutes. Review API
+availability each month.
 
-The factory deploys the container. This repository does not change DNS,
-billing, or cloud infrastructure. See [.factory/plan.md](.factory/plan.md) for
+See [.factory/plan.md](.factory/plan.md) for
 the milestone architecture and [.factory/design.md](.factory/design.md) for the
 modular classroom abacus visual system.
 
 Every release sets `deploy.data_dir` to `/data` in the container work order.
 The topology script then checks the image, one-replica limit, and Azure Files
-mount. Build and deploy the checked-out commit with its full identity; the
-deployment command refuses an unbound tag and fails unless live `/health`
-returns the same SHA.
+mount. Build and deploy the checked-out commit with its full commit ID. The
+deployment command rejects unbound tags and requires `/health` to return that
+ID.
 
 ```bash
 release_sha="$(git rev-parse HEAD)"
@@ -118,9 +118,9 @@ bash scripts/deploy-container.sh
 
 ## Privacy and licence
 
-The product loads no third-party fonts or scripts and sends no advertising or
-analytics requests. Entra sign-in and Sociobot checkout are explicit staff
-actions. See [/privacy](https://class-capacity-truth.sociobot.in/privacy)
+Public and demo pages load no third-party fonts, scripts, advertising trackers,
+or analytics. Microsoft sign-in and Sociobot checkout open only after a staff
+member selects them. See [/privacy](https://class-capacity-truth.sociobot.in/privacy)
 and the exact sandbox contract in [.factory/demo.md](.factory/demo.md).
 
 Released source is available under the [MIT License](LICENSE).

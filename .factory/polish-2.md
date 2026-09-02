@@ -3,6 +3,28 @@
 Repair commits: `1a8ea791b2bc536caef11473aace2cb5e1af2b44` and
 `aafbf033359d67053c7b9358b35451cf135f852a`.
 
+## Retry evidence — 2026-09-02
+
+The exact repair was reverified from a fresh clone at
+`af3cf4d5231482116f926e141ec29441775a76b6`. All 24 commands named in
+`.factory/claims.json` passed independently, followed by `npm test`,
+`npm run typecheck`, `npm run lint`, `npm run build`, and the complete
+`CI=1 npm run test:e2e -- --retries=0 --reporter=line` suite.
+
+The owned release is live at
+<https://class-capacity-truth.sociobot.in>. Its `/health` endpoint reports the
+same full commit ID. `scripts/verify-live-browser.mjs` passed against the cold
+live URL with no console/page errors, no serious or critical Axe findings on
+`/`, `/demo?demo=1`, `/privacy`, `/terms`, or `/app`, and only same-origin
+pre-action requests. It wrote
+`.factory/evidence-polish-2/live/home-desktop.png`,
+`.factory/evidence-polish-2/live/booking-success-desktop.png`, and
+`.factory/evidence-polish-2/live/demo-mobile-dark-reduced.png`. The worker
+URL verifier report is `.factory/evidence-polish-2/live/verify.json`; its cold
+home check was 549 ms with title, `lang`, one h1, main landmark, image alt
+text, and labelled buttons present. A direct live unknown-route check returned
+HTTP 404 with its Privacy and Terms links.
+
 All evidence commands were run from a fresh clone of this commit. Live
 re-check evidence is recorded under `.factory/evidence-polish-2/live/` after
 deployment; the cold landing screenshot is `home-desktop.png` and the demo

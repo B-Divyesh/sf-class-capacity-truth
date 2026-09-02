@@ -1,4 +1,56 @@
-# Polish 2 handoff — PASS (2026-09-02)
+# Polish 2 retry handoff — PASS (2026-09-02)
+
+Work order: `class-capacity-truth-polish-2-retry1`
+Deployed source: `af3cf4d5231482116f926e141ec29441775a76b6`
+
+## Retry result
+
+The transient CustomDomainLockConflict retry succeeded without changing any
+shared resource. The live revision is `sf-class-capacity-truth--p2r2-af3cf4d`
+from `sociobotregistry.azurecr.io/sf-class-capacity-truth:af3cf4d52314`.
+The app has exactly one replica and retains the existing
+`sf-class-capacity-truth-data` Azure Files volume at `/data`. Its only runtime
+variable is `PORT=8080`.
+
+`GET https://class-capacity-truth.sociobot.in/health` returned:
+
+```json
+{"status":"ok","build":"af3cf4d5231482116f926e141ec29441775a76b6","database":"ready"}
+```
+
+## Exact verification evidence
+
+- Fresh clone of `main` at `af3cf4d5231482116f926e141ec29441775a76b6`:
+  `npm ci` passed with 0 reported vulnerabilities.
+- Every one of the 24 commands in `.factory/claims.json` passed independently.
+- `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, and
+  `CI=1 npm run test:e2e -- --retries=0 --reporter=line` passed from that
+  clean clone. The aggregate suite includes 8 TypeScript tests, 6 Rust unit
+  tests, 21 API tests, deployment fixtures, browser routing/keyboard/mobile
+  coverage, and Axe serious/critical-zero checks.
+- ACR build `ch1tr` built the `.git`-free 243.581 KiB context. The own-product
+  image digest is
+  `sha256:8c89d0ddab7f53ec6d611b5d14f58cac7a7ff6898f728570205e5199651c127b`.
+- Cold live browser verification passed with no console or page errors; Axe
+  reported zero serious/critical findings on `/`, `/demo?demo=1`, `/privacy`,
+  `/terms`, and `/app`. Pre-action requests were same-origin, the mobile menu
+  was 44.8 px high with no 390 px overflow, and reduced motion disabled all
+  animations and transitions. Evidence:
+  `.factory/evidence-polish-2/live/browser-smoke.json`,
+  `home-desktop.png`, `booking-success-desktop.png`, and
+  `demo-mobile-dark-reduced.png`.
+- `/opt/fleet/lib/verify-url.sh` passed cold at 549 ms. Its output is
+  `.factory/evidence-polish-2/live/verify.json`; screenshots and HTML are in
+  the same directory. A cold direct unknown-route request returned HTTP 404
+  and the shared Privacy/Terms shell.
+
+## Known gaps
+
+None.
+
+---
+
+# Initial Polish 2 handoff — PASS (2026-09-02)
 
 Work order: `class-capacity-truth-polish-2`
 Repair commits: `1a8ea791b2bc536caef11473aace2cb5e1af2b44` and

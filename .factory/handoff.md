@@ -1,3 +1,53 @@
+# Polish 2 handoff — PASS (2026-09-02)
+
+Work order: `class-capacity-truth-polish-2`
+Repair commits: `1a8ea791b2bc536caef11473aace2cb5e1af2b44` and
+`aafbf033359d67053c7b9358b35451cf135f852a`
+
+## Result
+
+All 25 findings from `.factory/review-2.md` are resolved. The public copy now
+uses the exact price, **$99 per school each month**, and removes unsupported
+merchant, refund, legal-role, infrastructure, and availability promises. The
+claim inventory now covers the demo exit, exact price/checkout, encrypted email
+queue, concurrent last-seat booking, third-party assets, and explicit
+Microsoft-sign-in/Sociobot-checkout actions. The classroom-abacus identity,
+SQLite `/data` storage, one-replica deployment, and isolated `?demo=1` path
+are preserved.
+
+## Verification
+
+- Clean clone at `aafbf03`: `npm ci`, then every one of the **24** commands in
+  `.factory/claims.json` — PASS (exit status 0).
+- `npm test` — PASS: 8 TypeScript tests, 6 Rust unit tests, 21 API tests, and
+  both deployment fixtures.
+- `npm run test:durable-restart`, `bash scripts/test-zero-config.sh`,
+  `npm run lint`, `npm run build`, and full `CI=1 npm run test:e2e --
+  --retries=0 --reporter=line` — PASS.
+- Browser suite covers keyboard operation, route focus, 390px reflow, 200%
+  text, dark/reduced motion, demo isolation/reset/exit, headers/404, request
+  privacy, CIAM PKCE, and Axe serious/critical-zero checks.
+- ACR run `ch1st` built
+  `sociobotregistry.azurecr.io/sf-class-capacity-truth:aafbf033359d` from a
+  `.git`-free 243.455 KiB archive.
+- Product-only guarded deployment set revision `sf-class-capacity-truth--p2-aafbf03`,
+  one replica, and Azure Files `sf-class-capacity-truth-data` at `/data`.
+  Live `/health` returned `status: ok`, `database: ready`, and build
+  `aafbf033359d67053c7b9358b35451cf135f852a`.
+- Cold live checks passed for `/`, `/demo?demo=1`, `/privacy`, `/terms`, and
+  `/app`; the unknown-route check returned HTTP 404. Live first-read/legal/demo
+  assertions passed, including the revised audience, sample result, price,
+  privacy copy, and three sample classes.
+- Live browser evidence is in `.factory/evidence-polish-2/live/`:
+  `browser-smoke.json`, `home-desktop.png`, `booking-success-desktop.png`, and
+  `demo-mobile-dark-reduced.png`.
+
+## Known gaps
+
+None.
+
+---
+
 # Review 2 handoff — FAIL (2026-09-01)
 
 Work order: `class-capacity-truth-review-2`

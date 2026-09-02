@@ -1,11 +1,12 @@
 # Polish round 2 — review mapping
 
-Repair commit: `1a8ea791b2bc536caef11473aace2cb5e1af2b44`.
+Repair commits: `1a8ea791b2bc536caef11473aace2cb5e1af2b44` and
+`aafbf033359d67053c7b9358b35451cf135f852a`.
 
 All evidence commands were run from a fresh clone of this commit. Live
 re-check evidence is recorded under `.factory/evidence-polish-2/live/` after
 deployment; the cold landing screenshot is `home-desktop.png` and the demo
-mobile screenshot is `demo-mobile.png`.
+mobile screenshot is `demo-mobile-dark-reduced.png`.
 
 | Finding | Change made | Evidence |
 | --- | --- | --- |

@@ -1,0 +1,7 @@
+{
+  "demoBannerVisible": true,
+  "bookingChangedToOneSeat": true,
+  "resetRestoredTwoSeats": true,
+  "exitUrl": "https://class-capacity-truth.sociobot.in/app",
+  "signedOutWorkspaceHeadingFocused": true
+}

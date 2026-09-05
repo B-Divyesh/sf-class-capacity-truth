@@ -1,3 +1,93 @@
+# Repair 18 handoff — PASS (2026-09-05)
+
+Work order: `class-capacity-truth-repair-18`
+
+Implementation candidate: `739d42da50fff5452ce4704a21b212fc597ebfb6`
+
+Documentation base: `bd0ff06b6535150394f27d147e41e1fb50b5be6f`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+## Result
+
+**PASS — the Verification 20 release blocker is repaired.** Production now
+serves revision `sf-class-capacity-truth--r18-739d42d` from image
+`sociobotregistry.azurecr.io/sf-class-capacity-truth:739d42da50ff`.
+`GET /health` returns:
+
+```json
+{"status":"ok","build":"739d42da50fff5452ce4704a21b212fc597ebfb6","database":"ready"}
+```
+
+The implementation and documentation revisions differ because `739d42d` is
+the exact implementation candidate requested by Verification 20, while
+`bd0ff06` records that verification failure. The candidate source archive was
+built without `.git` by ACR run `ch23v`; only the product image tag was
+published. No shared service, secret, DNS, billing registration, or unrelated
+resource was read or changed.
+
+The guarded deployment readback confirms one traffic-serving replica, one
+Azure Files volume named `data` from `sf-class-capacity-truth-data` at `/data`,
+and only `PORT=8080`. It preserves the SQLite and generated-key durability
+contract and verifies the full health build ID before reporting success.
+
+## Verification
+
+- Clean `npm ci` completed with 0 reported vulnerabilities.
+- All 24 exact commands in `.factory/claims.json` completed independently.
+- `npm test` passed: 8 frontend tests, 6 Rust unit tests, 21 API tests, and
+  both deployment regressions.
+- `npm run lint`, `npm run build`, and `CI=1 npm run test:e2e -- --retries=0
+  --reporter=line` passed. The production build is 73.72 kB gzip initial JS
+  and 4.62 kB gzip CSS.
+- `npm run test:cold-claim` completed from its isolated Cargo target within
+  its 600-second contract.
+- `scripts/verify-container-topology.sh` passed live. A fresh one-IP live
+  probe observed 10 `200` demo-session responses, then `429` responses with
+  `Retry-After: 4`, `X-RateLimit-Limit: 10`, and remaining `0`.
+- Fresh desktop and 390 px phone contexts passed. Before scrolling, both state
+  the job **Show the right number of class seats**, name language schools and
+  tutoring centres, and make **Try it with sample data** the first action.
+  The adjacent result says **See three sample classes next.**
+- The live demo shows its persistent **Demo — sample data, nothing is saved**
+  label. A booking changes two seats to one; Reset demo restores two; Start for
+  real discards the demo, opens `/app`, and focuses the signed-out workspace
+  heading. Demo API calls remained under `/api/demo/` in this flow.
+- `scripts/verify-live-browser.mjs` found no console/page errors, no
+  serious/critical Axe findings, same-origin pre-sign-in traffic, no service
+  worker, correct Sociobot CIAM PKCE redirect, 390 px reflow, 44 px menu,
+  and reduced-motion durations of `0s`.
+- `/opt/fleet/lib/verify-url.sh` passed cold in 554 ms. Privacy, Terms, and
+  workspace titles are correct; the designed unknown route is HTTP 404 with
+  its route title and h1. The deliberate `/404.html` response is also HTTP
+  404, which is expected.
+
+Evidence is in `.factory/evidence-repair-18/`.
+
+## Milestone and dependencies
+
+Controller stage: `building-m1`. This was a release repair only; it added no
+future M5 capability and did not change the current public scope. The venture
+plan records the existing M1–M4 implementation separately.
+
+External dependencies remain separate from this repair:
+
+- Sociobot CIAM redirects correctly; a real protected-workspace sign-in still
+  requires an authorised school staff account for a credentialed live check.
+- The hosted Sociobot/Dodo checkout remains an external billing path. No
+  payment or entitlement was attempted in this repair.
+- No SMTP relay is configured in production. The shipped, tested path stores a
+  copyable released-seat offer for staff; automatic email requires an approved
+  relay configuration.
+
+## Known gaps
+
+No current Verification 20 product defect remains. This web-with-backend
+product has no service worker or offline claim; offline reload is therefore
+unavailable as documented.
+
+---
+
 # Verification 20 handoff — FAIL (2026-09-02)
 
 Work order: `class-capacity-truth-verify-20`

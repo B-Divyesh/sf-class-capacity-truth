@@ -1,11 +1,13 @@
-use std::{collections::HashMap, env, fs, io, path::Path, str::FromStr, time::Duration};
+use std::{
+    collections::HashMap, env, fs, future::Future, io, path::Path, str::FromStr, time::Duration,
+};
 
 use anyhow::Context;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
-    Row, SqlitePool,
+    Row, Sqlite, SqliteConnection, SqlitePool, Transaction,
 };
 use thiserror::Error;
 use uuid::Uuid;
@@ -206,6 +208,47 @@ pub async fn connect(database_url: &str) -> anyhow::Result<SqlitePool> {
     Ok(pool)
 }
 
+/// Begin the same immediate write transaction used by capacity mutations.
+///
+/// SQLx owns the returned transaction, so dropping a cancelled request queues
+/// a rollback before the pooled connection can be reused. The recovery branch
+/// handles connections poisoned by older builds that issued a raw `BEGIN` and
+/// returned to the pool without a matching rollback.
+async fn begin_immediate(pool: &SqlitePool) -> Result<Transaction<'static, Sqlite>, sqlx::Error> {
+    match pool.begin_with("BEGIN IMMEDIATE").await {
+        Ok(transaction) => Ok(transaction),
+        Err(begin_error) => {
+            if let Ok(mut conn) = pool.acquire().await {
+                match sqlx::query("ROLLBACK").execute(&mut *conn).await {
+                    Ok(_) => {
+                        tracing::warn!("rolled back a stale SQLite transaction before reuse");
+                    }
+                    Err(rollback_error) => {
+                        tracing::warn!(
+                            error = %rollback_error,
+                            "discarding a SQLite connection that could not be recovered"
+                        );
+                        conn.close_on_drop();
+                    }
+                }
+            }
+            Err(begin_error)
+        }
+    }
+}
+
+/// Readiness uses an immediate write transaction because normal capacity
+/// requests require that state, while `SELECT 1` can succeed on a connection
+/// that is still trapped inside an abandoned transaction.
+pub async fn check_database_readiness(pool: &SqlitePool) -> anyhow::Result<()> {
+    let mut transaction = begin_immediate(pool).await?;
+    sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM demo_tenants WHERE 0")
+        .fetch_one(&mut *transaction)
+        .await?;
+    transaction.rollback().await?;
+    Ok(())
+}
+
 /// Move a pre-existing WAL database to SQLite's Azure-Files-safe rollback
 /// journal once the guarded deployment has stopped the prior revision.
 pub async fn normalize_durable_journal_mode(pool: &SqlitePool) -> anyhow::Result<bool> {
@@ -338,21 +381,33 @@ pub async fn create_or_refresh_demo(
     tenant_id: &str,
     now: i64,
 ) -> anyhow::Result<()> {
-    let mut conn = pool.acquire().await?;
-    sqlx::query("BEGIN IMMEDIATE").execute(&mut *conn).await?;
+    create_or_refresh_demo_inner(pool, tenant_id, now, std::future::ready(())).await
+}
+
+async fn create_or_refresh_demo_inner<F>(
+    pool: &SqlitePool,
+    tenant_id: &str,
+    now: i64,
+    after_begin: F,
+) -> anyhow::Result<()>
+where
+    F: Future<Output = ()>,
+{
+    let mut transaction = begin_immediate(pool).await?;
+    after_begin.await;
     let result = async {
         let active = sqlx::query_scalar::<_, i64>(
             "SELECT COUNT(*) FROM demo_tenants WHERE id = ?1 AND expires_at > ?2",
         )
         .bind(tenant_id)
         .bind(now)
-        .fetch_one(&mut *conn)
+        .fetch_one(&mut *transaction)
         .await?;
 
         if active == 0 {
             sqlx::query("DELETE FROM demo_tenants WHERE id = ?1")
                 .bind(tenant_id)
-                .execute(&mut *conn)
+                .execute(&mut *transaction)
                 .await?;
             sqlx::query(
                 "INSERT INTO demo_tenants (id, created_at, expires_at) VALUES (?1, ?2, ?3)",
@@ -360,35 +415,34 @@ pub async fn create_or_refresh_demo(
             .bind(tenant_id)
             .bind(now)
             .bind(now + DEMO_TTL_SECONDS)
-            .execute(&mut *conn)
+            .execute(&mut *transaction)
             .await?;
-            seed_sessions(&mut conn, tenant_id, now).await?;
+            seed_sessions(&mut transaction, tenant_id, now).await?;
         }
         anyhow::Ok(())
     }
     .await;
-    finish_immediate(&mut conn, result).await
+    finish_immediate(transaction, result).await
 }
 
 pub async fn reset_demo(pool: &SqlitePool, tenant_id: &str, now: i64) -> anyhow::Result<()> {
-    let mut conn = pool.acquire().await?;
-    sqlx::query("BEGIN IMMEDIATE").execute(&mut *conn).await?;
+    let mut transaction = begin_immediate(pool).await?;
     let result = async {
         sqlx::query("DELETE FROM demo_tenants WHERE id = ?1")
             .bind(tenant_id)
-            .execute(&mut *conn)
+            .execute(&mut *transaction)
             .await?;
         sqlx::query("INSERT INTO demo_tenants (id, created_at, expires_at) VALUES (?1, ?2, ?3)")
             .bind(tenant_id)
             .bind(now)
             .bind(now + DEMO_TTL_SECONDS)
-            .execute(&mut *conn)
+            .execute(&mut *transaction)
             .await?;
-        seed_sessions(&mut conn, tenant_id, now).await?;
+        seed_sessions(&mut transaction, tenant_id, now).await?;
         anyhow::Ok(())
     }
     .await;
-    finish_immediate(&mut conn, result).await
+    finish_immediate(transaction, result).await
 }
 
 pub async fn destroy_demo(pool: &SqlitePool, tenant_id: &str) -> anyhow::Result<()> {
@@ -408,7 +462,7 @@ pub async fn cleanup_expired(pool: &SqlitePool, now: i64) -> anyhow::Result<u64>
 }
 
 async fn seed_sessions(
-    conn: &mut sqlx::pool::PoolConnection<sqlx::Sqlite>,
+    conn: &mut SqliteConnection,
     tenant_id: &str,
     now: i64,
 ) -> anyhow::Result<()> {
@@ -445,23 +499,23 @@ async fn seed_sessions(
         .bind(capacity)
         .bind(confirmed)
         .bind(index as i64)
-        .execute(&mut **conn)
+        .execute(&mut *conn)
         .await?;
     }
     Ok(())
 }
 
 async fn finish_immediate(
-    conn: &mut sqlx::pool::PoolConnection<sqlx::Sqlite>,
+    transaction: Transaction<'_, Sqlite>,
     result: anyhow::Result<()>,
 ) -> anyhow::Result<()> {
     match result {
         Ok(()) => {
-            sqlx::query("COMMIT").execute(&mut **conn).await?;
+            transaction.commit().await?;
             Ok(())
         }
         Err(error) => {
-            let _ = sqlx::query("ROLLBACK").execute(&mut **conn).await;
+            let _ = transaction.rollback().await;
             Err(error)
         }
     }
@@ -537,31 +591,30 @@ pub async fn book_seat(
     _guardian_email: &str,
     now: i64,
 ) -> Result<BookingResult, BookingError> {
-    let mut conn = pool.acquire().await.map_err(|_| BookingError::Database)?;
-    sqlx::query("BEGIN IMMEDIATE")
-        .execute(&mut *conn)
+    let mut transaction = begin_immediate(pool)
         .await
         .map_err(|_| BookingError::Database)?;
 
-    let result = book_in_transaction(&mut conn, tenant_id, public_id, idempotency_key, now).await;
+    let result =
+        book_in_transaction(&mut transaction, tenant_id, public_id, idempotency_key, now).await;
 
     match result {
         Ok(value) => {
-            sqlx::query("COMMIT")
-                .execute(&mut *conn)
+            transaction
+                .commit()
                 .await
                 .map_err(|_| BookingError::Database)?;
             Ok(value)
         }
         Err(error) => {
-            let _ = sqlx::query("ROLLBACK").execute(&mut *conn).await;
+            let _ = transaction.rollback().await;
             Err(error)
         }
     }
 }
 
 async fn book_in_transaction(
-    conn: &mut sqlx::pool::PoolConnection<sqlx::Sqlite>,
+    conn: &mut SqliteConnection,
     tenant_id: &str,
     public_id: &str,
     idempotency_key: &str,
@@ -575,7 +628,7 @@ async fn book_in_transaction(
     )
     .bind(tenant_id)
     .bind(idempotency_key)
-    .fetch_optional(&mut **conn)
+    .fetch_optional(&mut *conn)
     .await
     .map_err(|_| BookingError::Database)?
     {
@@ -592,7 +645,7 @@ async fn book_in_transaction(
     )
     .bind(tenant_id)
     .bind(public_id)
-    .fetch_optional(&mut **conn)
+    .fetch_optional(&mut *conn)
     .await
     .map_err(|_| BookingError::Database)?
     .ok_or(BookingError::NotFound)?;
@@ -613,7 +666,7 @@ async fn book_in_transaction(
     .bind(&session_id)
     .bind(tenant_id)
     .bind(now)
-    .execute(&mut **conn)
+    .execute(&mut *conn)
     .await
     .map_err(|_| BookingError::Database)?;
     if updated.rows_affected() != 1 {
@@ -633,7 +686,7 @@ async fn book_in_transaction(
     .bind("[demo input not retained]")
     .bind("[demo input not retained]")
     .bind(now)
-    .execute(&mut **conn)
+    .execute(&mut *conn)
     .await
     .map_err(|_| BookingError::Database)?;
 
@@ -642,7 +695,7 @@ async fn book_in_transaction(
          FROM class_sessions WHERE id = ?1",
     )
     .bind(&session_id)
-    .fetch_one(&mut **conn)
+    .fetch_one(&mut *conn)
     .await
     .map_err(|_| BookingError::Database)?;
 
@@ -856,34 +909,32 @@ pub async fn book_real_seat(
 ) -> Result<RealClass, RealError> {
     let encrypted_name = cipher.encrypt(name).map_err(|_| RealError::Database)?;
     let encrypted_email = cipher.encrypt(email).map_err(|_| RealError::Database)?;
-    let mut conn = pool.acquire().await.map_err(|_| RealError::Database)?;
-    sqlx::query("BEGIN IMMEDIATE")
-        .execute(&mut *conn)
+    let mut transaction = begin_immediate(pool)
         .await
         .map_err(|_| RealError::Database)?;
     let result = async {
-        let row = sqlx::query("SELECT id, capacity, confirmed, booking_cutoff, published FROM real_classes WHERE public_id = ?1").bind(public_id).fetch_optional(&mut *conn).await.map_err(|_| RealError::Database)?.ok_or(RealError::NotFound)?;
+        let row = sqlx::query("SELECT id, capacity, confirmed, booking_cutoff, published FROM real_classes WHERE public_id = ?1").bind(public_id).fetch_optional(&mut *transaction).await.map_err(|_| RealError::Database)?.ok_or(RealError::NotFound)?;
         let id: String = row.get("id");
         if row.get::<i64, _>("published") != 1 { return Err(RealError::NotFound); }
-        if sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM real_bookings WHERE class_id = ?1 AND idempotency_key = ?2").bind(&id).bind(idempotency_key).fetch_one(&mut *conn).await.map_err(|_| RealError::Database)? > 0 { let current = sqlx::query("SELECT id, public_id, name, starts_at, booking_cutoff, timezone, capacity, confirmed, published FROM real_classes WHERE id = ?1").bind(&id).fetch_one(&mut *conn).await.map_err(|_| RealError::Database)?; return Ok(real_class_from_row(&current, now)); }
+        if sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM real_bookings WHERE class_id = ?1 AND idempotency_key = ?2").bind(&id).bind(idempotency_key).fetch_one(&mut *transaction).await.map_err(|_| RealError::Database)? > 0 { let current = sqlx::query("SELECT id, public_id, name, starts_at, booking_cutoff, timezone, capacity, confirmed, published FROM real_classes WHERE id = ?1").bind(&id).fetch_one(&mut *transaction).await.map_err(|_| RealError::Database)?; return Ok(real_class_from_row(&current, now)); }
         if row.get::<i64, _>("confirmed") >= row.get::<i64, _>("capacity") { return Err(RealError::Full); }
         if row.get::<i64, _>("booking_cutoff") <= now { return Err(RealError::Cutoff); }
-        let changed = sqlx::query("UPDATE real_classes SET confirmed = confirmed + 1 WHERE id = ?1 AND confirmed < capacity AND booking_cutoff > ?2").bind(&id).bind(now).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+        let changed = sqlx::query("UPDATE real_classes SET confirmed = confirmed + 1 WHERE id = ?1 AND confirmed < capacity AND booking_cutoff > ?2").bind(&id).bind(now).execute(&mut *transaction).await.map_err(|_| RealError::Database)?;
         if changed.rows_affected() != 1 { return Err(RealError::Full); }
-        sqlx::query("INSERT INTO real_bookings (id, class_id, idempotency_key, guardian_name, guardian_email, status, created_at, contact_expires_at) VALUES (?1, ?2, ?3, ?4, ?5, 'confirmed', ?6, ?7)").bind(Uuid::new_v4().to_string()).bind(&id).bind(idempotency_key).bind(&encrypted_name).bind(&encrypted_email).bind(now).bind(now + 90 * 86_400).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
-        let current = sqlx::query("SELECT id, public_id, name, starts_at, booking_cutoff, timezone, capacity, confirmed, published FROM real_classes WHERE id = ?1").bind(&id).fetch_one(&mut *conn).await.map_err(|_| RealError::Database)?;
+        sqlx::query("INSERT INTO real_bookings (id, class_id, idempotency_key, guardian_name, guardian_email, status, created_at, contact_expires_at) VALUES (?1, ?2, ?3, ?4, ?5, 'confirmed', ?6, ?7)").bind(Uuid::new_v4().to_string()).bind(&id).bind(idempotency_key).bind(&encrypted_name).bind(&encrypted_email).bind(now).bind(now + 90 * 86_400).execute(&mut *transaction).await.map_err(|_| RealError::Database)?;
+        let current = sqlx::query("SELECT id, public_id, name, starts_at, booking_cutoff, timezone, capacity, confirmed, published FROM real_classes WHERE id = ?1").bind(&id).fetch_one(&mut *transaction).await.map_err(|_| RealError::Database)?;
         Ok(real_class_from_row(&current, now))
     }.await;
     match result {
         Ok(value) => {
-            sqlx::query("COMMIT")
-                .execute(&mut *conn)
+            transaction
+                .commit()
                 .await
                 .map_err(|_| RealError::Database)?;
             Ok(value)
         }
         Err(error) => {
-            let _ = sqlx::query("ROLLBACK").execute(&mut *conn).await;
+            let _ = transaction.rollback().await;
             Err(error)
         }
     }
@@ -973,18 +1024,16 @@ pub async fn cancel_booking_and_offer(
     now: i64,
 ) -> Result<ReleaseResult, RealError> {
     let workspace = workspace_for_key(pool, access_key).await?;
-    let mut conn = pool.acquire().await.map_err(|_| RealError::Database)?;
-    sqlx::query("BEGIN IMMEDIATE")
-        .execute(&mut *conn)
+    let mut transaction = begin_immediate(pool)
         .await
         .map_err(|_| RealError::Database)?;
     let result = async {
-        let owned = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM real_classes WHERE id = ?1 AND workspace_id = ?2").bind(class_id).bind(&workspace.id).fetch_one(&mut *conn).await.map_err(|_| RealError::Database)?;
+        let owned = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM real_classes WHERE id = ?1 AND workspace_id = ?2").bind(class_id).bind(&workspace.id).fetch_one(&mut *transaction).await.map_err(|_| RealError::Database)?;
         if owned != 1 { return Err(RealError::NotFound); }
-        let changed = sqlx::query("UPDATE real_bookings SET status = 'cancelled' WHERE id = ?1 AND class_id = ?2 AND status = 'confirmed'").bind(booking_id).bind(class_id).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+        let changed = sqlx::query("UPDATE real_bookings SET status = 'cancelled' WHERE id = ?1 AND class_id = ?2 AND status = 'confirmed'").bind(booking_id).bind(class_id).execute(&mut *transaction).await.map_err(|_| RealError::Database)?;
         if changed.rows_affected() != 1 { return Err(RealError::NotFound); }
-        sqlx::query("UPDATE real_classes SET confirmed = confirmed - 1 WHERE id = ?1 AND confirmed > 0").bind(class_id).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
-        let next = sqlx::query("SELECT id, guardian_email FROM waitlist_entries WHERE class_id = ?1 AND status = 'waiting' ORDER BY created_at LIMIT 1").bind(class_id).fetch_optional(&mut *conn).await.map_err(|_| RealError::Database)?;
+        sqlx::query("UPDATE real_classes SET confirmed = confirmed - 1 WHERE id = ?1 AND confirmed > 0").bind(class_id).execute(&mut *transaction).await.map_err(|_| RealError::Database)?;
+        let next = sqlx::query("SELECT id, guardian_email FROM waitlist_entries WHERE class_id = ?1 AND status = 'waiting' ORDER BY created_at LIMIT 1").bind(class_id).fetch_optional(&mut *transaction).await.map_err(|_| RealError::Database)?;
         if let Some(row) = next {
             let entry: String = row.get("id");
             let recipient: String = row.get("guardian_email");
@@ -994,12 +1043,12 @@ pub async fn cancel_booking_and_offer(
             let offer_url = format!("{}/offer/{token}", delivery.public_base_url.trim_end_matches('/'));
             let token_encrypted = delivery.cipher.encrypt(&token).map_err(|_| RealError::Database)?;
             let delivery_status = if delivery.email_configured { "email_queued" } else { "ready_to_copy" };
-            sqlx::query("INSERT INTO seat_offers (id, waitlist_entry_id, class_id, token_hash, expires_at, status, created_at, token_encrypted, delivery_status) VALUES (?1, ?2, ?3, ?4, ?5, 'open', ?6, ?7, ?8)").bind(&offer_id).bind(&entry).bind(class_id).bind(digest(&token)).bind(expires_at).bind(now).bind(token_encrypted).bind(delivery_status).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
-            sqlx::query("UPDATE waitlist_entries SET status = 'offered' WHERE id = ?1").bind(entry).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+            sqlx::query("INSERT INTO seat_offers (id, waitlist_entry_id, class_id, token_hash, expires_at, status, created_at, token_encrypted, delivery_status) VALUES (?1, ?2, ?3, ?4, ?5, 'open', ?6, ?7, ?8)").bind(&offer_id).bind(&entry).bind(class_id).bind(digest(&token)).bind(expires_at).bind(now).bind(token_encrypted).bind(delivery_status).execute(&mut *transaction).await.map_err(|_| RealError::Database)?;
+            sqlx::query("UPDATE waitlist_entries SET status = 'offered' WHERE id = ?1").bind(entry).execute(&mut *transaction).await.map_err(|_| RealError::Database)?;
             if delivery.email_configured {
                 let body = format!("A class seat is available for 24 hours. Accept it at {offer_url}");
                 sqlx::query("INSERT INTO email_outbox (id, workspace_id, recipient_encrypted, subject, text_body, status, attempts, next_attempt_at, created_at, seat_offer_id) VALUES (?1, ?2, ?3, 'A class seat is available', ?4, 'pending', 0, ?5, ?5, ?6)")
-                    .bind(Uuid::new_v4().to_string()).bind(&workspace.id).bind(recipient).bind(body).bind(now).bind(&offer_id).execute(&mut *conn).await.map_err(|_| RealError::Database)?;
+                    .bind(Uuid::new_v4().to_string()).bind(&workspace.id).bind(recipient).bind(body).bind(now).bind(&offer_id).execute(&mut *transaction).await.map_err(|_| RealError::Database)?;
             }
             Ok(ReleaseResult { offer_token: Some(token), offer_url: Some(offer_url), expires_at: Some(expires_at), delivery_status })
         } else {
@@ -1008,14 +1057,14 @@ pub async fn cancel_booking_and_offer(
     }.await;
     match result {
         Ok(value) => {
-            sqlx::query("COMMIT")
-                .execute(&mut *conn)
+            transaction
+                .commit()
                 .await
                 .map_err(|_| RealError::Database)?;
             Ok(value)
         }
         Err(error) => {
-            let _ = sqlx::query("ROLLBACK").execute(&mut *conn).await;
+            let _ = transaction.rollback().await;
             Err(error)
         }
     }
@@ -1216,22 +1265,20 @@ pub async fn accept_offer(
     token: &str,
     now: i64,
 ) -> Result<RealClass, RealError> {
-    let mut conn = pool.acquire().await.map_err(|_| RealError::Database)?;
-    sqlx::query("BEGIN IMMEDIATE")
-        .execute(&mut *conn)
+    let mut transaction = begin_immediate(pool)
         .await
         .map_err(|_| RealError::Database)?;
-    let result = async { let row = sqlx::query("SELECT o.id, o.waitlist_entry_id, o.class_id, o.expires_at, c.public_id, c.capacity, c.confirmed, c.booking_cutoff FROM seat_offers o JOIN real_classes c ON c.id = o.class_id WHERE o.token_hash = ?1 AND o.status = 'open'").bind(digest(token)).fetch_optional(&mut *conn).await.map_err(|_| RealError::Database)?.ok_or(RealError::OfferUnavailable)?; if row.get::<i64, _>("expires_at") <= now || row.get::<i64, _>("confirmed") >= row.get::<i64, _>("capacity") || row.get::<i64, _>("booking_cutoff") <= now { return Err(RealError::OfferUnavailable); } let class_id: String = row.get("class_id"); let changed = sqlx::query("UPDATE real_classes SET confirmed = confirmed + 1 WHERE id = ?1 AND confirmed < capacity").bind(&class_id).execute(&mut *conn).await.map_err(|_| RealError::Database)?; if changed.rows_affected() != 1 { return Err(RealError::OfferUnavailable); } sqlx::query("UPDATE seat_offers SET status = 'accepted' WHERE id = ?1").bind(row.get::<String, _>("id")).execute(&mut *conn).await.map_err(|_| RealError::Database)?; sqlx::query("UPDATE waitlist_entries SET status = 'accepted' WHERE id = ?1").bind(row.get::<String, _>("waitlist_entry_id")).execute(&mut *conn).await.map_err(|_| RealError::Database)?; let current = sqlx::query("SELECT id, public_id, name, starts_at, booking_cutoff, timezone, capacity, confirmed, published FROM real_classes WHERE id = ?1").bind(&class_id).fetch_one(&mut *conn).await.map_err(|_| RealError::Database)?; Ok(real_class_from_row(&current, now)) }.await;
+    let result = async { let row = sqlx::query("SELECT o.id, o.waitlist_entry_id, o.class_id, o.expires_at, c.public_id, c.capacity, c.confirmed, c.booking_cutoff FROM seat_offers o JOIN real_classes c ON c.id = o.class_id WHERE o.token_hash = ?1 AND o.status = 'open'").bind(digest(token)).fetch_optional(&mut *transaction).await.map_err(|_| RealError::Database)?.ok_or(RealError::OfferUnavailable)?; if row.get::<i64, _>("expires_at") <= now || row.get::<i64, _>("confirmed") >= row.get::<i64, _>("capacity") || row.get::<i64, _>("booking_cutoff") <= now { return Err(RealError::OfferUnavailable); } let class_id: String = row.get("class_id"); let changed = sqlx::query("UPDATE real_classes SET confirmed = confirmed + 1 WHERE id = ?1 AND confirmed < capacity").bind(&class_id).execute(&mut *transaction).await.map_err(|_| RealError::Database)?; if changed.rows_affected() != 1 { return Err(RealError::OfferUnavailable); } sqlx::query("UPDATE seat_offers SET status = 'accepted' WHERE id = ?1").bind(row.get::<String, _>("id")).execute(&mut *transaction).await.map_err(|_| RealError::Database)?; sqlx::query("UPDATE waitlist_entries SET status = 'accepted' WHERE id = ?1").bind(row.get::<String, _>("waitlist_entry_id")).execute(&mut *transaction).await.map_err(|_| RealError::Database)?; let current = sqlx::query("SELECT id, public_id, name, starts_at, booking_cutoff, timezone, capacity, confirmed, published FROM real_classes WHERE id = ?1").bind(&class_id).fetch_one(&mut *transaction).await.map_err(|_| RealError::Database)?; Ok(real_class_from_row(&current, now)) }.await;
     match result {
         Ok(value) => {
-            sqlx::query("COMMIT")
-                .execute(&mut *conn)
+            transaction
+                .commit()
                 .await
                 .map_err(|_| RealError::Database)?;
             Ok(value)
         }
         Err(error) => {
-            let _ = sqlx::query("ROLLBACK").execute(&mut *conn).await;
+            let _ = transaction.rollback().await;
             Err(error)
         }
     }
@@ -1240,6 +1287,7 @@ pub async fn accept_offer(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     #[test]
     fn availability_closes_at_the_exact_cutoff_instant() {
@@ -1261,5 +1309,40 @@ mod tests {
             availability_at(6, 6, 1_900_000_100, 1_900_000_000),
             Availability::Full
         );
+    }
+
+    #[tokio::test]
+    async fn cancelled_demo_transaction_does_not_break_the_next_demo() {
+        let directory = TempDir::new().unwrap();
+        let url = format!("sqlite://{}", directory.path().join("cancel.db").display());
+        let pool = connect(&url).await.unwrap();
+        let task_pool = pool.clone();
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel();
+
+        let request = tokio::spawn(async move {
+            create_or_refresh_demo_inner(
+                &task_pool,
+                "cancelled-request",
+                1_900_000_000,
+                async move {
+                    let _ = entered_tx.send(());
+                    std::future::pending::<()>().await;
+                },
+            )
+            .await
+        });
+
+        entered_rx.await.unwrap();
+        request.abort();
+        assert!(request.await.unwrap_err().is_cancelled());
+
+        create_or_refresh_demo(&pool, "next-request", 1_900_000_001)
+            .await
+            .unwrap();
+        let sessions = list_sessions(&pool, "next-request", 1_900_000_001)
+            .await
+            .unwrap();
+        assert_eq!(sessions.len(), 3);
+        check_database_readiness(&pool).await.unwrap();
     }
 }

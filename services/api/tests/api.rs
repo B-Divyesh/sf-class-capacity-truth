@@ -99,6 +99,52 @@ async fn health_reports_build_without_rate_limit() {
 }
 
 #[tokio::test]
+async fn health_rejects_and_recovers_an_abandoned_transaction() {
+    let (router, _directory, pool) = test_app(60_000, 10).await;
+    {
+        let mut conn = pool.acquire().await.unwrap();
+        sqlx::query("BEGIN IMMEDIATE")
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+    }
+
+    let unavailable = router
+        .clone()
+        .oneshot(get("/health", "192.0.2.90", None))
+        .await
+        .unwrap();
+    assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let unavailable_body = body_json(unavailable).await;
+    assert_eq!(unavailable_body["status"], "error");
+    assert_eq!(unavailable_body["database"], "unavailable");
+
+    let recovered = router
+        .clone()
+        .oneshot(get("/health", "192.0.2.90", None))
+        .await
+        .unwrap();
+    assert_eq!(recovered.status(), StatusCode::OK);
+    assert_eq!(body_json(recovered).await["database"], "ready");
+
+    let retained_rows = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM demo_tenants")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(retained_rows, 0);
+
+    let demo = router
+        .oneshot(get("/api/demo/session", "192.0.2.91", None))
+        .await
+        .unwrap();
+    assert_eq!(demo.status(), StatusCode::OK);
+    assert_eq!(
+        body_json(demo).await["classes"].as_array().unwrap().len(),
+        3
+    );
+}
+
+#[tokio::test]
 async fn demo_cookie_isolates_bookings_and_rejects_tenant_input() {
     let (router, _directory, _pool) = test_app(1, 100).await;
     let (first_cookie, first) = create_demo(&router, "192.0.2.2").await;

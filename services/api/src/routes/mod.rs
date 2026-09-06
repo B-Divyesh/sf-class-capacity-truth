@@ -91,11 +91,7 @@ struct ErrorBody {
 }
 
 pub async fn health(State(state): State<AppState>) -> Response {
-    let database = if sqlx::query_scalar::<_, i64>("SELECT 1")
-        .fetch_one(&state.pool)
-        .await
-        .is_ok()
-    {
+    let database = if db::check_database_readiness(&state.pool).await.is_ok() {
         "ready"
     } else {
         "unavailable"

@@ -1,0 +1,32 @@
+{
+  "/": {
+    "status": 200,
+    "title": "Class Capacity Truth — Show the right seat count",
+    "h1": 1,
+    "noOverflow": true
+  },
+  "/demo?demo=1": {
+    "status": 200,
+    "title": "Demo — Class Capacity Truth",
+    "h1": 1,
+    "noOverflow": true
+  },
+  "/privacy": {
+    "status": 200,
+    "title": "Privacy — Class Capacity Truth",
+    "h1": 1,
+    "noOverflow": true
+  },
+  "/terms": {
+    "status": 200,
+    "title": "Terms — Class Capacity Truth",
+    "h1": 1,
+    "noOverflow": true
+  },
+  "/missing-page": {
+    "status": 404,
+    "title": "Page not found — Class Capacity Truth",
+    "h1": 1,
+    "noOverflow": true
+  }
+}

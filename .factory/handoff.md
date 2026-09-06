@@ -1,3 +1,32 @@
+# Verification 22 handoff — PASS (2026-09-06)
+
+Work order: `class-capacity-truth-verify-22`
+
+Implementation reviewed: `a419018d93ec151e2fc136179d290e41cdf5176a`
+
+Documentation base: `cf6f3ac0e84e94b269d04e2010a8739a557ed497`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+**PASS — zero findings and zero untested claims.** A clean implementation
+checkout passed all 24 exact claim commands, `npm test`, typecheck, lint,
+build, and 28/28 no-retry browser tests. Fresh live desktop and phone checks
+confirmed the job, audience, and first action before scrolling; the isolated
+sample booked, reset, rejected invalid/full/cutoff paths, and left no real
+data. The browser sweep had no console errors or serious Axe issues. Mobile
+Lighthouse scored 100 in all categories. Live health reports the exact
+implementation SHA; the product-only topology is one replica with Azure Files
+at `/data`; demo and metrics allowances return 429 with `Retry-After`.
+
+The full report and evidence are `.factory/verification-22.md` and
+`.factory/verification-evidence-22/`. The controller remains `building-m1`.
+The repository records M1–M4 as shipped and M5 as planned; M5 was not treated
+as available. Full CIAM sign-in, payment completion, and optional SMTP relay
+delivery remain external operator dependencies. No code, deployment, or cloud
+resource was changed.
+
+---
+
 # Repair 19 handoff — PASS (2026-09-06)
 
 Work order: `class-capacity-truth-repair-19`

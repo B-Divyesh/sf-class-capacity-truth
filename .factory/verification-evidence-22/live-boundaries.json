@@ -1,0 +1,12 @@
+{
+  "full": {
+    "buttonCount": 0,
+    "status": 409,
+    "code": "class_full"
+  },
+  "cutoff": {
+    "buttonCount": 0,
+    "status": 409,
+    "code": "booking_closed"
+  }
+}

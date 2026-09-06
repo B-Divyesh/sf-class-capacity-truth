@@ -1,0 +1,414 @@
+{
+  "routes": {
+    "/": {
+      "title": "Class Capacity Truth — Show the right seat count",
+      "description": "Try a sample class booking and see the available seat count change.",
+      "canonical": "https://class-capacity-truth.sociobot.in/",
+      "ogTitle": "Class Capacity Truth — Show the right seat count",
+      "ogImage": "https://class-capacity-truth.sociobot.in/social-card.svg",
+      "twitterCard": "summary_large_image",
+      "links": [
+        {
+          "text": "Skip to main content",
+          "href": "https://class-capacity-truth.sociobot.in/#main",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Class Capacity Truth",
+          "href": "https://class-capacity-truth.sociobot.in/",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Demo",
+          "href": "https://class-capacity-truth.sociobot.in/demo?demo=1",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "How it works",
+          "href": "https://class-capacity-truth.sociobot.in/#how-it-works",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "School workspace",
+          "href": "https://class-capacity-truth.sociobot.in/app",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Privacy",
+          "href": "https://class-capacity-truth.sociobot.in/privacy",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Try it with sample data",
+          "href": "https://class-capacity-truth.sociobot.in/demo?demo=1",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Read how sample data is handled",
+          "href": "https://class-capacity-truth.sociobot.in/privacy",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Open school workspace",
+          "href": "https://class-capacity-truth.sociobot.in/app",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Privacy",
+          "href": "https://class-capacity-truth.sociobot.in/privacy",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Terms",
+          "href": "https://class-capacity-truth.sociobot.in/terms",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Built by Param Factory (external site)",
+          "href": "https://sociobot.in/",
+          "target": "",
+          "rel": ""
+        }
+      ]
+    },
+    "/demo?demo=1": {
+      "title": "Demo — Class Capacity Truth",
+      "description": "Book, block, and reset sample class seats in an isolated demo.",
+      "canonical": "https://class-capacity-truth.sociobot.in/demo",
+      "ogTitle": "Demo — Class Capacity Truth",
+      "ogImage": "https://class-capacity-truth.sociobot.in/social-card.svg",
+      "twitterCard": "summary_large_image",
+      "links": [
+        {
+          "text": "Skip to main content",
+          "href": "https://class-capacity-truth.sociobot.in/demo?demo=1#main",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Class Capacity Truth",
+          "href": "https://class-capacity-truth.sociobot.in/",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Demo",
+          "href": "https://class-capacity-truth.sociobot.in/demo?demo=1",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "How it works",
+          "href": "https://class-capacity-truth.sociobot.in/#how-it-works",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "School workspace",
+          "href": "https://class-capacity-truth.sociobot.in/app",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Privacy",
+          "href": "https://class-capacity-truth.sociobot.in/privacy",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Book this sample class",
+          "href": "https://class-capacity-truth.sociobot.in/book/demo-146e07e4dc7d41f28a5fb16e6b727c2f",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "View the full class",
+          "href": "https://class-capacity-truth.sociobot.in/book/demo-52ab5ce2cb7a47cc9a5f7602425ec8b3",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "View the closed class",
+          "href": "https://class-capacity-truth.sociobot.in/book/demo-d24b7753059c43f18f0624f0de5ceb63",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Privacy",
+          "href": "https://class-capacity-truth.sociobot.in/privacy",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Terms",
+          "href": "https://class-capacity-truth.sociobot.in/terms",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Built by Param Factory (external site)",
+          "href": "https://sociobot.in/",
+          "target": "",
+          "rel": ""
+        }
+      ]
+    },
+    "/app": {
+      "title": "Classes — Class Capacity Truth",
+      "description": "Create, publish, and inspect trustworthy class capacity.",
+      "canonical": "https://class-capacity-truth.sociobot.in/app",
+      "ogTitle": "Classes — Class Capacity Truth",
+      "ogImage": "https://class-capacity-truth.sociobot.in/social-card.svg",
+      "twitterCard": "summary_large_image",
+      "links": [
+        {
+          "text": "Skip to main content",
+          "href": "https://class-capacity-truth.sociobot.in/app#main",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Class Capacity Truth",
+          "href": "https://class-capacity-truth.sociobot.in/",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Demo",
+          "href": "https://class-capacity-truth.sociobot.in/demo?demo=1",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "How it works",
+          "href": "https://class-capacity-truth.sociobot.in/#how-it-works",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "School workspace",
+          "href": "https://class-capacity-truth.sociobot.in/app",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Privacy",
+          "href": "https://class-capacity-truth.sociobot.in/privacy",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Privacy",
+          "href": "https://class-capacity-truth.sociobot.in/privacy",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Terms",
+          "href": "https://class-capacity-truth.sociobot.in/terms",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Built by Param Factory (external site)",
+          "href": "https://sociobot.in/",
+          "target": "",
+          "rel": ""
+        }
+      ]
+    },
+    "/privacy": {
+      "title": "Privacy — Class Capacity Truth",
+      "description": "How Class Capacity Truth handles demo and school booking information.",
+      "canonical": "https://class-capacity-truth.sociobot.in/privacy",
+      "ogTitle": "Privacy — Class Capacity Truth",
+      "ogImage": "https://class-capacity-truth.sociobot.in/social-card.svg",
+      "twitterCard": "summary_large_image",
+      "links": [
+        {
+          "text": "Skip to main content",
+          "href": "https://class-capacity-truth.sociobot.in/privacy#main",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Class Capacity Truth",
+          "href": "https://class-capacity-truth.sociobot.in/",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Demo",
+          "href": "https://class-capacity-truth.sociobot.in/demo?demo=1",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "How it works",
+          "href": "https://class-capacity-truth.sociobot.in/#how-it-works",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "School workspace",
+          "href": "https://class-capacity-truth.sociobot.in/app",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Privacy",
+          "href": "https://class-capacity-truth.sociobot.in/privacy",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "privacy@sociobot.in",
+          "href": "mailto:privacy@sociobot.in",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Privacy",
+          "href": "https://class-capacity-truth.sociobot.in/privacy",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Terms",
+          "href": "https://class-capacity-truth.sociobot.in/terms",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Built by Param Factory (external site)",
+          "href": "https://sociobot.in/",
+          "target": "",
+          "rel": ""
+        }
+      ]
+    },
+    "/terms": {
+      "title": "Terms — Class Capacity Truth",
+      "description": "Terms for the demo and the $99-per-school monthly plan.",
+      "canonical": "https://class-capacity-truth.sociobot.in/terms",
+      "ogTitle": "Terms — Class Capacity Truth",
+      "ogImage": "https://class-capacity-truth.sociobot.in/social-card.svg",
+      "twitterCard": "summary_large_image",
+      "links": [
+        {
+          "text": "Skip to main content",
+          "href": "https://class-capacity-truth.sociobot.in/terms#main",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Class Capacity Truth",
+          "href": "https://class-capacity-truth.sociobot.in/",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Demo",
+          "href": "https://class-capacity-truth.sociobot.in/demo?demo=1",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "How it works",
+          "href": "https://class-capacity-truth.sociobot.in/#how-it-works",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "School workspace",
+          "href": "https://class-capacity-truth.sociobot.in/app",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Privacy",
+          "href": "https://class-capacity-truth.sociobot.in/privacy",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "support@sociobot.in",
+          "href": "mailto:support@sociobot.in",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Privacy",
+          "href": "https://class-capacity-truth.sociobot.in/privacy",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Terms",
+          "href": "https://class-capacity-truth.sociobot.in/terms",
+          "target": "",
+          "rel": ""
+        },
+        {
+          "text": "Built by Param Factory (external site)",
+          "href": "https://sociobot.in/",
+          "target": "",
+          "rel": ""
+        }
+      ]
+    }
+  },
+  "sameOriginLinks": {
+    "https://class-capacity-truth.sociobot.in/#main": 200,
+    "https://class-capacity-truth.sociobot.in/": 200,
+    "https://class-capacity-truth.sociobot.in/demo?demo=1": 200,
+    "https://class-capacity-truth.sociobot.in/#how-it-works": 200,
+    "https://class-capacity-truth.sociobot.in/app": 200,
+    "https://class-capacity-truth.sociobot.in/privacy": 200,
+    "https://class-capacity-truth.sociobot.in/terms": 200,
+    "https://class-capacity-truth.sociobot.in/demo?demo=1#main": 200,
+    "https://class-capacity-truth.sociobot.in/book/demo-146e07e4dc7d41f28a5fb16e6b727c2f": 200,
+    "https://class-capacity-truth.sociobot.in/book/demo-52ab5ce2cb7a47cc9a5f7602425ec8b3": 200,
+    "https://class-capacity-truth.sociobot.in/book/demo-d24b7753059c43f18f0624f0de5ceb63": 200,
+    "https://class-capacity-truth.sociobot.in/app#main": 200,
+    "https://class-capacity-truth.sociobot.in/privacy#main": 200,
+    "https://class-capacity-truth.sociobot.in/terms#main": 200,
+    "https://class-capacity-truth.sociobot.in/robots.txt": 200,
+    "https://class-capacity-truth.sociobot.in/sitemap.xml": 200,
+    "https://class-capacity-truth.sociobot.in/favicon.svg": 200,
+    "https://class-capacity-truth.sociobot.in/apple-touch-icon.svg": 200,
+    "https://class-capacity-truth.sociobot.in/social-card.svg": 200
+  },
+  "externalLinks": [
+    {
+      "text": "Built by Param Factory (external site)",
+      "href": "https://sociobot.in/",
+      "target": "",
+      "rel": ""
+    },
+    {
+      "text": "privacy@sociobot.in",
+      "href": "mailto:privacy@sociobot.in",
+      "target": "",
+      "rel": ""
+    },
+    {
+      "text": "support@sociobot.in",
+      "href": "mailto:support@sociobot.in",
+      "target": "",
+      "rel": ""
+    }
+  ],
+  "failures": []
+}

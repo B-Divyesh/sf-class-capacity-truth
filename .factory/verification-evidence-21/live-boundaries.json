@@ -1,0 +1,20 @@
+{
+  "failures": [],
+  "fullListText": "Friday conversation group\n\nWed 9 Sept, 00:55 · Europe/London\n\nFull · 0 seats open\n1\n2\n3\n4\n5\n6\n\nThis class is full. Choose the upper primary class to try a booking.\n\nView the full class",
+  "fullApi": {
+    "status": 409,
+    "body": {
+      "code": "class_full",
+      "message": "This class is full. Choose another sample class."
+    }
+  },
+  "cutoffListText": "Saturday assessment\n\nSun 13 Sept, 00:55 · Europe/London\n\nBooking closed · 6 unbooked\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n\nThe booking cutoff has passed. Choose the upper primary class to try a booking.\n\nView the closed class",
+  "cutoffApi": {
+    "status": 409,
+    "body": {
+      "code": "booking_closed",
+      "message": "The booking cutoff has passed. Choose another sample class."
+    }
+  },
+  "invalidLink": "← All sample classes\n\nBRIGHT PATH LANGUAGES\n\nBook one sample seat\nThis sample link has ended\n\nReset the demo to get a fresh set of sample classes.\n\nOpen the demo"
+}

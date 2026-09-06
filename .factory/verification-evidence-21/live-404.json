@@ -1,0 +1,17 @@
+{
+  "status": 404,
+  "title": "Page not found — Class Capacity Truth",
+  "heading": "This page was not found.",
+  "privacyVisible": true,
+  "termsVisible": true,
+  "recoveryBox": {
+    "x": 68,
+    "y": 1012.09375,
+    "width": 254,
+    "height": 86
+  },
+  "noOverflow": true,
+  "description": "Return to Class Capacity Truth to check class seat counts.",
+  "canonical": "https://class-capacity-truth.sociobot.in/404",
+  "ogImage": "https://class-capacity-truth.sociobot.in/social-card.svg"
+}

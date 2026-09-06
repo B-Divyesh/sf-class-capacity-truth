@@ -1,0 +1,50 @@
+{
+  "/app": {
+    "status": 200,
+    "title": "Classes — Class Capacity Truth",
+    "h1": "Sign in to manage class capacity",
+    "focusedH1": true
+  },
+  "/app/reconciliation": {
+    "status": 200,
+    "title": "Calendar checks — Class Capacity Truth",
+    "h1": "Sign in to check calendar differences",
+    "focusedH1": true
+  },
+  "/app/waitlist": {
+    "status": 200,
+    "title": "Waitlist offers — Class Capacity Truth",
+    "h1": "Sign in to manage released-seat offers",
+    "focusedH1": true
+  },
+  "/app/settings": {
+    "status": 200,
+    "title": "Settings — Class Capacity Truth",
+    "h1": "Sign in to manage school settings",
+    "focusedH1": true
+  },
+  "/app/settings/billing": {
+    "status": 200,
+    "title": "Billing — Class Capacity Truth",
+    "h1": "Sign in to manage school billing",
+    "focusedH1": true
+  },
+  "/app/settings/data": {
+    "status": 200,
+    "title": "School data — Class Capacity Truth",
+    "h1": "Sign in to export or delete school data",
+    "focusedH1": true
+  },
+  "/app/operations": {
+    "status": 200,
+    "title": "Operations — Class Capacity Truth",
+    "h1": "Sign in to review capacity operations",
+    "focusedH1": true
+  },
+  "/auth/callback": {
+    "status": 200,
+    "title": "Finish sign in — Class Capacity Truth",
+    "h1": "Finish staff sign in",
+    "focusedH1": false
+  }
+}

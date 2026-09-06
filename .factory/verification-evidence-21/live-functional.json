@@ -1,0 +1,110 @@
+{
+  "desktop": {
+    "headline": "Show the right number of class seats",
+    "audience": true,
+    "primaryAction": "Try it with sample data",
+    "actionInFirstViewport": true
+  },
+  "phone": {
+    "headline": "Show the right number of class seats",
+    "audience": true,
+    "actionInFirstViewport": true,
+    "headlineInFirstViewport": true,
+    "noOverflow": true
+  },
+  "routes": {
+    "/": {
+      "title": "Class Capacity Truth — Show the right seat count",
+      "h1": 1,
+      "main": 1,
+      "lang": "en",
+      "status": 200
+    },
+    "/demo?demo=1": {
+      "title": "Demo — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "lang": "en",
+      "status": 200
+    },
+    "/app": {
+      "title": "Classes — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "lang": "en",
+      "status": 200
+    },
+    "/privacy": {
+      "title": "Privacy — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "lang": "en",
+      "status": 200
+    },
+    "/terms": {
+      "title": "Terms — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "lang": "en",
+      "status": 200
+    },
+    "/missing-verification-21": {
+      "title": "Page not found — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "lang": "en",
+      "status": 404
+    }
+  },
+  "requests": [
+    "POST /api/demo/classes/demo-eb914cbd27c34585afc475d343d5893c/book",
+    "POST /api/demo/reset",
+    "POST /api/demo/classes/demo-1f9608ea4198476e9c442511e3c7f14f/book",
+    "POST /api/demo/leave"
+  ],
+  "checks": {
+    "desktop job is stated before scrolling": true,
+    "desktop audience is stated before scrolling": true,
+    "desktop first action is visible before scrolling": true,
+    "one click loads three sample classes": true,
+    "sample label is persistent on demo list": true,
+    "sample starts with two open seats": true,
+    "sample label persists on booking page": true,
+    "invalid form sends no booking request": true,
+    "invalid form exposes browser validation": true,
+    "valid booking changes two open seats to one": true,
+    "sample label persists after booking": true,
+    "reset restores two open seats": true,
+    "demo exit focuses signed-out real workspace heading": true,
+    "demo flow makes no real-workspace write": true,
+    "demo exit discards prior sample changes": true,
+    "/ has correct title": true,
+    "/ has required structure": true,
+    "/ returns HTTP 200": true,
+    "/demo?demo=1 has correct title": true,
+    "/demo?demo=1 has required structure": true,
+    "/demo?demo=1 returns HTTP 200": true,
+    "/app has correct title": true,
+    "/app has required structure": true,
+    "/app returns HTTP 200": true,
+    "/privacy has correct title": true,
+    "/privacy has required structure": true,
+    "/privacy returns HTTP 200": true,
+    "/terms has correct title": true,
+    "/terms has required structure": true,
+    "/terms returns HTTP 200": true,
+    "/missing-verification-21 has correct title": true,
+    "/missing-verification-21 has required structure": true,
+    "unknown route returns deliberate HTTP 404": true,
+    "phone first screen states job audience and first action": true,
+    "phone layout has no horizontal overflow": true,
+    "phone one-click demo shows three classes": true,
+    "/ reflows at phone width and 200 percent text": true,
+    "/demo?demo=1 reflows at phone width and 200 percent text": true,
+    "/app reflows at phone width and 200 percent text": true,
+    "/privacy reflows at phone width and 200 percent text": true,
+    "/terms reflows at phone width and 200 percent text": true,
+    "/missing-verification-21 reflows at phone width and 200 percent text": true
+  },
+  "failures": []
+}

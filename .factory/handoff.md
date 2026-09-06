@@ -1,3 +1,46 @@
+# Verification 21 handoff — PASS (2026-09-06)
+
+Work order: `class-capacity-truth-verify-21`
+
+Implementation candidate: `739d42da50fff5452ce4704a21b212fc597ebfb6`
+
+Documentation commit verified: `165dc1fa8541e192095b18a73a9ffec2c770f434`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+## Result
+
+**PASS — zero findings and zero untested claims.** The exact implementation is
+live, all 24 declared claim commands pass independently from a clean clone, and
+fresh desktop, phone, backend, accessibility, privacy, route, rate-limit,
+topology, and performance checks pass. The full report is
+`.factory/verification-21.md`; evidence is in
+`.factory/verification-evidence-21/`.
+
+`npm test`, typecheck, lint, build, 28/28 no-retry browser tests, the isolated
+cold claim, and a 10-run repeat of the earlier flaky mobile check all pass.
+Live health reports the full implementation commit and a ready database. The
+owned service has one replica, only `PORT=8080`, and its Azure Files data volume
+at `/data`. Fresh Lighthouse scored 100 in performance, accessibility, best
+practices, and SEO, with LCP 1.23 seconds and CLS 0.
+
+The controller stage is `building-m1`. The checked repository already records
+M1–M4 as shipped; all current public promises were tested, while planned M5
+work was not demanded.
+
+## External dependencies
+
+- Microsoft sign-in reaches the correct Sociobot CIAM tenant with PKCE. A full
+  signed-in live session requires an authorised school staff account.
+- The live billing action reaches hosted Dodo checkout. Payment and entitlement
+  completion were not attempted.
+- Production SMTP is not configured. The tested current path saves a copyable
+  released-seat offer; optional delivery still needs an approved relay.
+
+No product code, deployment setting, or cloud resource was changed.
+
+---
+
 # Repair 18 handoff — PASS (2026-09-05)
 
 Work order: `class-capacity-truth-repair-18`

@@ -1,0 +1,24 @@
+sample-booking-updates-seats	PASS	52s	npm run test:e2e -- --grep @claim:sample-booking-updates-seats
+full-class-blocks-booking	PASS	10s	npm run test:e2e -- --grep @claim:full-class-blocks-booking
+cutoff-blocks-booking	PASS	10s	npm run test:e2e -- --grep @claim:cutoff-blocks-booking
+demo-reset-isolated	PASS	11s	npm run test:e2e -- --grep @claim:demo-reset-isolated
+school-capacity-flow	PASS	16s	npm run test:e2e -- --grep @claim:school-capacity-flow
+calendar-poll	PASS	16s	npm run test:api -- claim_calendar_feed_is_encrypted_and_polled_every_five_minutes
+concurrent-booking-does-not-oversell	PASS	1s	npm run test:api -- concurrent_booking_requests_do_not_oversell_a_class
+released-seat-delivery	PASS	16s	npm run test:e2e -- --grep @claim:released-seat-delivery
+school-plan-price	PASS	10s	npm run test:e2e -- --grep @claim:school-plan-price
+no-third-party-tracking	PASS	11s	npm run test:e2e -- --grep @claim:no-third-party-tracking
+contact-encryption-retention	PASS	1s	npm run test:api -- claim_contact_encryption_and_retention
+entra-sign-in	PASS	10s	npm run test:e2e -- --grep @claim:entra-sign-in
+staff-role-access	PASS	0s	npm run test:api -- claim_staff_roles_enforce_owner_actions
+data-export-delete	PASS	11s	npm run test:e2e -- --grep @claim:data-export-delete
+demo-expiry-input-disposal	PASS	0s	npm run test:api -- claim_demo_expiry_and_input_disposal
+reconciliation-does-not-change-seats	PASS	1s	npm run test:api -- claim_reconciliation_never_mutates_confirmed_seats
+durable-restart	PASS	196s	npm run test:durable-restart
+configured-smtp-delivery	PASS	1s	npm run test:api -- claim_configured_smtp_queues_an_encrypted_offer
+workspace-recovery	PASS	0s	npm run test:api -- claim_workspace_recovery_by_staff_identity
+oldest-waitlist-offer	PASS	1s	npm run test:api -- claim_oldest_waitlist_entry_gets_a_24_hour_offer
+zero-config-runtime	PASS	32s	bash scripts/test-zero-config.sh
+forwarded-ip-rate-limits	PASS	1s	npm run test:api -- rate_limit_uses_forwarded_ip_and_returns_retry_after
+durable-one-replica-topology	PASS	0s	npm run test:deployment
+operational-metrics-no-pii	PASS	1s	npm run test:api -- regression_protected_operational_metrics_are_aggregated_and_contain_no_pii

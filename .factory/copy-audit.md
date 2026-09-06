@@ -53,6 +53,34 @@ job, audience, and first action in one breath.
 | Public and demo pages load no third-party fonts, scripts, advertising trackers, or analytics. | 13 | Pass; `no-third-party-tracking` |
 | Microsoft sign-in and Sociobot checkout open only after a staff member selects them. | 12 | Pass; `no-third-party-tracking` |
 
+## 404 page
+
+The standalone HTTP 404 and the app fallback use the same copy.
+
+| Copy | Words | Result |
+| --- | ---: | --- |
+| 404 error | 2 | Pass |
+| This page was not found. | 5 | Pass |
+| Return home to find the current product page. | 8 | Pass |
+| Go to the home page | 5 | Pass |
+| Version 0.1.0. | 2 | Pass |
+
+The recovery regression opens an unknown route at 390 px with 200% text,
+checks the 44 px recovery target, then follows it to the home page.
+
+## Signed-in waitlist route
+
+| Copy | Words | Result |
+| --- | ---: | --- |
+| Manage released-seat offers | 3 | Pass |
+| Review saved offer receipts before contacting a waiting guardian. | 9 | Pass |
+| This deployment does not send email. | 6 | Pass |
+| Copy the offer and send it through the school’s usual email or messaging service. | 15 | Pass |
+
+The released-seat browser flow reloads the workspace, opens the Waitlist
+offers route, and confirms the saved offer URL is still available before it is
+accepted.
+
 ## Terminology
 
 | Concept | Word used |

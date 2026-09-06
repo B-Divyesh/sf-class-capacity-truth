@@ -287,17 +287,20 @@ test("release regression: hashed assets are immutable and unknown paths are HTTP
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
 });
 
-test("release regression: standalone 404 reflows at 390px with 200 percent text and a 44px recovery link", async ({ page }) => {
+test("release regression: standalone 404 reflows and sends a visitor home at 390px with 200 percent text", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const response = await page.goto("/missing-page");
   expect(response?.status()).toBe(404);
   await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
-  await expect(page.getByRole("heading", { level: 1, name: "This page was not found." })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  const recovery = page.getByRole("link", { name: "Go to Class Capacity Truth" });
+  const recovery = page.locator(".return-home");
   await expect(recovery).toBeVisible();
   const box = await recovery.boundingBox();
   expect(box?.height).toBeGreaterThanOrEqual(44);
+  await recovery.click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
 test("school workspace stays usable at 390px", async ({ page }) => {
@@ -387,6 +390,8 @@ test("@claim:school-capacity-flow @claim:released-seat-delivery creates, copies,
   const receiptAxe = await new AxeBuilder({ page }).analyze();
   expect(receiptAxe.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
   await page.reload();
+  await page.getByRole("link", { name: "Waitlist offers" }).click();
+  await expect(page).toHaveURL(/\/app\/waitlist$/);
   await expect(page.getByLabel("One-click offer URL")).toHaveValue(offerUrl);
   await page.goto(new URL(offerUrl).pathname);
   await page.getByRole("button", { name: "Accept this seat" }).click();

@@ -442,7 +442,7 @@ function WorkspaceSectionPage({ section, classId, workspace, classes, bookings, 
     classes: { heading: "Manage class capacity", lede: "Publish only a count you can reconcile." },
     classDetail: { heading: "Check this class capacity", lede: "Review bookings and the count for this class." },
     reconciliation: { heading: "Check calendar differences", lede: "A difference is shown for review and never changes confirmed seats automatically." },
-    waitlist: { heading: "Manage released-seat offers", lede: "Review durable offer receipts before contacting a waiting guardian." },
+    waitlist: { heading: "Manage released-seat offers", lede: "Review saved offer receipts before contacting a waiting guardian." },
     settings: { heading: "Manage school settings", lede: "Open billing or data controls for this school." },
     billing: { heading: "Manage school billing", lede: "Open Sociobot checkout to start or manage the school plan." },
     data: { heading: "Export or delete school data", lede: "Owners can download school data or remove this workspace." },
@@ -546,7 +546,7 @@ function TermsPage() {
 }
 
 function NotFoundPage() {
-  return <main id="main" tabIndex={-1} className="page-width not-found"><div className="lost-bead" aria-hidden="true"><span /><i /></div><p className="eyebrow">404 · bead off the rail</p><h1 tabIndex={-1}>This page has no class</h1><p>The address may be old, or the sample link may have ended.</p><AppLink className="button primary" href="/">Return to the seat count</AppLink></main>;
+  return <main id="main" tabIndex={-1} className="page-width not-found"><div className="lost-bead" aria-hidden="true"><span /><i /></div><p className="eyebrow">404 error</p><h1 tabIndex={-1}>This page was not found.</h1><p>The address may be old, or the sample link may have ended.</p><AppLink className="button primary" href="/">Go to the home page</AppLink></main>;
 }
 
 function SiteFooter() {

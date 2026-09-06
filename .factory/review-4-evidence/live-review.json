@@ -1,0 +1,232 @@
+{
+  "checkedAt": "2026-09-06T05:09:38.197Z",
+  "baseURL": "https://class-capacity-truth.sociobot.in",
+  "firstRead": {
+    "desktop": {
+      "title": "Class Capacity Truth — Show the right seat count",
+      "h1": "Show the right number of class seats",
+      "audience": "For language schools and tutoring centres",
+      "action": "Try it with sample data",
+      "result": "See three sample classes next.",
+      "beforeScroll": true,
+      "h1Count": 1,
+      "mainCount": 1
+    },
+    "phone": {
+      "title": "Class Capacity Truth — Show the right seat count",
+      "h1": "Show the right number of class seats",
+      "audience": "For language schools and tutoring centres",
+      "action": "Try it with sample data",
+      "result": "See three sample classes next.",
+      "beforeScroll": true,
+      "h1Count": 1,
+      "mainCount": 1
+    }
+  },
+  "demo": {
+    "articles": 3,
+    "invalidFields": 2,
+    "bookingPostsAfterInvalid": 0,
+    "validSeatResult": "2 to 1",
+    "resetSeatResult": 2,
+    "fullStatus": 409,
+    "cutoffStatus": 409,
+    "secondBrowserSeats": 2,
+    "startForRealHeading": "Sign in to manage class capacity",
+    "nonGetRequests": [
+      {
+        "method": "POST",
+        "url": "https://class-capacity-truth.sociobot.in/api/demo/classes/demo-9d8a610f2b8b424480890c515292b0d2/book"
+      },
+      {
+        "method": "POST",
+        "url": "https://class-capacity-truth.sociobot.in/api/demo/reset"
+      },
+      {
+        "method": "POST",
+        "url": "https://class-capacity-truth.sociobot.in/api/demo/classes/demo-907aeaa365914089859410e580fdade8/book"
+      },
+      {
+        "method": "POST",
+        "url": "https://class-capacity-truth.sociobot.in/api/demo/leave"
+      }
+    ]
+  },
+  "accessibility": {
+    "menuBox": {
+      "x": 250.828125,
+      "y": -67.609375,
+      "width": 131.171875,
+      "height": 44.796875
+    },
+    "motion": {
+      "animations": [
+        "0s"
+      ],
+      "transitions": [
+        "0s"
+      ]
+    }
+  },
+  "routes": {
+    "/": {
+      "title": "Class Capacity Truth — Show the right seat count",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "Show the right number of class seats",
+      "status": 200,
+      "seriousOrCritical": []
+    },
+    "/demo?demo=1": {
+      "title": "Demo — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "Check three sample classes",
+      "status": 200,
+      "seriousOrCritical": []
+    },
+    "/app": {
+      "title": "Classes — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "Sign in to manage class capacity",
+      "status": 200,
+      "seriousOrCritical": []
+    },
+    "/app/reconciliation": {
+      "title": "Calendar checks — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "Sign in to check calendar differences",
+      "status": 200,
+      "seriousOrCritical": []
+    },
+    "/app/waitlist": {
+      "title": "Waitlist offers — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "Sign in to manage released-seat offers",
+      "status": 200,
+      "seriousOrCritical": []
+    },
+    "/app/settings": {
+      "title": "Settings — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "Sign in to manage school settings",
+      "status": 200,
+      "seriousOrCritical": []
+    },
+    "/app/settings/billing": {
+      "title": "Billing — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "Sign in to manage school billing",
+      "status": 200,
+      "seriousOrCritical": []
+    },
+    "/app/settings/data": {
+      "title": "School data — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "Sign in to export or delete school data",
+      "status": 200,
+      "seriousOrCritical": []
+    },
+    "/app/operations": {
+      "title": "Operations — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "Sign in to review capacity operations",
+      "status": 200,
+      "seriousOrCritical": []
+    },
+    "/privacy": {
+      "title": "Privacy — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "Privacy for bookings and the demo",
+      "status": 200,
+      "seriousOrCritical": []
+    },
+    "/terms": {
+      "title": "Terms — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "Terms for Class Capacity Truth",
+      "status": 200,
+      "seriousOrCritical": []
+    },
+    "/not-a-real-page": {
+      "title": "Page not found — Class Capacity Truth",
+      "h1": 1,
+      "main": 1,
+      "overflow": false,
+      "heading": "This page was not found.",
+      "status": 404,
+      "seriousOrCritical": []
+    }
+  },
+  "privacy": {
+    "origins": [
+      "https://class-capacity-truth.sociobot.in"
+    ],
+    "serviceWorkers": 0
+  },
+  "identity": {
+    "host": "sociobotcustomers.ciamlogin.com",
+    "tenant": true,
+    "clientId": "25c704f4-465a-47af-80ab-2c489466b697",
+    "redirectUri": "https://class-capacity-truth.sociobot.in/auth/callback",
+    "responseType": "code",
+    "codeChallengeMethod": "S256"
+  },
+  "links": [
+    {
+      "href": "https://class-capacity-truth.sociobot.in/#main",
+      "status": 200
+    },
+    {
+      "href": "https://class-capacity-truth.sociobot.in/",
+      "status": 200
+    },
+    {
+      "href": "https://class-capacity-truth.sociobot.in/demo?demo=1",
+      "status": 200
+    },
+    {
+      "href": "https://class-capacity-truth.sociobot.in/#how-it-works",
+      "status": 200
+    },
+    {
+      "href": "https://class-capacity-truth.sociobot.in/app",
+      "status": 200
+    },
+    {
+      "href": "https://class-capacity-truth.sociobot.in/privacy",
+      "status": 200
+    },
+    {
+      "href": "https://class-capacity-truth.sociobot.in/terms",
+      "status": 200
+    },
+    {
+      "href": "https://sociobot.in/",
+      "status": 200
+    }
+  ],
+  "consoleErrors": [],
+  "pageErrors": [],
+  "failures": []
+}

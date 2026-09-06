@@ -1,0 +1,6 @@
+
+> class-capacity-truth@0.1.0 test:deployment
+> bash scripts/test-container-topology-deployment.sh && bash scripts/test-containerapp-revision-readiness.sh
+
+deployment topology regression passed
+revision traffic-readiness regression passed

@@ -1,3 +1,59 @@
+# Review 4 handoff — FAIL (2026-09-06)
+
+Work order: `class-capacity-truth-review-4`
+
+Implementation reviewed: `a419018d93ec151e2fc136179d290e41cdf5176a`
+
+Documentation base: `6292a0708483a462933463b43655f559697efef3`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+## Result
+
+**FAIL — 2 P3 findings and 0 untested claims.** The full report is
+`.factory/review-4.md`; fresh evidence is in
+`.factory/review-4-evidence/`.
+
+The implementation is operationally sound. All 24 exact claim commands passed
+from a detached clean checkout. `npm test`, typecheck, lint, build, and 28/28
+no-retry browser tests passed. The live one-click sample, reset, invalid/full/
+cutoff paths, separate-browser isolation, Start for real, route titles,
+keyboard and focus behavior, 200% phone reflow, reduced motion, Axe, privacy,
+link crawl, checkout handoff, CIAM redirect, health, one-replica `/data`
+topology, and live 429 allowances passed. Lighthouse scored 100 in all four
+categories.
+
+Strict acceptance is blocked by two copy defects. The standalone 404 still
+uses **“bead off the rail”** and **“Abacus visual system”**, contrary to the
+plain-words contract and earlier F-1-33/F-2-14 dispositions. The signed-in
+waitlist introduction says **“durable offer receipts”**, recurring the jargon
+from F-1-22/F-2-19. Product code was not changed by this review.
+
+## How to verify
+
+- Run every `test` command in `.factory/claims.json` from a clean checkout.
+- Run `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, and
+  `CI=1 npm run test:e2e -- --retries=0 --reporter=line`.
+- Run `/opt/fleet/lib/verify-url.sh
+  https://class-capacity-truth.sociobot.in <evidence-directory>`.
+- Inspect `.factory/review-4-evidence/live-review.json`, `link-crawl.json`,
+  `lighthouse-mobile.json`, rate-limit headers, health output, and topology
+  output.
+
+## Milestone and external dependencies
+
+Controller stage remains `building-m1`. The repository plan separately marks
+M1–M4 shipped and M5 planned; M5 was not treated as available.
+
+- Full CIAM use needs an authorised staff account. The live redirect contract
+  passed.
+- Hosted checkout opens correctly. Payment and entitlement completion were not
+  performed.
+- Production has no approved SMTP relay. The tested copyable-offer fallback is
+  active; automatic email remains external.
+
+---
+
 # Verification 22 handoff — PASS (2026-09-06)
 
 Work order: `class-capacity-truth-verify-22`

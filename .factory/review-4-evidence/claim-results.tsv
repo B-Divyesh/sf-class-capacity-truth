@@ -1,0 +1,24 @@
+sample-booking-updates-seats	PASS	2026-09-06T05:01:51Z	npm run test:e2e -- --grep @claim:sample-booking-updates-seats
+full-class-blocks-booking	PASS	2026-09-06T05:02:16Z	npm run test:e2e -- --grep @claim:full-class-blocks-booking
+cutoff-blocks-booking	PASS	2026-09-06T05:02:27Z	npm run test:e2e -- --grep @claim:cutoff-blocks-booking
+demo-reset-isolated	PASS	2026-09-06T05:02:37Z	npm run test:e2e -- --grep @claim:demo-reset-isolated
+school-capacity-flow	PASS	2026-09-06T05:02:50Z	npm run test:e2e -- --grep @claim:school-capacity-flow
+calendar-poll	PASS	2026-09-06T05:03:09Z	npm run test:api -- claim_calendar_feed_is_encrypted_and_polled_every_five_minutes
+concurrent-booking-does-not-oversell	PASS	2026-09-06T05:03:14Z	npm run test:api -- concurrent_booking_requests_do_not_oversell_a_class
+released-seat-delivery	PASS	2026-09-06T05:03:15Z	npm run test:e2e -- --grep @claim:released-seat-delivery
+school-plan-price	PASS	2026-09-06T05:03:32Z	npm run test:e2e -- --grep @claim:school-plan-price
+no-third-party-tracking	PASS	2026-09-06T05:03:49Z	npm run test:e2e -- --grep @claim:no-third-party-tracking
+contact-encryption-retention	PASS	2026-09-06T05:04:01Z	npm run test:api -- claim_contact_encryption_and_retention
+entra-sign-in	PASS	2026-09-06T05:04:02Z	npm run test:e2e -- --grep @claim:entra-sign-in
+staff-role-access	PASS	2026-09-06T05:04:12Z	npm run test:api -- claim_staff_roles_enforce_owner_actions
+data-export-delete	PASS	2026-09-06T05:04:12Z	npm run test:e2e -- --grep @claim:data-export-delete
+demo-expiry-input-disposal	PASS	2026-09-06T05:04:23Z	npm run test:api -- claim_demo_expiry_and_input_disposal
+reconciliation-does-not-change-seats	PASS	2026-09-06T05:04:23Z	npm run test:api -- claim_reconciliation_never_mutates_confirmed_seats
+durable-restart	PASS	2026-09-06T05:04:24Z	npm run test:durable-restart
+configured-smtp-delivery	PASS	2026-09-06T05:07:57Z	npm run test:api -- claim_configured_smtp_queues_an_encrypted_offer
+workspace-recovery	PASS	2026-09-06T05:07:57Z	npm run test:api -- claim_workspace_recovery_by_staff_identity
+oldest-waitlist-offer	PASS	2026-09-06T05:07:58Z	npm run test:api -- claim_oldest_waitlist_entry_gets_a_24_hour_offer
+zero-config-runtime	PASS	2026-09-06T05:07:58Z	bash scripts/test-zero-config.sh
+forwarded-ip-rate-limits	PASS	2026-09-06T05:08:33Z	npm run test:api -- rate_limit_uses_forwarded_ip_and_returns_retry_after
+durable-one-replica-topology	PASS	2026-09-06T05:08:33Z	npm run test:deployment
+operational-metrics-no-pii	PASS	2026-09-06T05:08:34Z	npm run test:api -- regression_protected_operational_metrics_are_aggregated_and_contain_no_pii

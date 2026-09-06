@@ -1,0 +1,13 @@
+HTTP/2 401 
+content-type: application/json
+www-authenticate: Bearer
+x-ratelimit-limit: 40
+x-ratelimit-remaining: 39
+vary: accept-encoding,origin, access-control-request-method, access-control-request-headers
+x-content-type-options: nosniff
+referrer-policy: strict-origin-when-cross-origin
+permissions-policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()
+content-security-policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://sociobotcustomers.ciamlogin.com https://login.microsoftonline.com https://api.sociobot.in; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+content-length: 108
+date: Sun, 06 Sep 2026 05:03:48 GMT
+

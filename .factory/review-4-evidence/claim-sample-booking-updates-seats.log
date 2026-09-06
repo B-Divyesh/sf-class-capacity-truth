@@ -1,0 +1,25 @@
+
+> class-capacity-truth@0.1.0 test:e2e
+> playwright test --grep @claim:sample-booking-updates-seats
+
+[WebServer] (node:5841) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer]    Compiling bitflags v2.13.1
+[WebServer]    Compiling raw-cpuid v11.6.0
+[WebServer]    Compiling tower-http v0.6.11
+[WebServer]    Compiling quanta v0.12.6
+[WebServer]    Compiling governor v0.10.4
+[WebServer]    Compiling reqwest v0.12.28
+[WebServer]    Compiling tower_governor v0.8.0
+[WebServer]    Compiling class-capacity-truth-api v0.1.0 (/tmp/cct-review4-clean/services/api)
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 14.59s
+[WebServer]      Running `services/api/target/debug/class-capacity-truth-api`
+
+Running 1 test using 1 worker
+(node:6539) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6539) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+·
+  1 passed (23.4s)
+::notice title=🎭 Playwright Run Summary::  1 passed (23.4s)

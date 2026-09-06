@@ -1,0 +1,12 @@
+
+> class-capacity-truth@0.1.0 test:api
+> cargo test --manifest-path services/api/Cargo.toml --test api claim_reconciliation_never_mutates_confirmed_seats
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running tests/api.rs (services/api/target/debug/deps/api-2323c4d98c146093)
+
+running 1 test
+test claim_reconciliation_never_mutates_confirmed_seats ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.13s
+

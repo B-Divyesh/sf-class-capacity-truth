@@ -1,3 +1,41 @@
+# Review 5 handoff — PASS (2026-09-06)
+
+Work order: `class-capacity-truth-review-5`
+
+Implementation reviewed: `e449d5725a6bd2e69e2982d60ade5b5001f90093`
+
+Documentation base: `aad07f5a24a539ee6c6f983a2771d465f5dd992c`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+**PASS — zero findings and zero untested claims.** The strict fresh review
+confirmed the job, audience, and sample action before scrolling on desktop and
+phone. The isolated sample booked, reset, blocked invalid/full/cutoff paths,
+stayed separate across browsers, and made no real-data write. All 24 exact
+claim commands passed from a detached clean checkout. `npm test`, typecheck,
+lint, build, and 28/28 no-retry browser tests also passed.
+
+Live health reports the exact candidate with a ready database. The owned
+one-replica `/data` topology, restart persistence, demo and metrics 429 limits,
+privacy, routes, legal pages, expected 404, keyboard, 200% phone reflow,
+reduced motion, Axe, link crawl, CIAM redirect, and hosted checkout handoff all
+passed. Fresh mobile Lighthouse scored 100 in all four categories. Review 4's
+404 and waitlist wording findings remain closed, as do all earlier findings.
+
+The full report is `.factory/review-5.md`; evidence is in
+`.factory/review-5-evidence/`. To verify, run `npm ci`, every exact `test`
+entry in `.factory/claims.json`, `npm test`, `npm run typecheck`, `npm run
+lint`, `npm run build`, and `CI=1 npm run test:e2e -- --retries=0
+--reporter=line`.
+
+Controller stage remains `building-m1`. The plan records M1–M4 as shipped and
+M5 as planned; M5 was not treated as current. Full staff sign-in, purchase and
+entitlement completion, and optional SMTP delivery remain external
+dependencies. No product code, deployment, cloud resource, or real school data
+was changed.
+
+---
+
 # Verification 23 handoff — PASS (2026-09-06)
 
 Work order: `class-capacity-truth-verify-23`

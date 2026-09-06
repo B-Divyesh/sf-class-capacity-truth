@@ -1,0 +1,10 @@
+{
+  "requestMethod": "POST",
+  "endpointResponseStatus": 200,
+  "failedHost": null,
+  "failure": null,
+  "alert": "",
+  "finalHost": "checkout.dodopayments.com",
+  "finalPath": "/session/<redacted>",
+  "consoleErrors": []
+}

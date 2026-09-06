@@ -1,0 +1,59 @@
+
+> class-capacity-truth@0.1.0 test:e2e
+> playwright test --retries=0 --reporter=line
+
+[1A[2K[WebServer] (node:16955) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[1A[2K[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.17s
+
+[1A[2K[WebServer]      Running `services/api/target/debug/class-capacity-truth-api`
+
+
+Running 28 tests using 2 workers
+
+[1A[2K(node:16985) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:16984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:16985) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:16984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/28] [chromium] › e2e/m1.spec.ts:21:1 › @claim:full-class-blocks-booking blocks a full class
+[1A[2K[2/28] [chromium] › e2e/m1.spec.ts:10:1 › @claim:sample-booking-updates-seats books one seat and updates the count
+[1A[2K[3/28] [chromium] › e2e/m1.spec.ts:38:1 › @claim:cutoff-blocks-booking blocks a class after its cutoff
+[1A[2K[4/28] [chromium] › e2e/m1.spec.ts:55:1 › @claim:demo-reset-isolated keeps browser demos separate and resets changes
+[1A[2K[5/28] [chromium] › e2e/m1.spec.ts:91:1 › keyboard booking and route focus work
+[1A[2K[6/28] [chromium] › e2e/m1.spec.ts:114:1 › resetting from a booking returns to fresh sample classes
+[1A[2K[7/28] [chromium] › e2e/m1.spec.ts:123:1 › axe finds no serious issues on a booking route
+[1A[2K[8/28] [chromium] › e2e/m1.spec.ts:131:1 › dark treatment has no serious contrast issues
+[1A[2K[9/28] [chromium] › e2e/m1.spec.ts:143:1 › the demo remains usable at 390px and with reduced motion
+[1A[2K[10/28] [chromium] › e2e/m1.spec.ts:154:1 › release regression: the 390px demo reserves its result space before sample classes load
+[1A[2K[11/28] [chromium] › e2e/m1.spec.ts:175:1 › release regression: shipped workspace routes load directly and restore focus on history navigation
+[1A[2K[12/28] [chromium] › e2e/m1.spec.ts:220:1 › release regression: the 390px header uses a labelled keyboard menu
+[1A[2K[13/28] [chromium] › e2e/m1.spec.ts:249:1 › @claim:entra-sign-in sends staff to Sociobot CIAM with PKCE
+[1A[2K[14/28] [chromium] › e2e/m1.spec.ts:280:1 › release regression: hashed assets are immutable and unknown paths are HTTP 404
+[1A[2K[15/28] [chromium] › e2e/m1.spec.ts:290:1 › release regression: standalone 404 reflows and sends a visitor home at 390px with 200 percent text
+[1A[2K[16/28] [chromium] › e2e/m1.spec.ts:306:1 › school workspace stays usable at 390px
+[1A[2K[17/28] [chromium] › e2e/m1.spec.ts:316:1 › all routes reflow at 390px and 200 percent text size with 44px targets
+[1A[2K[18/28] [chromium] › e2e/m1.spec.ts:338:1 › @claim:school-capacity-flow @claim:released-seat-delivery creates, copies, reloads, and converts
+[1A[2K[19/28] [chromium] › e2e/m1.spec.ts:401:1 › release regression: school wall time does not drift with the browser zone
+[1A[2K[20/28] [chromium] › e2e/m1.spec.ts:418:1 › @claim:school-plan-price shows the recorded per-school monthly price and opens hosted Sociobot checkout
+[1A[2K[21/28] [chromium] › e2e/m1.spec.ts:443:1 › @claim:data-export-delete exports and deletes the workspace
+[1A[2K[22/28] [chromium] › e2e/m1.spec.ts:456:1 › calendar connection UI checks the feed without changing confirmed seats
+[1A[2K[23/28] [chromium] › e2e/m1.spec.ts:476:1 › @claim:no-third-party-tracking public pages stay same-origin until staff select sign-in or checkout
+[1A[2K[24/28] [chromium] › e2e/m1.spec.ts:534:3 › axe finds no serious issues on /
+[1A[2K[25/28] [chromium] › e2e/m1.spec.ts:534:3 › axe finds no serious issues on /demo?demo=1
+[1A[2K[26/28] [chromium] › e2e/m1.spec.ts:534:3 › axe finds no serious issues on /privacy
+[1A[2K[27/28] [chromium] › e2e/m1.spec.ts:534:3 › axe finds no serious issues on /terms
+[1A[2K[28/28] [chromium] › e2e/m1.spec.ts:534:3 › axe finds no serious issues on /missing-page
+[1A[2K  28 passed (29.6s)

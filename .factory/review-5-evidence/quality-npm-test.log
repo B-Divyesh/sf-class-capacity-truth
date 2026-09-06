@@ -1,0 +1,76 @@
+
+> class-capacity-truth@0.1.0 test
+> vitest run && cargo test --manifest-path services/api/Cargo.toml && npm run test:deployment
+
+
+ RUN  v3.2.7 /tmp/cct-review5-clean-1yRBLs
+
+ ✓ src/lib/routes.test.ts (3 tests) 4ms
+ ✓ src/App.test.tsx (5 tests) 185ms
+
+ Test Files  2 passed (2)
+      Tests  8 passed (8)
+   Start at  06:44:58
+   Duration  2.29s (transform 380ms, setup 704ms, collect 399ms, tests 189ms, environment 1.64s, prepare 311ms)
+
+   Compiling class-capacity-truth-api v0.1.0 (/tmp/cct-review5-clean-1yRBLs/services/api)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.28s
+     Running unittests src/lib.rs (services/api/target/debug/deps/class_capacity_truth_api-71eacc4557cf943a)
+
+running 7 tests
+test crypto::tests::azure_files_permission_denied_does_not_block_persisted_key_creation ... ok
+test db::tests::availability_closes_at_the_exact_cutoff_instant ... ok
+test cookies::tests::signed_cookie_round_trips_and_rejects_changes ... ok
+test db::tests::full_capacity_takes_precedence_over_a_future_cutoff ... ok
+test jobs::tests::parses_real_ical_events_without_counting_calendar_metadata ... ok
+test metrics::tests::uses_fixed_route_groups_and_never_echoes_path_values ... ok
+test db::tests::cancelled_demo_transaction_does_not_break_the_next_demo ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running unittests src/main.rs (services/api/target/debug/deps/class_capacity_truth_api-3421280de6c76eee)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/api.rs (services/api/target/debug/deps/api-2323c4d98c146093)
+
+running 22 tests
+test claim_calendar_feed_is_encrypted_and_polled_every_five_minutes ... ok
+test claim_configured_smtp_queues_an_encrypted_offer ... ok
+test claim_contact_encryption_and_retention ... ok
+test claim_deployment_topology_is_one_replica_with_azure_files ... ok
+test claim_demo_expiry_and_input_disposal ... ok
+test claim_durable_snapshot_survives_restart ... ok
+test claim_oldest_waitlist_entry_gets_a_24_hour_offer ... ok
+test claim_reconciliation_never_mutates_confirmed_seats ... ok
+test claim_staff_roles_enforce_owner_actions ... ok
+test claim_workspace_recovery_by_staff_identity ... ok
+test concurrent_booking_requests_do_not_oversell_a_class ... ok
+test demo_cookie_isolates_bookings_and_rejects_tenant_input ... ok
+test durable_database_reopens_after_one_replica_sequential_restart ... ok
+test health_rejects_and_recovers_an_abandoned_transaction ... ok
+test health_reports_build_without_rate_limit ... ok
+test migration_has_a_working_down_path ... ok
+test rate_limit_uses_forwarded_ip_and_returns_retry_after ... ok
+test regression_protected_operational_metrics_are_aggregated_and_contain_no_pii ... ok
+test regression_top_level_metrics_uses_forwarded_ip_limiter ... ok
+test regression_real_school_flow_configures_books_reconciles_and_converts_released_waitlist_seat ... ok
+test school_routes_require_entra_bearer_and_return_auth_challenge ... ok
+test validation_and_signed_cookie_are_enforced ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s
+
+   Doc-tests class_capacity_truth_api
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+> class-capacity-truth@0.1.0 test:deployment
+> bash scripts/test-container-topology-deployment.sh && bash scripts/test-containerapp-revision-readiness.sh
+
+deployment topology regression passed
+revision traffic-readiness regression passed

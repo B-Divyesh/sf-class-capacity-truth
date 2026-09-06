@@ -1,0 +1,5 @@
+npm-test	PASS	11s
+typecheck	PASS	4s
+lint	PASS	54s
+build	PASS	6s
+e2e-all	PASS	31s

@@ -1,0 +1,17 @@
+
+> class-capacity-truth@0.1.0 test:e2e
+> playwright test --grep @claim:demo-reset-isolated
+
+[WebServer] (node:6136) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s
+[WebServer]      Running `services/api/target/debug/class-capacity-truth-api`
+
+Running 1 test using 1 worker
+(node:6165) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6165) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+·
+  1 passed (9.9s)
+::notice title=🎭 Playwright Run Summary::  1 passed (9.9s)

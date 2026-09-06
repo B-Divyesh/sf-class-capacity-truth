@@ -1,0 +1,98 @@
+[
+  {
+    "href": "https://class-capacity-truth.sociobot.in/",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/#how-it-works",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/#main",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/app",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/app#main",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/app/operations#main",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/app/reconciliation#main",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/app/settings#main",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/app/settings/billing#main",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/app/settings/data#main",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/app/waitlist#main",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/book/demo-31686047546a46c4ac931722aaa531c1",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/book/demo-5d006ae172e847cb97bbd45221e1aeba",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/book/demo-6ae3dfc17d364c6dbbc65ba9b923cb3c",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/demo?demo=1",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/demo?demo=1#main",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/not-a-real-page#main",
+    "status": "expected-404-anchor"
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/privacy",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/privacy#main",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/terms",
+    "status": 200
+  },
+  {
+    "href": "https://class-capacity-truth.sociobot.in/terms#main",
+    "status": 200
+  },
+  {
+    "href": "https://sociobot.in/",
+    "status": 200
+  },
+  {
+    "href": "mailto:privacy@sociobot.in",
+    "status": "mailto"
+  },
+  {
+    "href": "mailto:support@sociobot.in",
+    "status": "mailto"
+  }
+]

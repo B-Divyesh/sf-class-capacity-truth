@@ -1,0 +1,9 @@
+check	result	detail
+npm ci	PASS	170 packages; zero reported vulnerabilities
+npm test	PASS	8 frontend; 6 Rust unit; 21 API; 2 deployment regressions
+npm run typecheck	PASS	TypeScript project build
+npm run lint	PASS	TypeScript; rustfmt; Clippy with warnings denied
+npm run build	PASS	dist and release API binary produced
+CI=1 npm run test:e2e -- --retries=0 --reporter=line	PASS	28 of 28
+/opt/fleet/lib/verify-url.sh	PASS	title; lang; h1; main; alt; labels; console
+Lighthouse mobile home	PASS	100 performance; 100 accessibility; 100 best practices; 100 SEO; LCP 1.23s; CLS 0; TBT 0ms

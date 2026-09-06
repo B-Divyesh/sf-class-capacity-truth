@@ -1,0 +1,340 @@
+{
+  "checkedAt": "2026-09-06T00:18:06.116Z",
+  "assertions": [
+    {
+      "name": "fresh phone starts before scrolling",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "phone states the job",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "phone states the audience",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "phone states the first action",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "phone first-read item is above the fold",
+      "pass": true,
+      "detail": "{\"x\":27,\"y\":187.96875,\"width\":278.78125,\"height\":138.984375}"
+    },
+    {
+      "name": "phone first-read item is above the fold",
+      "pass": true,
+      "detail": "{\"x\":27,\"y\":136.59375,\"width\":336,\"height\":43.375}"
+    },
+    {
+      "name": "phone first-read item is above the fold",
+      "pass": true,
+      "detail": "{\"x\":27,\"y\":419.640625,\"width\":336,\"height\":44}"
+    },
+    {
+      "name": "phone home has no horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "skip link is first in keyboard order",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "skip link focuses main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile menu is at least 44 by 44 pixels",
+      "pass": true,
+      "detail": "{\"x\":250.828125,\"y\":-67.609375,\"width\":131.171875,\"height\":44.796875}"
+    },
+    {
+      "name": "mobile menu opens by keyboard",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile menu closes and restores focus",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "reduced motion removes animation and transition durations",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "name": "phone dark reduced-motion home has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/ returns 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "/ has its route title",
+      "pass": true,
+      "detail": "Class Capacity Truth — Show the right seat count"
+    },
+    {
+      "name": "/ has one h1 and main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/ has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app returns 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "/app has its route title",
+      "pass": true,
+      "detail": "Classes — Class Capacity Truth"
+    },
+    {
+      "name": "/app has one h1 and main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/reconciliation returns 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "/app/reconciliation has its route title",
+      "pass": true,
+      "detail": "Calendar checks — Class Capacity Truth"
+    },
+    {
+      "name": "/app/reconciliation has one h1 and main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/reconciliation has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/waitlist returns 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "/app/waitlist has its route title",
+      "pass": true,
+      "detail": "Waitlist offers — Class Capacity Truth"
+    },
+    {
+      "name": "/app/waitlist has one h1 and main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/waitlist has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/settings returns 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "/app/settings has its route title",
+      "pass": true,
+      "detail": "Settings — Class Capacity Truth"
+    },
+    {
+      "name": "/app/settings has one h1 and main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/settings has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/settings/billing returns 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "/app/settings/billing has its route title",
+      "pass": true,
+      "detail": "Billing — Class Capacity Truth"
+    },
+    {
+      "name": "/app/settings/billing has one h1 and main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/settings/billing has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/settings/data returns 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "/app/settings/data has its route title",
+      "pass": true,
+      "detail": "School data — Class Capacity Truth"
+    },
+    {
+      "name": "/app/settings/data has one h1 and main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/settings/data has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/operations returns 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "/app/operations has its route title",
+      "pass": true,
+      "detail": "Operations — Class Capacity Truth"
+    },
+    {
+      "name": "/app/operations has one h1 and main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/app/operations has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/privacy returns 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "/privacy has its route title",
+      "pass": true,
+      "detail": "Privacy — Class Capacity Truth"
+    },
+    {
+      "name": "/privacy has one h1 and main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/privacy has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/terms returns 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "/terms has its route title",
+      "pass": true,
+      "detail": "Terms — Class Capacity Truth"
+    },
+    {
+      "name": "/terms has one h1 and main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/terms has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/review-3-deliberate-missing returns 404",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "/review-3-deliberate-missing has its route title",
+      "pass": true,
+      "detail": "Page not found — Class Capacity Truth"
+    },
+    {
+      "name": "/review-3-deliberate-missing has one h1 and main",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/review-3-deliberate-missing has no serious or critical Axe issue",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "public, legal, and signed-out routes remain same-origin before an explicit action",
+      "pass": true,
+      "detail": "https://class-capacity-truth.sociobot.in"
+    },
+    {
+      "name": "checked non-demo routes log no unexpected console errors",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "checked non-demo routes raise no page errors",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "404 retains legal links",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "404 retains metadata",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "404 reflows at 390 pixels and 200 percent text",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "404 recovery target is at least 44 pixels high",
+      "pass": true,
+      "detail": "{\"x\":68,\"y\":1012.09375,\"width\":254,\"height\":86}"
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 ()"
+  ],
+  "pageErrors": [],
+  "verdict": "PASS"
+}

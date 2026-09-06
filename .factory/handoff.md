@@ -1,3 +1,48 @@
+# Review 3 handoff — FAIL (2026-09-06)
+
+Work order: `class-capacity-truth-review-3`
+
+Implementation reviewed: `739d42da50fff5452ce4704a21b212fc597ebfb6`
+
+Documentation base: `1d892aa488ee6a9e791e727033214aea6d1f000c`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+## Result
+
+**FAIL — 2 findings and 0 untested claims.** The full report is
+`.factory/review-3.md`; evidence is in `.factory/review-3-evidence/`.
+
+The live one-click sample persistently returns HTTP 503 with
+`demo_unavailable`. Product logs report SQLite error `cannot start a
+transaction within a transaction`. No sample classes load, so the public demo
+cannot prove booking, full/cutoff boundaries, reset, or isolation. At the same
+time, `/health` returns HTTP 200 with `database: ready`, which is a false
+readiness result for the transaction-backed public path.
+
+From a clean checkout, `npm ci`, every one of the 24 declared claim commands,
+`npm test`, typecheck, lint, build, and all 28 no-retry browser tests passed.
+The owned topology verifier confirms one replica and Azure Files at `/data`;
+the separate restart claim passed. Live limits still enforce 10 demo requests
+and 40 protected metrics requests, both with 429 and Retry-After. Fresh home
+Lighthouse scored 100 in all four categories, with LCP 1.23 seconds and CLS 0.
+Non-demo live routes, phone and desktop first read, keyboard, focus, dark and
+reduced motion, 200% 404 reflow, metadata, privacy request boundaries, and Axe
+checks passed.
+
+Required next work: make SQLite transactions cancellation-safe, recover or
+discard a connection left inside a transaction, add an aborted-request
+regression, and make readiness detect this state. Deploy the repair, then prove
+the next request works without a manual restart and repeat the complete live
+demo flow.
+
+External dependencies remain authorised CIAM completion, completed hosted
+payment/entitlement, and optional SMTP delivery. Controller stage is
+`building-m1`; M5 remains planned and was not required. No product code,
+deployment setting, or cloud resource was changed by this review.
+
+---
+
 # Verification 21 handoff — PASS (2026-09-06)
 
 Work order: `class-capacity-truth-verify-21`

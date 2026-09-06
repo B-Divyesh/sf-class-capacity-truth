@@ -1,0 +1,54 @@
+{
+  "checkedAt": "2026-09-06T00:15:07.096Z",
+  "base": "https://class-capacity-truth.sociobot.in",
+  "assertions": [
+    {
+      "name": "desktop home returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "home title names the job",
+      "detail": ""
+    },
+    {
+      "name": "html language is set",
+      "detail": ""
+    },
+    {
+      "name": "home has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "desktop first screen states the job",
+      "detail": ""
+    },
+    {
+      "name": "desktop first screen states the audience",
+      "detail": ""
+    },
+    {
+      "name": "desktop first screen shows the first action",
+      "detail": ""
+    },
+    {
+      "name": "desktop first action states its result",
+      "detail": ""
+    },
+    {
+      "name": "desktop first-read item is above the fold",
+      "detail": "{\"x\":186.88174438476562,\"y\":230.65756225585938,\"width\":469.5128479003906,\"height\":252.8814697265625}"
+    },
+    {
+      "name": "desktop first-read item is above the fold",
+      "detail": "{\"x\":186.62266540527344,\"y\":200.97119140625,\"width\":467.5308380126953,\"height\":25.765106201171875}"
+    },
+    {
+      "name": "desktop first-read item is above the fold",
+      "detail": "{\"x\":189.943115234375,\"y\":583.40869140625,\"width\":244.04656982421875,\"height\":46.124755859375}"
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 503 ()"
+  ],
+  "pageErrors": []
+}

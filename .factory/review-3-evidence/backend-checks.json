@@ -1,0 +1,40 @@
+{
+  "checked_at": "2026-09-06T00:20:58Z",
+  "health": {
+    "status": 200,
+    "body": {
+      "status": "ok",
+      "build": "739d42da50fff5452ce4704a21b212fc597ebfb6",
+      "database": "ready"
+    }
+  },
+  "demo_session": {
+    "status": 503,
+    "body": {
+      "code": "demo_unavailable",
+      "message": "The sample could not load. Try again."
+    },
+    "repeated_across_fresh_clients": true,
+    "owned_service_log_error": "cannot start a transaction within a transaction"
+  },
+  "demo_rate_limit": {
+    "responses_before_limit": 10,
+    "responses_before_limit_status": 503,
+    "limited_status": 429,
+    "retry_after_seconds": 5,
+    "limit": 10,
+    "remaining": 0
+  },
+  "metrics_rate_limit": {
+    "authentication_challenges": 40,
+    "limited_responses": 2,
+    "limited_status": 429,
+    "retry_after_seconds": 1,
+    "limit": 40,
+    "remaining": 0
+  },
+  "topology_verifier": "PASS — one replica and owned Azure Files mounted at /data",
+  "runtime": {
+    "emailDelivery": "not_configured"
+  }
+}

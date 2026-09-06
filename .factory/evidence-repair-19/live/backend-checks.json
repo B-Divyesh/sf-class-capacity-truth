@@ -1,0 +1,31 @@
+{
+  "checked_at": "2026-09-06T02:55:19Z",
+  "health": {
+    "http_status": 200,
+    "status": "ok",
+    "database": "ready",
+    "build": "a419018d93ec151e2fc136179d290e41cdf5176a"
+  },
+  "demo": {
+    "class_count": 3,
+    "booking_status": 201,
+    "booking_result": "Seat count changed from two open to one open",
+    "reset_result": "Two open seats restored"
+  },
+  "rate_limit": {
+    "endpoint": "/api/demo/session",
+    "allowed_200": 10,
+    "following_429": 2,
+    "retry_after_seconds_observed": 4
+  },
+  "topology": {
+    "revision": "sf-class-capacity-truth--d-1788662321-23485",
+    "image": "sociobotregistry.azurecr.io/sf-class-capacity-truth:a419018d93ec",
+    "image_digest": "sha256:5d4d846f50dead443afb587dcdf8852e7b8514729219f212f78c19df0e8c49fd",
+    "min_replicas": 1,
+    "max_replicas": 1,
+    "storage": "sf-class-capacity-truth-data",
+    "mount": "/data",
+    "environment": ["PORT=8080"]
+  }
+}

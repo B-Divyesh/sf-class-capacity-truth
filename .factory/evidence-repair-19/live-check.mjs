@@ -190,7 +190,7 @@ try {
     const violations = await seriousAxe(sweep);
     check(violations.length === 0, `${path} has no serious or critical Axe issue`, violations.map((item) => item.id).join(","));
   }
-  check(await sweep.getByRole("link", { name: "Privacy" }).isVisible() && await sweep.getByRole("link", { name: "Terms" }).isVisible(), "404 retains legal links");
+  check(await sweep.getByRole("link", { name: "Privacy" }).first().isVisible() && await sweep.getByRole("link", { name: "Terms" }).first().isVisible(), "404 retains legal links");
   await sweepContext.close();
 
   check(report.consoleErrors.length === 0, "checked pages log no unexpected console errors", report.consoleErrors.join(" | "));

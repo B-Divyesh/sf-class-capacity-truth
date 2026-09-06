@@ -1,3 +1,121 @@
+# Repair 19 handoff — PASS (2026-09-06)
+
+Work order: `class-capacity-truth-repair-19`
+
+Deployed implementation: `a419018d93ec151e2fc136179d290e41cdf5176a`
+
+Documentation base before this report: `a419018d93ec151e2fc136179d290e41cdf5176a`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+## Result
+
+**PASS — both Review 3 findings are fixed and no current product defect
+remains.** Production serves revision
+`sf-class-capacity-truth--d-1788662321-23485` from immutable image
+`sociobotregistry.azurecr.io/sf-class-capacity-truth:a419018d93ec` (digest
+`sha256:5d4d846f50dead443afb587dcdf8852e7b8514729219f212f78c19df0e8c49fd`).
+`GET /health` returns HTTP 200 with database `ready` and the full deployed
+implementation SHA.
+
+The P0 cause was six manually managed `BEGIN IMMEDIATE` spans on pooled SQLite
+connections. Cancelling a request after `BEGIN` could return the connection to
+the pool before a matching rollback, so later demo requests received “cannot
+start a transaction within a transaction.” These paths now use SQLx-owned
+transactions, whose drop path queues rollback on cancellation. The transaction
+entry helper also rolls back a legacy abandoned transaction and discards a
+connection if that recovery fails.
+
+The P1 cause was a readiness query that only ran `SELECT 1`. Health now opens
+the same immediate transaction needed by write paths, reads an application
+table, and rolls back. A poisoned connection therefore produces HTTP 503 on
+the first readiness check while recovery runs; the next readiness check and a
+real demo-session request succeed.
+
+Two outcome regressions prove this behavior. One aborts a demo operation after
+its transaction begins, then verifies that the next demo request returns all
+three classes. The integration test abandons a raw transaction, verifies the
+first `/health` is 503 rather than falsely ready, verifies no uncommitted row
+survived, then verifies `/health` and `/api/demo/session` recover.
+
+The required live browser sweep also caught an intermittent serious Axe issue
+in the demo loading state. Seat rails remain keyboard-focusable while visible,
+but hidden loading placeholders now use `tabindex=-1`. The regression pauses
+the demo response and runs Axe while that loading state is actually rendered.
+
+## Verification
+
+- Clean checkout: `/tmp/cct-repair19-final-7pxRrD`, detached at the exact
+  deployed implementation with zero initial changes. `npm ci` installed 170
+  packages and reported zero vulnerabilities.
+- All 24 exact commands in `.factory/claims.json` passed. The first attempt at
+  the two release-build claims exhausted this disposable worker's disk after
+  repeated clean and registry builds. Only generated Cargo caches were
+  cleaned; both exact commands then passed from the same clean checkout.
+- `npm test` passed 8 frontend tests, 7 Rust unit tests, 22 API integration
+  tests, and both deployment regressions.
+- `CI=1 npm run test:e2e -- --retries=0 --reporter=line` passed 28/28.
+  `npm run typecheck`, `npm run lint`, and `npm run build` passed. `dist/` was
+  produced; initial JavaScript is 73.74 kB gzip and CSS is 4.62 kB gzip.
+- `npm run test:durable-restart` proved a real-school booking and decrypted
+  contact survive a release-process restart. `bash scripts/test-zero-config.sh`
+  proved startup with only `PORT` and generated persistent defaults.
+- The live browser run passed 87 assertions with no console or page errors.
+  Fresh desktop and 390 px phone contexts state the job, audience, and first
+  action before scrolling. One click loads three realistic classes and the
+  persistent **Demo — sample data, nothing is saved** label. Invalid input
+  makes no booking request; a valid booking changes two open seats to one;
+  Reset restores two; full and cutoff requests return their expected 409
+  results; Start for real leaves the demo; a second browser receives an
+  isolated sample. No real-data write was made by the demo flow.
+- Phone keyboard, skip-link, menu focus return, 44 px target, dark treatment,
+  reduced motion, 200% text reflow, privacy/terms, route titles, and the
+  designed HTTP 404 passed. Axe found no serious or critical issue on all 12
+  checked routes, including the live loading state.
+- `/opt/fleet/lib/verify-url.sh` passed in 554 ms with the correct title,
+  `lang=en`, one h1, a main landmark, complete alternatives/labels, and no
+  console error.
+- Fresh mobile Lighthouse scored 100 performance, 100 accessibility, 100 best
+  practices, and 100 SEO. LCP was 1.2 seconds, CLS 0, and total blocking time
+  0 ms.
+- The live demo allowance returned ten HTTP 200 responses followed by two HTTP
+  429 responses with `Retry-After: 4`. Health remained ready and a separate
+  client still received three classes.
+- Deployment readback confirms one replica, the existing Azure Files volume
+  `sf-class-capacity-truth-data` mounted at `/data`, and only `PORT=8080`.
+  SQLite and generated keys therefore stayed on the durable mount across the
+  replacement restart.
+
+Evidence is in `.factory/evidence-repair-19/`. The public offer metadata is in
+`/work/.evidence/billing-offer.json`; the validated catalog line is mirrored to
+`/work/.evidence/catalog-description.txt`.
+
+## Milestone and external dependencies
+
+Controller stage remains `building-m1`. This work order repaired the current
+product only. The repository plan separately records M1–M4 as shipped and M5
+as planned; no future capability was presented as available.
+
+- Sociobot CIAM redirect and PKCE behavior are tested. A credentialed live
+  workspace session still requires an authorised school staff account, and
+  the operator must keep the production callback registration in the shared
+  tenant.
+- The live $99-per-school monthly offer reaches hosted Sociobot/Dodo checkout.
+  No payment was made, so payment completion and entitlement activation remain
+  external billing-operator checks. The paid deliverables were preserved.
+- Production has no approved SMTP relay. The current tested fallback stores a
+  copyable released-seat offer and receipt; automatic email remains dependent
+  on an approved relay.
+- This web-with-backend product does not claim offline support and registers no
+  service worker.
+
+## Known gaps
+
+No current-milestone product defect is known. The external dependencies above
+are unchanged and are not represented as shipped functionality.
+
+---
+
 # Review 3 handoff — FAIL (2026-09-06)
 
 Work order: `class-capacity-truth-review-3`

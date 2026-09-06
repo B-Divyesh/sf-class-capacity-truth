@@ -1,0 +1,15 @@
+check	result	detail
+npm-ci	PASS	170 packages; 0 vulnerabilities
+npm-test	PASS	8 frontend; 7 Rust unit; 22 API integration; 2 deployment regressions
+npm-run-test-e2e	PASS	28 of 28; Chromium; no retries
+npm-run-typecheck	PASS	TypeScript project build
+npm-run-lint	PASS	TypeScript; rustfmt; Clippy warnings denied
+npm-run-build	PASS	dist produced; initial JS 73.74 kB gzip; CSS 4.62 kB gzip
+durable-restart	PASS	real-school booking and decrypted contact survived a release-process restart
+zero-config-runtime	PASS	started with PORT only and generated persistent defaults
+live-browser	PASS	87 assertions; no console or page errors; all routes have zero serious or critical Axe findings
+verify-url	PASS	554 ms; title; lang; one h1; main; labels; no console errors
+lighthouse-mobile	PASS	performance 100; accessibility 100; best practices 100; SEO 100; LCP 1.2 s; CLS 0; TBT 0 ms
+live-rate-limit	PASS	10 HTTP 200 responses followed by 2 HTTP 429 responses; Retry-After 4 seconds
+live-topology	PASS	one replica; Azure Files sf-class-capacity-truth-data at /data; PORT 8080 only
+live-health	PASS	HTTP 200; database ready; exact implementation SHA

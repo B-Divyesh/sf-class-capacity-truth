@@ -1,3 +1,88 @@
+# Repair 20 handoff — PASS (2026-09-06)
+
+Work order: `class-capacity-truth-repair-20`
+
+Deployed implementation: `e449d5725a6bd2e69e2982d60ade5b5001f90093`
+
+Documentation base before this handoff: `e449d5725a6bd2e69e2982d60ade5b5001f90093`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+## Result
+
+**PASS — Review 4's two P3 copy findings are fixed.** Production serves
+`sf-class-capacity-truth--d-1788673655-27894` from immutable image
+`sociobotregistry.azurecr.io/sf-class-capacity-truth:e449d5725a6b`
+(digest `sha256:c7db9cc9313949aa8ee680d562f209d94e303b25aa7251fefe1063c686e13542`).
+`GET /health` returns `database: ready` and the full implementation SHA.
+
+The static 404 page and SPA fallback now use the factual heading “This page
+was not found.”, the `404 error` label, and a clear home-page action. The
+static footer no longer carries a decorative design-system label. The signed-in
+waitlist now says staff should review saved offer receipts before contacting a
+waiting guardian. The copy audit includes both pages.
+
+The repair adds outcome regressions rather than source-text assertions: the
+responsive standalone 404 test opens the page, confirms its 44px recovery
+control, activates it, and arrives at the home page; the released-seat flow
+reloads, opens the waitlist screen, finds its saved offer URL, and accepts the
+offer. These close Review 4's findings and the related earlier Review 1/2
+plain-word recurrences. All prior review and verification dispositions remain
+covered by the 24 declared claims and 28 browser checks.
+
+## Verification
+
+- Fresh clean checkout at the deployed SHA: `npm ci` succeeded; every exact
+  command in `.factory/claims.json` passed (24/24).
+- Local gates passed: `npm test`, `npm run typecheck`, `npm run lint`,
+  `npm run build`, and `CI=1 npm run test:e2e -- --retries=0 --reporter=line`
+  (28/28). The built initial JavaScript is 73.74 kB gzip and CSS is 4.62 kB
+  gzip.
+- The guarded deployment preserved `PORT=8080`, one replica, and the Azure
+  Files mount `sf-class-capacity-truth-data` at `/data`.
+- Fresh live desktop and 390px phone browsers confirmed the job before
+  scrolling (show the correct seat count), audience (school staff), and first
+  action (try the sample). One click loaded three realistic classes; booking
+  changed the seat count; the persistent sample label remained; reset restored
+  two seats; another fresh context stayed separate; and Start for real reached
+  the sign-in gate. No console or page errors occurred.
+- A deliberate unknown live URL returned HTTP 404 with factual recovery copy.
+  The factory URL verifier passed in 553 ms. Live Playwright Axe found zero
+  serious or critical violations on home, demo, privacy, terms, and app routes
+  in its checked desktop, mobile, dark, and reduced-motion states.
+- Mobile Lighthouse: Performance 98, Accessibility 100, Best Practices 100,
+  SEO 100; LCP 2.0 s, CLS 0, and total blocking time 0 ms.
+
+Evidence is in `.factory/evidence-repair-20/`; the concise command/result log
+is `.factory/evidence-repair-20/quality-results.tsv`. The standalone Axe CLI
+was also attempted, but its Selenium driver could not launch the provided
+browser. The allowed Playwright Axe integration completed successfully, so
+this is a worker-tool limitation rather than an untested product claim.
+
+## How to verify
+
+- From a clean checkout: run `npm ci`, then each exact `test` command in
+  `.factory/claims.json`.
+- Run `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, and
+  `CI=1 npm run test:e2e -- --retries=0 --reporter=line`.
+- Run `/opt/fleet/lib/verify-url.sh https://class-capacity-truth.sociobot.in
+  <evidence-directory>` and `node scripts/verify-live-browser.mjs` with an
+  `EVIDENCE_DIR` value.
+
+## Milestone and external dependencies
+
+Controller stage remains `building-m1`. The repository plan records M1–M4 as
+shipped and M5 as planned; M5 was not presented as available.
+
+- Full CIAM use needs an authorised staff account. The live redirect contract
+  passed, but a real staff sign-in was not performed.
+- Hosted checkout and entitlement completion remain an external billing
+  dependency. No payment was attempted.
+- Production SMTP is not configured. The tested copyable-offer fallback
+  remains available; automatic email delivery needs an approved SMTP relay.
+
+---
+
 # Review 4 handoff — FAIL (2026-09-06)
 
 Work order: `class-capacity-truth-review-4`

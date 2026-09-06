@@ -1,0 +1,11 @@
+check	result	detail
+clean-checkout-claims	PASS	All 24 exact commands declared in .factory/claims.json passed from a fresh checkout at e449d5725a6bd2e69e2982d60ade5b5001f90093.
+local-quality-gates	PASS	npm test; npm run typecheck; npm run lint; and npm run build passed. The build produced dist/.
+browser-regressions	PASS	CI=1 npm run test:e2e -- --retries=0 --reporter=line passed 28 of 28 browser tests.
+live-health	PASS	HTTPS /health returned database ready and build e449d5725a6bd2e69e2982d60ade5b5001f90093.
+live-demo	PASS	Desktop and 390px phone checks loaded three sample classes, booked one sample seat, retained the demo label, reset to two seats, and kept a second demo context fresh.
+live-404	PASS	A deliberate unknown URL returned HTTP 404 with a factual recovery link and no prohibited decorative copy.
+live-accessibility	PASS	verify-url passed in 553 ms. Live Playwright Axe found zero serious or critical violations across home, demo, privacy, terms, and app routes in its checked states.
+axe-cli	ENVIRONMENT-LIMIT	The standalone Selenium-based Axe CLI could not launch the provided browser. The allowed Playwright Axe integration above ran against the live product successfully.
+lighthouse-mobile	PASS	Performance 98; Accessibility 100; Best Practices 100; SEO 100; LCP 2.0 s; CLS 0; total blocking time 0 ms.
+topology	PASS	The guarded deployment verified exactly one replica and the sf-class-capacity-truth-data Azure Files mount at /data.

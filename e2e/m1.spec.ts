@@ -163,6 +163,8 @@ test("release regression: the 390px demo reserves its result space before sample
   await page.goto("/demo?demo=1", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Loading sample classes")).toBeVisible();
   const reservedHeight = await page.locator(".demo-results").evaluate((element) => element.getBoundingClientRect().height);
+  const loadingResults = await new AxeBuilder({ page }).analyze();
+  expect(loadingResults.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
 
   releaseSession?.();
   await expect(page.getByRole("article")).toHaveCount(3);

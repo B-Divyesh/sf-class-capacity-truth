@@ -507,7 +507,7 @@ function AuthCallbackPage() {
 
 function CapacityRail({ capacity, confirmed, label, compact = false, animate = false }: { capacity: number; confirmed: number; label: string; compact?: boolean; animate?: boolean }) {
   return (
-    <div className={`capacity-rail${compact ? " compact" : ""}${animate ? " just-booked" : ""}`} role="img" aria-label={label} tabIndex={0}>
+    <div className={`capacity-rail${compact ? " compact" : ""}${animate ? " just-booked" : ""}`} role="img" aria-label={label}>
       <span className="rail-line" aria-hidden="true" />
       {Array.from({ length: capacity }, (_, index) => <span className={`seat-bead ${index < confirmed ? "confirmed" : "open"}`} aria-hidden="true" key={index}>{index + 1}</span>)}
     </div>

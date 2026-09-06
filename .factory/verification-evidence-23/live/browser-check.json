@@ -1,0 +1,357 @@
+{
+  "checkedAt": "2026-09-06T06:13:59.706Z",
+  "implementation": "e449d5725a6bd2e69e2982d60ade5b5001f90093",
+  "assertions": [
+    {
+      "name": "desktop home returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "home title names the job",
+      "detail": ""
+    },
+    {
+      "name": "page language is English",
+      "detail": ""
+    },
+    {
+      "name": "home has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "desktop shows the job before scrolling",
+      "detail": "{\"x\":186.88174438476562,\"y\":230.65756225585938,\"width\":469.5128479003906,\"height\":252.8814697265625}"
+    },
+    {
+      "name": "desktop shows the audience before scrolling",
+      "detail": "{\"x\":186.62266540527344,\"y\":200.97119140625,\"width\":467.5308380126953,\"height\":25.765106201171875}"
+    },
+    {
+      "name": "desktop shows the first action before scrolling",
+      "detail": "{\"x\":189.943115234375,\"y\":583.40869140625,\"width\":244.04656982421875,\"height\":46.124755859375}"
+    },
+    {
+      "name": "one click opens the demo",
+      "detail": "https://class-capacity-truth.sociobot.in/demo?demo=1"
+    },
+    {
+      "name": "demo loads three realistic classes",
+      "detail": ""
+    },
+    {
+      "name": "demo label is persistent",
+      "detail": ""
+    },
+    {
+      "name": "sample starts with two open seats",
+      "detail": ""
+    },
+    {
+      "name": "demo label stays on the booking form",
+      "detail": ""
+    },
+    {
+      "name": "invalid booking makes no API request",
+      "detail": "0"
+    },
+    {
+      "name": "invalid booking identifies invalid input",
+      "detail": ""
+    },
+    {
+      "name": "booking updates the visible count",
+      "detail": ""
+    },
+    {
+      "name": "demo label stays on the result",
+      "detail": ""
+    },
+    {
+      "name": "reset restores the sample",
+      "detail": ""
+    },
+    {
+      "name": "API blocks a full class",
+      "detail": ""
+    },
+    {
+      "name": "API enforces the booking cutoff",
+      "detail": ""
+    },
+    {
+      "name": "Start for real opens and focuses the real workspace",
+      "detail": ""
+    },
+    {
+      "name": "demo makes no real-data writes",
+      "detail": ""
+    },
+    {
+      "name": "demo stays same-origin",
+      "detail": ""
+    },
+    {
+      "name": "a second browser gets an isolated sample",
+      "detail": ""
+    },
+    {
+      "name": "fresh phone starts before scrolling",
+      "detail": ""
+    },
+    {
+      "name": "phone shows the job before scrolling",
+      "detail": "{\"x\":27,\"y\":187.96875,\"width\":278.78125,\"height\":138.984375}"
+    },
+    {
+      "name": "phone shows the audience before scrolling",
+      "detail": "{\"x\":27,\"y\":136.59375,\"width\":336,\"height\":43.375}"
+    },
+    {
+      "name": "phone shows the first action before scrolling",
+      "detail": "{\"x\":27,\"y\":419.640625,\"width\":336,\"height\":44}"
+    },
+    {
+      "name": "phone home has no horizontal overflow",
+      "detail": ""
+    },
+    {
+      "name": "skip link is first in keyboard order",
+      "detail": ""
+    },
+    {
+      "name": "skip link focuses main",
+      "detail": ""
+    },
+    {
+      "name": "phone menu meets the touch-target size",
+      "detail": "{\"x\":250.828125,\"y\":-67.609375,\"width\":131.171875,\"height\":44.796875}"
+    },
+    {
+      "name": "phone menu opens by keyboard",
+      "detail": ""
+    },
+    {
+      "name": "phone menu restores focus after Escape",
+      "detail": ""
+    },
+    {
+      "name": "reduced motion removes animation and transition durations",
+      "detail": "0"
+    },
+    {
+      "name": "phone demo works at 200 percent text",
+      "detail": ""
+    },
+    {
+      "name": "phone demo reflows at 200 percent text",
+      "detail": ""
+    },
+    {
+      "name": "/ returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "/ has the route title",
+      "detail": "Class Capacity Truth — Show the right seat count"
+    },
+    {
+      "name": "/ has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/ has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "/demo?demo=1 returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "/demo?demo=1 has the route title",
+      "detail": "Demo — Class Capacity Truth"
+    },
+    {
+      "name": "/demo?demo=1 has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/demo?demo=1 has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "/app returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "/app has the route title",
+      "detail": "Classes — Class Capacity Truth"
+    },
+    {
+      "name": "/app has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/app has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "/app/reconciliation returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "/app/reconciliation has the route title",
+      "detail": "Calendar checks — Class Capacity Truth"
+    },
+    {
+      "name": "/app/reconciliation has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/app/reconciliation has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "/app/waitlist returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "/app/waitlist has the route title",
+      "detail": "Waitlist offers — Class Capacity Truth"
+    },
+    {
+      "name": "/app/waitlist has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/app/waitlist has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "/app/settings returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "/app/settings has the route title",
+      "detail": "Settings — Class Capacity Truth"
+    },
+    {
+      "name": "/app/settings has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/app/settings has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "/app/settings/billing returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "/app/settings/billing has the route title",
+      "detail": "Billing — Class Capacity Truth"
+    },
+    {
+      "name": "/app/settings/billing has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/app/settings/billing has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "/app/settings/data returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "/app/settings/data has the route title",
+      "detail": "School data — Class Capacity Truth"
+    },
+    {
+      "name": "/app/settings/data has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/app/settings/data has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "/app/operations returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "/app/operations has the route title",
+      "detail": "Operations — Class Capacity Truth"
+    },
+    {
+      "name": "/app/operations has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/app/operations has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "/privacy returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "/privacy has the route title",
+      "detail": "Privacy — Class Capacity Truth"
+    },
+    {
+      "name": "/privacy has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/privacy has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "/terms returns 200",
+      "detail": "200"
+    },
+    {
+      "name": "/terms has the route title",
+      "detail": "Terms — Class Capacity Truth"
+    },
+    {
+      "name": "/terms has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/terms has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "/repair-19-deliberate-missing returns 404",
+      "detail": "404"
+    },
+    {
+      "name": "/repair-19-deliberate-missing has the route title",
+      "detail": "Page not found — Class Capacity Truth"
+    },
+    {
+      "name": "/repair-19-deliberate-missing has one h1 and main",
+      "detail": ""
+    },
+    {
+      "name": "/repair-19-deliberate-missing has no serious or critical Axe issue",
+      "detail": ""
+    },
+    {
+      "name": "404 retains legal links",
+      "detail": ""
+    },
+    {
+      "name": "checked pages log no unexpected console errors",
+      "detail": ""
+    },
+    {
+      "name": "checked pages raise no page errors",
+      "detail": ""
+    }
+  ],
+  "consoleErrors": [],
+  "pageErrors": [],
+  "verdict": "PASS"
+}

@@ -1,3 +1,44 @@
+# Verification 23 handoff — PASS (2026-09-06)
+
+Work order: `class-capacity-truth-verify-23`
+
+Implementation reviewed: `e449d5725a6bd2e69e2982d60ade5b5001f90093`
+
+Documentation commit: `8793edb0005ebccc1c74212eb6ba82df6b8fbfad`
+
+Live URL: <https://class-capacity-truth.sociobot.in>
+
+**PASS — zero findings and zero untested claims.** The fresh live desktop and
+phone checks state the job, audience, and sample action before scrolling. The
+isolated one-click sample booked, reset, rejected invalid/full/cutoff paths,
+and did not write real data. All 24 exact declared claim commands passed from
+a clean checkout, as did `npm test`, typecheck, lint, build, and 28/28 browser
+tests. Live health reports the exact candidate and a ready database; owned
+topology, rate-limit, privacy, accessibility, 404, route, link, and legal-page
+checks passed. Fresh mobile Lighthouse scored 100 in all four categories.
+
+The strict Review 4 copy findings are closed in the candidate: the live 404
+uses factual recovery copy with no decorative footer label, and the waitlist
+uses **saved offer receipts**. All prior review and verification findings,
+including minor findings, were rechecked and remain closed. Evidence and the
+full report are `.factory/verification-23.md` and
+`.factory/verification-evidence-23/`.
+
+How to verify: run `npm ci`, each exact test command in `.factory/claims.json`,
+`npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, and
+`CI=1 npm run test:e2e -- --retries=0 --reporter=line`. For live checks run
+`/opt/fleet/lib/verify-url.sh https://class-capacity-truth.sociobot.in
+<evidence-directory>` and `node scripts/verify-live-browser.mjs` with
+`EVIDENCE_DIR` set.
+
+Controller stage remains `building-m1`. The plan records M1–M4 as shipped and
+M5 as planned; M5 was not treated as current. Full CIAM sign-in, payment and
+entitlement completion, and optional SMTP delivery remain external
+dependencies. No code, deployment, cloud resource, or real school data was
+changed.
+
+---
+
 # Repair 20 handoff — PASS (2026-09-06)
 
 Work order: `class-capacity-truth-repair-20`

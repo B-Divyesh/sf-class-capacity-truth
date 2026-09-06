@@ -280,7 +280,7 @@ function ClassCard({ session, loading = false }: { session: ClassSession; loadin
   return (
     <article className="class-card" aria-hidden={loading || undefined}>
       <div className="class-card-heading"><div><h2>{session.name}</h2><p>{formatStart(session.startsAt)} · {session.timezone}</p></div><strong className={`status status-${session.availability}`}>{availabilityText(session)}</strong></div>
-      <CapacityRail capacity={session.capacity} confirmed={session.confirmed} label={`${session.confirmed} confirmed, ${session.openSeats} open`} />
+      <CapacityRail capacity={session.capacity} confirmed={session.confirmed} label={`${session.confirmed} confirmed, ${session.openSeats} open`} focusable={!loading} />
       {session.availability === "available" && (loading ? <span className="button primary">Book this sample class</span> : <AppLink className="button primary" href={`/book/${session.publicId}`}>Book this sample class</AppLink>)}
       {session.availability === "full" && <><p className="state-explanation">This class is full. Choose the upper primary class to try a booking.</p>{loading ? <span className="text-action">View the full class</span> : <AppLink className="text-action" href={`/book/${session.publicId}`}>View the full class</AppLink>}</>}
       {session.availability === "cutoff" && <><p className="state-explanation">The booking cutoff has passed. Choose the upper primary class to try a booking.</p>{loading ? <span className="text-action">View the closed class</span> : <AppLink className="text-action" href={`/book/${session.publicId}`}>View the closed class</AppLink>}</>}
@@ -505,9 +505,9 @@ function AuthCallbackPage() {
   return <main id="main" tabIndex={-1} className="page-width app-main"><h1 tabIndex={-1}>Finish staff sign in</h1>{error ? <StatePanel tone="error" title="Sign-in stopped" detail={error} action={<AppLink className="button secondary" href="/app">Return to the workspace</AppLink>} /> : <LoadingState />}</main>;
 }
 
-function CapacityRail({ capacity, confirmed, label, compact = false, animate = false }: { capacity: number; confirmed: number; label: string; compact?: boolean; animate?: boolean }) {
+function CapacityRail({ capacity, confirmed, label, compact = false, animate = false, focusable = true }: { capacity: number; confirmed: number; label: string; compact?: boolean; animate?: boolean; focusable?: boolean }) {
   return (
-    <div className={`capacity-rail${compact ? " compact" : ""}${animate ? " just-booked" : ""}`} role="img" aria-label={label}>
+    <div className={`capacity-rail${compact ? " compact" : ""}${animate ? " just-booked" : ""}`} role="img" aria-label={label} tabIndex={focusable ? 0 : -1}>
       <span className="rail-line" aria-hidden="true" />
       {Array.from({ length: capacity }, (_, index) => <span className={`seat-bead ${index < confirmed ? "confirmed" : "open"}`} aria-hidden="true" key={index}>{index + 1}</span>)}
     </div>
